@@ -3,4 +3,6 @@
 
 # v.1.0.0
 # documentation 
-## in process ... for now see index.html
+## in process ... for now see index.html and demo
+# Demo
+## https://meshesha.github.io/pptxjs/
