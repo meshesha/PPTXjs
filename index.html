@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>PPTXjs - Meshesha</title>
+
+<link rel="stylesheet" href="./css/pptxjs.css">
+<link rel="stylesheet" href="./css/nv.d3.min.css">
+
+<script type="text/javascript" src="./js/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="./js/jszip.min.js"></script>
+<script type="text/javascript" src="./js/tXml.min.js"></script>
+<script type="text/javascript"  src="./js/jszip-utils.js"></script>
+<script type="text/javascript" src="./js/functions.js"></script>
+<script type="text/javascript" src="./js/colz.class.min.js"></script>
+<script type="text/javascript" src="./js/jquery.fullscreen-min.js"></script>
+<script type="text/javascript" src="./js/d3.min.js"></script>
+<script type="text/javascript" src="./js/nv.d3.min.js"></script>
+<script type="text/javascript" src="./js/pptxjs.js"></script>
+<script type="text/javascript" src="./js/divs2slides.js"></script>
+<script type="text/javascript">
+    $(function() {
+		var oldWidth, oldMargin ,isFullscreenMode=false;
+		$("#fullscreen-btn").on("click", function(){
+			 			
+			if(!isFullscreenMode){
+				oldWidth = $("#result .slide").css("width");
+				oldMargin = $("#result .slide").css("margin");
+				$("#result .slide").css({
+					"width": "99%",
+					"margin": "0 auto"
+				})
+				$("#result").toggleFullScreen();
+				isFullscreenMode = true;
+			}else{
+				$("#result .slide").css({
+					"width": oldWidth,
+					"margin": oldMargin
+				})
+				$("#result").toggleFullScreen();
+				isFullscreenMode = false;
+			}		
+		});
+		$(document).bind("fullscreenchange", function() {
+			if(!$(document).fullScreen()){
+				$("#result .slide").css({
+					"width": oldWidth,
+  					"margin": oldMargin
+				})
+			}
+		});
+    });
+</script>
+<style>
+	html, body { margin: 0; padding: 0; }
+	#warper { margin-right: auto; margin-left: auto; width: 900px; }
+</style>
+</head>
+<body>
+	<div id="warper">
+		<input id="uploadFileInput" type="file" />
+		<br><br>
+		<div id="container">
+			<input id="fullscreen-btn" type="button" value="Fullscreen" />
+			<br>
+			<div  id="result"></div>
+		</div>
+	</div>
+<script>
+	$("#result").pptxToHtml({
+		pptxFileUrl: "Sample_12.pptx",
+		fileInputId: "uploadFileInput",
+		slideMode: true,
+		keyBoardShortCut: false,
+		slideModeConfig: {
+			first: 1,
+            nav: true, /** true,false : show or not nav buttons*/
+			navTxtColor: "white", /** color */
+            navNextTxt:"&#8250;", //">"
+			navPrevTxt: "&#8249;", //"<"
+			showPlayPauseBtn: true,/** true,false */
+            keyBoardShortCut: false, /** true,false */
+            showSlideNum: true, /** true,false */
+            showTotalSlideNum: true, /** true,false */
+            autoSlide: 2, /** false or seconds (the pause time between slides) , F8 to active(keyBoardShortCut: true) */
+            randomAutoSlide: true, /** true,false ,autoSlide:true */ 
+            loop: true,  /** true,false */
+            background: "black", /** false or color*/
+            transition: "default", /** transition type: "slid","fade","default","random" , to show transition efects :transitionTime > 0.5 */
+            transitionTime: 1 /** transition time in seconds */
+		}
+	});
+	//Sample_12.pptx
+	//uploadFileInput
+</script>
+
+</body>
+</html>
