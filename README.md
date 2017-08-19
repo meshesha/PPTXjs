@@ -1,4 +1,6 @@
 # PPTXjs
-jQuery plugin for convertation pptx to html 
+## jQuery plugin for convertation pptx to html 
 
-# soon...
+# v.1.0.0
+# documentation 
+## in process ... for now see index.html
