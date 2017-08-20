@@ -1,6 +1,6 @@
 /**
  * pptxjs.js
- * Ver. : 1.0.0
+ * Ver. : 1.0.1
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
@@ -845,16 +845,7 @@
                     case "snip2SameRect":
                     case "snipRoundRect":
                     case "squareTabs":
-                    case "star10":
-                    case "star12":
-                    case "star16":
-                    case "star24":
-                    case "star32":
-                    case "star4":
-                    case "star5":
-                    case "star6":
-                    case "star7":
-                    case "star8":
+
                     case "sun":
                     case "teardrop":
                     case "upArrowCallout":
@@ -994,6 +985,59 @@
                             (5/8)*w+" "+h+","+(7/8)*w+" "+(7/8)*h+","+w+" "+(5/8)*h+","+w+" "+(3/8)*h+","+(7/8)*w+" "+h/8+","+(5/8)*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
+                    case "star4":
+                    case "star5":
+                    case "star6":
+                    case "star7":
+                    case "star8":    
+                    case "star10":
+                    case "star12":
+                    case "star16":
+                    case "star24":
+                    case "star32":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);//[0]["attrs"]["fmla"];
+                        var starNum = shapType.substr(4);
+                        var shapAdjst1 , adj;
+                        switch(starNum){
+                            case "4":
+                                adj = 30;
+                                break;
+                            case "5":
+                                adj = 40;
+                                break;
+                            case "6":
+                                adj = 60;
+                                break;
+                            case "7":
+                                adj = 70;
+                                break;
+                            case "8":
+                                adj = 77;
+                                break;
+                            case "10":
+                                adj = 86;
+                                break;
+                            case "12":
+                            case "16":
+                            case "24":
+                            case "32":
+                                adj = 75;
+                                break;
+                        }
+                        if(shapAdjst !== undefined){
+                            shapAdjst1 = getTextByPathList(shapAdjst, ["attrs", "fmla"]);
+                            if(shapAdjst1 === undefined){
+                                shapAdjst1 = shapAdjst[0]["attrs"]["fmla"];
+                            }
+                            if(shapAdjst1 !== undefined){
+                                adj = 2*parseInt(shapAdjst1.substr(4)) /1000;
+                            }
+                        }
+                        
+                        var points = shapeStar(adj,starNum);
+                        result += " <polygon points='"+points+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
                     case "bentConnector3":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
                         //console.log("isFlipV: "+String(isFlipV)+"\nshapAdjst: "+shapAdjst)
@@ -1056,7 +1100,7 @@
                         break;
                     case "rightArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;//0.5;
                         var sAdj2,sAdj2_val = 0.5;
                         var max_sAdj2_const = w/h;
                         if(shapAdjst_ary !== undefined){
@@ -1080,7 +1124,7 @@
                         break;
                     case "leftArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;//0.5;
                         var sAdj2,sAdj2_val = 0.5;
                         var max_sAdj2_const = w/h;
                         if(shapAdjst_ary !== undefined){
@@ -1104,7 +1148,7 @@
                         break;
                     case "downArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;//0.5;
                         var sAdj2,sAdj2_val = 0.5;
                         var max_sAdj2_const = h/w;
                         if(shapAdjst_ary !== undefined){
@@ -1128,7 +1172,7 @@
                         break; 
                     case "upArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;//0.5;
                         var sAdj2,sAdj2_val = 0.5;
                         var max_sAdj2_const = h/w;
                         if(shapAdjst_ary !== undefined){
@@ -1150,8 +1194,8 @@
                         break;
                     case "leftRightArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
-                        var sAdj2,sAdj2_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;
+                        var sAdj2,sAdj2_val = 0.25;
                         var max_sAdj2_const = w/h;
                         if(shapAdjst_ary !== undefined){
                             for(var i=0; i<shapAdjst_ary.length; i++){
@@ -1175,8 +1219,8 @@
                         break;
                     case "upDownArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var sAdj1,sAdj1_val = 0.5;
-                        var sAdj2,sAdj2_val = 0.5;
+                        var sAdj1,sAdj1_val = 0.25;
+                        var sAdj2,sAdj2_val = 0.25;
                         var max_sAdj2_const = h/w;
                         if(shapAdjst_ary !== undefined){
                             for(var i=0; i<shapAdjst_ary.length; i++){
@@ -1384,7 +1428,37 @@
             
             return result;
         }
-
+        function shapeStar(adj, starNum){
+            var innerRadius = adj; /*1-100*/
+            var outerRadius = 100;//star.outerRadius;
+            var numPoints = starNum;/*1-100*/
+            var center = Math.max(innerRadius, outerRadius);
+            var angle  = Math.PI / numPoints;
+            var points = [];  
+            
+            for (var i = 0; i < numPoints * 2; i++) {
+              var radius = i & 1 ? innerRadius : outerRadius;  
+              points.push(center + radius * Math.sin(i * angle));
+              points.push(center - radius * Math.cos(i * angle));
+            }
+            
+            return points;            
+        }
+        /*
+        function shapePolygon(sidesNum) {
+            var sides  = sidesNum;
+            var radius = 100;
+            var angle  = 2 * Math.PI / sides;
+            var points = []; 
+            
+            for (var i = 0; i < sides; i++) {
+                points.push(radius + radius * Math.sin(i * angle));
+                points.push(radius - radius * Math.cos(i * angle));
+            }
+            
+            return points;
+        }
+        */       
         function processPicNode(node, warpObj) {
             
             
@@ -1734,7 +1808,7 @@
                     text = "&nbsp;";
                 }
             }
-            
+            //console.log("genSpanElement: ",node)
             var styleText = 
                 "color:" + getFontColor(node, type, slideMasterTextStyles) + 
                 ";font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + 
@@ -2320,7 +2394,7 @@
 
         function getFontColor(node, type, slideMasterTextStyles) {
             var solidFillNode = getTextByPathStr(node, "a:rPr a:solidFill");
-
+            //console.log(node,solidFillNode)
             var color =   getSolidFill(solidFillNode);
             //console.log(themeContent)
             //var schemeClr = getTextByPathList(buClrNode ,["a:schemeClr", "attrs","val"]);
