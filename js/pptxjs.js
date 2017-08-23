@@ -220,7 +220,6 @@
                 }
             }
         }
-        ///////////////////////////////////From worker.js file ////////////////////////////////////////////////////////////////////////////////        
         function processPPTX(zip) {
             var post_ary = [];
             var dateBefore = new Date();
@@ -537,7 +536,7 @@
                 case "p:graphicFrame":    // Chart, Diagram, Table
                     result = processGraphicFrameNode(nodeValue, warpObj);
                     break;
-                case "p:grpSp":    // 群組
+                case "p:grpSp":    
                     result = processGroupSpNode(nodeValue, warpObj);
                     break;
                 default:
@@ -1277,7 +1276,7 @@
                 
                 // TextBody
                 if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 }
                 result += "</div>";
             }else if(custShapType !== undefined){
@@ -1400,7 +1399,7 @@
                 
                 // TextBody
                 if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 }
                 result += "</div>";
 
@@ -1420,7 +1419,7 @@
                 
                 // TextBody
                 if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 }
                 result += "</div>";
                 
@@ -1523,7 +1522,7 @@
             // TODO:
         }
 
-        function genTextBody(textBodyNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+        function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
 
 
             var text = "";
@@ -1546,15 +1545,15 @@
                     //rtlStr = "";//"dir='"+isRTL+"'";
 
                     text += "<div  class='" + getHorizontalAlign(pNode, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + "'>";
-                    text += genBuChar(pNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    text += genBuChar(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
 
                     if (rNode === undefined) {
                         // without r
-                        text += genSpanElement(pNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                        text += genSpanElement(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                     } else if (rNode.constructor === Array) {
                         // with multi r
                         for (var j=0; j<rNode.length; j++) {
-                            text += genSpanElement(rNode[j], slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                            text += genSpanElement(rNode[j], spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                             //////////////////Amir////////////
                             if(pNode["a:br"] !== undefined){
                                 text += "<br>";
@@ -1563,7 +1562,7 @@
                         }
                     } else {
                         // with one r
-                        text += genSpanElement(rNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                        text += genSpanElement(rNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                     }
                     text += "</div>";
                 }
@@ -1576,14 +1575,14 @@
                 //rtlStr = "";//"dir='"+isRTL+"'";
 
                 text += "<div class='slide-prgrph " + getHorizontalAlign(pNode, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + "'>";
-                text += genBuChar(pNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                text += genBuChar(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 if (rNode === undefined) {
                     // without r
-                    text += genSpanElement(pNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    text += genSpanElement(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 } else if (rNode.constructor === Array) {
                     // with multi r
                     for (var j=0; j<rNode.length; j++) {
-                        text += genSpanElement(rNode[j], slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                        text += genSpanElement(rNode[j], spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                         //////////////////Amir////////////
                         if(pNode["a:br"] !== undefined){
                             text += "<br>";
@@ -1592,7 +1591,7 @@
                     }
                 } else {
                     // with one r
-                    text += genSpanElement(rNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                    text += genSpanElement(rNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 }
                 text += "</div>";
             }
@@ -1600,17 +1599,20 @@
             return text;
         }
 
-        function genBuChar(node, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+        function genBuChar(node, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
             ///////////////////////////////////////Amir///////////////////////////////
             var sldMstrTxtStyles = warpObj["slideMasterTextStyles"];
 
             var rNode = node["a:r"];
+            if(rNode.constructor === Array){
+                rNode = rNode[0];
+            }
             var dfltBultColor,dfltBultSize,bultColor,bultSize;
             if (rNode !== undefined) {
-                dfltBultColor = getFontColor(rNode, type, sldMstrTxtStyles);
+                dfltBultColor = getFontColor(rNode, spNode, type, sldMstrTxtStyles);
                 dfltBultSize = getFontSize(rNode, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);       
             }else{
-                dfltBultColor = getFontColor(node, type, sldMstrTxtStyles);
+                dfltBultColor = getFontColor(node, spNode, type, sldMstrTxtStyles);
                 dfltBultSize = getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);         
             }
             //console.log("Bullet Size: " + bultSize);
@@ -1797,7 +1799,7 @@
             return bullet;
         }
 
-        function  genSpanElement(node, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+        function  genSpanElement(node, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
             
             var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
             
@@ -1810,7 +1812,7 @@
             }
             //console.log("genSpanElement: ",node)
             var styleText = 
-                "color:" + getFontColor(node, type, slideMasterTextStyles) + 
+                "color:" + getFontColor(node, spNode, type, slideMasterTextStyles) + 
                 ";font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + 
                 ";font-family:" + getFontType(node, type, slideMasterTextStyles) + 
                 ";font-weight:" + getFontBold(node, type, slideMasterTextStyles) + 
@@ -2030,7 +2032,7 @@
                     
                     if (tcNodes.constructor === Array) {
                         for (var j=0; j<tcNodes.length; j++) {
-                            var text = genTextBody(tcNodes[j]["a:txBody"], undefined, undefined, undefined, warpObj);        
+                            var text = genTextBody(tcNodes[j]["a:txBody"], node, undefined, undefined, undefined, warpObj);        
                             var rowSpan = getTextByPathList(tcNodes[j], ["attrs", "rowSpan"]);
                             var colSpan = getTextByPathList(tcNodes[j], ["attrs", "gridSpan"]);
                             var vMerge = getTextByPathList(tcNodes[j], ["attrs", "vMerge"]);
@@ -2277,10 +2279,37 @@
         }
 
         function genDiagram(node, warpObj) {
+            //console.log(warpObj["slideResObj"])
+            //readXmlFile(zip, sldFileName)
+            /**files define the diagram:
+             * 1-colors#.xml,
+             * 2-data#.xml, 
+             * 3-layout#.xml,
+             * 4-quickStyle#.xml which together .
+             * There is also a fifth part, drawing#.xml, which Microsoft added as an extension for persisting diagram layout information.
+             */
             var order = node["attrs"]["order"];
+            var zip = warpObj["zip"];
             var xfrmNode = getTextByPathList(node, ["p:xfrm"]);
+            var dgmRelIds = getTextByPathList(node, ["a:graphic","a:graphicData","dgm:relIds","attrs"]);
+             console.log(dgmRelIds)
+            var dgmClrFileId = dgmRelIds["r:cs"];
+            var dgmDataFileId = dgmRelIds["r:dm"];
+            var dgmLayoutFileId = dgmRelIds["r:lo"];
+            var dgmQuickStyleFileId = dgmRelIds["r:qs"];
+            var dgmClrFileName = warpObj["slideResObj"][dgmClrFileId].target,
+                dgmDataFileName = warpObj["slideResObj"][dgmDataFileId].target,
+                dgmLayoutFileName = warpObj["slideResObj"][dgmLayoutFileId].target;
+                dgmQuickStyleFileName = warpObj["slideResObj"][dgmQuickStyleFileId].target;
+            console.log(dgmClrFileName,"\n",dgmDataFileName,"\n",dgmLayoutFileName,"\n",dgmQuickStyleFileName);
+            var dgmClr = readXmlFile(zip, dgmClrFileName);
+            var dgmData = readXmlFile(zip, dgmDataFileName);
+            var dgmLayout = readXmlFile(zip, dgmLayoutFileName);
+            var dgmQuickStyle = readXmlFile(zip, dgmQuickStyleFileName);
+            console.log(dgmClr,dgmData,dgmLayout,dgmQuickStyle)
             return "<div class='block content' style='border: 1px dotted;" + 
-                        getPosition(xfrmNode, undefined, undefined) + getSize(xfrmNode, undefined, undefined) + 
+                        getPosition(xfrmNode, undefined, undefined) + 
+                        getSize(xfrmNode, undefined, undefined) + 
                     "'>TODO: diagram</div>";
         }
 
@@ -2392,10 +2421,18 @@
             return (typeface === undefined) ? "inherit" : typeface;
         }
 
-        function getFontColor(node, type, slideMasterTextStyles) {
+        function getFontColor(node, spNode, type, slideMasterTextStyles) {
             var solidFillNode = getTextByPathStr(node, "a:rPr a:solidFill");
-            //console.log(node,solidFillNode)
-            var color =   getSolidFill(solidFillNode);
+            var color;
+            if(solidFillNode === undefined){
+                var sPstyle = getTextByPathList(spNode, ["p:style","a:fontRef"]);
+                if(sPstyle !== undefined){
+                    color = getSolidFill(sPstyle);
+                }
+            }else{
+                color =   getSolidFill(solidFillNode);
+            }
+            
             //console.log(themeContent)
             //var schemeClr = getTextByPathList(buClrNode ,["a:schemeClr", "attrs","val"]);
             return (color === undefined || color === "FFF") ? "#000" : "#" + color;
@@ -3574,11 +3611,6 @@
             ptrn += '</pattern>';
             return ptrn;
         }
-        ////////////////////////////////////////End worke.js file ////////////////////////////////////////////////////////////////////////////////////////////        
-        
- 		//$("#to-reveal-btn").click(function () {
-
-       //});
         
         function processMsgQueue(queue) {
             for (var i=0; i<queue.length; i++) {
