@@ -4,7 +4,15 @@
 
 # Version: 
 ### 1.0.0
+# environment
+### browsers:
+- IE > 10
+- Edge
+- FireFox
 # documentation 
 ### in process ... for now see index.html and demo
 # Demo
-## https://meshesha.github.io/pptxjs/
+### https://meshesha.github.io/pptxjs/
+# License
+- Copyright © 2017 Meshesha
+- MIT
