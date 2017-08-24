@@ -594,11 +594,11 @@
             *  966 </xsd:complexType>
             */
             
-            var id = node["p:nvSpPr"]["p:cNvPr"]["attrs"]["id"];
-            var name = node["p:nvSpPr"]["p:cNvPr"]["attrs"]["name"];
-            var idx = (node["p:nvSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["idx"];
-            var type = (node["p:nvSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["type"];
-            var order = node["attrs"]["order"];
+            var id = getTextByPathList(node, ["p:nvSpPr","p:cNvPr","attrs","id"]);
+            var name = getTextByPathList(node, ["p:nvSpPr","p:cNvPr","attrs","name"]);
+            var idx = (getTextByPathList(node, ["p:nvSpPr","p:nvPr","p:ph"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr","p:nvPr","p:ph","attrs","idx"]);
+            var type = (getTextByPathList(node, ["p:nvSpPr","p:nvPr","p:ph"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr","p:nvPr","p:ph","attrs","type"]);
+            var order = getTextByPathList(node, ["attrs","order"]);
             
             var slideLayoutSpNode = undefined;
             var slideMasterSpNode = undefined;
@@ -665,6 +665,16 @@
             //rotate
             var rotate = angleToDegrees(getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
             //console.log("rotate: "+rotate);
+            var txtRotate;
+            var txtXframeNode = getTextByPathList(node, ["p:txXfrm"]);
+            if (txtXframeNode !== undefined){
+                var txtXframeRot =  getTextByPathList(txtXframeNode,["attrs","rot"]);
+                if (txtXframeRot !== undefined){
+                    txtRotate = angleToDegrees(txtXframeRot)+90;
+                }else{
+                    txtRotate = rotate;
+                }
+            }
             //////////////////////////////////////////////////
             if (shapType !== undefined || custShapType !== undefined) {
                 var off = getTextByPathList(slideXfrmNode, ["a:off", "attrs"]);
@@ -844,7 +854,6 @@
                     case "snip2SameRect":
                     case "snipRoundRect":
                     case "squareTabs":
-
                     case "sun":
                     case "teardrop":
                     case "upArrowCallout":
@@ -1271,7 +1280,7 @@
                             getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
                             getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
                             " z-index: " + order + ";" +
-                            "transform: rotate(" +rotate+ "deg);"+
+                            "transform: rotate(" +txtRotate+ "deg);"+
                         "'>";
                 
                 // TextBody
@@ -1394,7 +1403,7 @@
                             getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
                             getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
                             " z-index: " + order + ";" +
-                            "transform: rotate(" +rotate+ "deg);"+
+                            "transform: rotate(" +txtRotate+ "deg);"+
                         "'>";
                 
                 // TextBody
@@ -1414,7 +1423,7 @@
                             getBorder(node, false) +
                             getShapeFill(node, false,warpObj) +
                             " z-index: " + order + ";" +
-                            "transform: rotate(" +rotate+ "deg);"+
+                            "transform: rotate(" +txtRotate+ "deg);"+
                         "'>";
                 
                 // TextBody
@@ -1603,8 +1612,8 @@
             ///////////////////////////////////////Amir///////////////////////////////
             var sldMstrTxtStyles = warpObj["slideMasterTextStyles"];
 
-            var rNode = node["a:r"];
-            if(rNode.constructor === Array){
+            var rNode = getTextByPathList(node,["a:r"]);
+            if(rNode !== undefined && rNode.constructor === Array){
                 rNode = rNode[0];
             }
             var dfltBultColor,dfltBultSize,bultColor,bultSize;
@@ -2279,20 +2288,21 @@
         }
 
         function genDiagram(node, warpObj) {
-            //console.log(warpObj["slideResObj"])
+            //console.log(warpObj)
             //readXmlFile(zip, sldFileName)
             /**files define the diagram:
              * 1-colors#.xml,
              * 2-data#.xml, 
              * 3-layout#.xml,
-             * 4-quickStyle#.xml which together .
-             * There is also a fifth part, drawing#.xml, which Microsoft added as an extension for persisting diagram layout information.
+             * 4-quickStyle#.xml.
+             * 5-drawing#.xml, which Microsoft added as an extension for persisting diagram layout information.
              */
+            ///get colors#.xml, data#.xml , layout#.xml , quickStyle#.xml
             var order = node["attrs"]["order"];
             var zip = warpObj["zip"];
             var xfrmNode = getTextByPathList(node, ["p:xfrm"]);
             var dgmRelIds = getTextByPathList(node, ["a:graphic","a:graphicData","dgm:relIds","attrs"]);
-             console.log(dgmRelIds)
+             //console.log(dgmRelIds)
             var dgmClrFileId = dgmRelIds["r:cs"];
             var dgmDataFileId = dgmRelIds["r:dm"];
             var dgmLayoutFileId = dgmRelIds["r:lo"];
@@ -2301,16 +2311,46 @@
                 dgmDataFileName = warpObj["slideResObj"][dgmDataFileId].target,
                 dgmLayoutFileName = warpObj["slideResObj"][dgmLayoutFileId].target;
                 dgmQuickStyleFileName = warpObj["slideResObj"][dgmQuickStyleFileId].target;
-            console.log(dgmClrFileName,"\n",dgmDataFileName,"\n",dgmLayoutFileName,"\n",dgmQuickStyleFileName);
+            //console.log(dgmClrFileName,"\n",dgmDataFileName,"\n",dgmLayoutFileName,"\n",dgmQuickStyleFileName);
             var dgmClr = readXmlFile(zip, dgmClrFileName);
             var dgmData = readXmlFile(zip, dgmDataFileName);
             var dgmLayout = readXmlFile(zip, dgmLayoutFileName);
             var dgmQuickStyle = readXmlFile(zip, dgmQuickStyleFileName);
-            console.log(dgmClr,dgmData,dgmLayout,dgmQuickStyle)
-            return "<div class='block content' style='border: 1px dotted;" + 
+            //console.log(dgmClr,dgmData,dgmLayout,dgmQuickStyle)
+             ///get drawing#.xml
+             var dgmDrwFileName = "";
+             var dataModelExt = getTextByPathList(dgmData, ["dgm:dataModel","dgm:extLst","a:ext","dsp:dataModelExt","attrs"]);
+            if(dataModelExt !== undefined){
+                var dgmDrwFileId = dataModelExt["relId"];
+                dgmDrwFileName =  warpObj["slideResObj"][dgmDrwFileId]["target"];
+            }
+            //console.log("dgmDrwFileName: ",dgmDrwFileName);
+            var dgmDrwFile = "";
+            if(dgmDrwFileName != ""){
+                dgmDrwFile =  readXmlFile(zip, dgmDrwFileName);
+            }
+            //console.log("dgmDrwFile: ",dgmDrwFile);
+            //processSpNode(node, warpObj)
+            var dgmDrwSpArray = getTextByPathList(dgmDrwFile,["dsp:drawing","dsp:spTree","dsp:sp"]);
+            var rslt="";
+            if(dgmDrwSpArray !== undefined){
+                var dgmDrwSpArrayLen = dgmDrwSpArray.length;
+                for(var i=0;i<dgmDrwSpArrayLen;i++){
+                    var dspSp = dgmDrwSpArray[i];
+                    var dspSpObjToStr = JSON.stringify(dspSp);
+                    var pSpStr = dspSpObjToStr.replace(/dsp:/g,"p:");
+                    var pSpStrToObj = JSON.parse(pSpStr);
+                    //console.log("pSpStrToObj["+i+"]: ",pSpStrToObj);
+                    rslt += processSpNode(pSpStrToObj, warpObj)
+                    //console.log("rslt["+i+"]: ",rslt);
+                }
+                // dgmDrwFile: "dsp:"-> "p:"
+            }
+
+            return "<div class='block content' style='" + 
                         getPosition(xfrmNode, undefined, undefined) + 
                         getSize(xfrmNode, undefined, undefined) + 
-                    "'>TODO: diagram</div>";
+                    "'>"+rslt+"</div>";
         }
 
         function getPosition(slideSpNode, slideLayoutSpNode, slideMasterSpNode) {
