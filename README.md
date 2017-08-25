@@ -10,7 +10,9 @@
 - Edge
 - FireFox
 # documentation 
-### in process ... for now see index.html 
+## in process ... for now see index.html 
+## Demo: 
+### https://meshesha.github.io/pptxjs/
 # License
 - Copyright © 2017 Meshesha
 - MIT
