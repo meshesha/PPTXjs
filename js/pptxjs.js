@@ -1,6 +1,6 @@
 /**
  * pptxjs.js
- * Ver. : 1.0.3
+ * Ver. : 1.0.4
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
@@ -163,7 +163,7 @@
              //'use strict';
             var zip = new JSZip(), s;
             if (typeof file === 'string') { // Load
-                zip = zip.load(file, { base64: true });
+                zip = zip.load(file, { base64: true });  //zip.load(file, { base64: true });
                 var rslt_ary = processPPTX(zip);
                 //s = readXmlFile(zip, 'ppt/tableStyles.xml');
                 for(var i=0;i<rslt_ary.length;i++){
@@ -809,8 +809,6 @@
                     case "folderCorner":
                     case "frame":
                     case "funnel":
-                    case "gear6":
-                    case "gear9":
                     case "halfFrame":
                     case "heart":
                     case "homePlate":
@@ -834,8 +832,6 @@
                     case "moon":
                     case "nonIsoscelesTrapezoid":
                     case "noSmoking":
-                    case "pie":
-                    case "pieWedge":
                     case "plaque":
                     case "plaqueTabs":
                     case "quadArrowCallout":
@@ -875,7 +871,7 @@
                         result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' rx='7' ry='7' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                                     "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
-                    case "bentConnector2":    // 直角 (path)
+                    case "bentConnector2": 
                         var d = "";
                         if (isFlipV) {
                             d = "M 0 " + w + " L " + h + " " + w + " L " + h + " 0";
@@ -1045,6 +1041,50 @@
                         var points = shapeStar(adj,starNum);
                         result += " <polygon points='"+points+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "pie":
+                    case "pieWedge":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var adj1, adj2 ,pieSize, shapAdjst1 , shapAdjst2;
+                        if(shapType == "pie"){
+                            adj1 = 0;
+                            adj2 = 270;
+                            pieSize = h;
+                        }else{ //pieWedge
+                            adj1 = 180;
+                            adj2 = 270;
+                            pieSize = 2*h;
+                        }
+                        if(shapAdjst !== undefined){
+                            shapAdjst1 = getTextByPathList(shapAdjst, ["attrs", "fmla"]);
+                            shapAdjst2 = shapAdjst1;
+                            if(shapAdjst1 === undefined){
+                                shapAdjst1 = shapAdjst[0]["attrs"]["fmla"];
+                                shapAdjst2 = shapAdjst[1]["attrs"]["fmla"];
+                            }
+                            if(shapAdjst1 !== undefined){
+                                adj1 = parseInt(shapAdjst1.substr(4)) /60000;
+                            }
+                            if(shapAdjst2 !== undefined){
+                                adj2 = parseInt(shapAdjst2.substr(4)) /60000;
+                            }
+                        }
+                        var pieVals = shapePie(pieSize,adj1,adj2);
+                        //console.log("shapAdjst: ",shapAdjst,"\nadj1: ",adj1,"\nadj2: ",adj2,"\npieVals: ",pieVals);
+                        result += "<path   d='"+pieVals[0]+"' transform='"+pieVals[1]+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "gear6":
+                    case "gear9":
+                        txtRotate = 0;
+                        var gearNum = shapType.substr(4) , d;
+                        if(gearNum == "6"){
+                            d = shapeGear(w,h/3.5,parseInt(gearNum));
+                        }else{ //gearNum=="9"
+                            d = shapeGear(w,h/3.5,parseInt(gearNum));
+                        }
+                        result += "<path   d='"+d+"' transform='rotate(20,"+(3/7)*h+","+(3/7)*h+")' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "bentConnector3":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
@@ -1451,6 +1491,71 @@
             }
             
             return points;            
+        }
+        function shapePie(pieSize,adj1,adj2){
+            var pieVal = parseInt(adj2);
+            var piAngle = parseInt(adj1);
+            var	size = parseInt(pieSize),
+            radius = (size / 2),
+            value = pieVal - piAngle;
+            if(value < 0){
+                value = 360 + value;
+            }
+            //console.log("value: ",value)      
+            value = Math.min(Math.max(value, 0), 360);
+                
+            //calculate x,y coordinates of the point on the circle to draw the arc to. 
+            var x = Math.cos((2 * Math.PI)/(360/value));
+            var y = Math.sin((2 * Math.PI)/(360/value));
+            
+            //should the arc go the long way round?
+            var longArc = (value <= 180) ? 0 : 1;
+
+            //d is a string that describes the path of the slice.
+            var d = "M" + radius + "," + radius + " L" + radius + "," + 0 + " A" + radius + "," + radius + " 0 " + longArc + ",1 " + (radius + y*radius) + "," + (radius - x*radius) + " z";	
+            var rot = "rotate("+(piAngle-270)+", "+radius+", "+radius+")";
+
+            return [d,rot];
+        }
+        function shapeGear(w,h,points) {
+              var innerRadius = h;//gear.innerRadius;
+              var outerRadius = 1.5*innerRadius; 
+              var cx = outerRadius;//Math.max(innerRadius, outerRadius),                   // center x
+                cy = outerRadius;//Math.max(innerRadius, outerRadius),                    // center y
+                notches =  points,//gear.points,                      // num. of notches
+                radiusO = outerRadius,                    // outer radius
+                radiusI = innerRadius,                    // inner radius
+                taperO  = 50,                     // outer taper %
+                taperI  = 35,                     // inner taper %
+            
+                // pre-calculate values for loop
+            
+                pi2     = 2 * Math.PI,            // cache 2xPI (360deg)
+                angle   = pi2 / (notches * 2),    // angle between notches
+                taperAI = angle * taperI * 0.005, // inner taper offset (100% = half notch)
+                taperAO = angle * taperO * 0.005, // outer taper offset
+                a       = angle,                  // iterator (angle)
+                toggle  = false;
+              // move to starting point
+            var d = " M"+(cx + radiusO * Math.cos(taperAO))+" "+ (cy + radiusO * Math.sin(taperAO));
+            
+            // loop
+            for (; a <= pi2+angle; a += angle) {
+                // draw inner to outer line
+                if (toggle) {
+                    d +=  " L"+(cx + radiusI * Math.cos(a - taperAI)) + "," + (cy + radiusI * Math.sin(a - taperAI));
+                    d +=  " L"+(cx + radiusO * Math.cos(a + taperAO)) + "," + (cy + radiusO * Math.sin(a + taperAO));
+                }else { // draw outer to inner line
+                    d +=  " L"+(cx + radiusO * Math.cos(a - taperAO)) + "," +  (cy + radiusO * Math.sin(a - taperAO)); // outer line
+                    d +=  " L"+(cx + radiusI * Math.cos(a + taperAI)) + "," +  (cy + radiusI * Math.sin(a + taperAI));// inner line
+                               
+                }
+                // switch level
+                toggle = !toggle;
+            }
+            // close the final line
+            d += " ";
+            return d;
         }
         /*
         function shapePolygon(sidesNum) {
