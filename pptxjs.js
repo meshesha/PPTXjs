@@ -1,6 +1,6 @@
 /**
  * pptxjs.js
- * Ver. : 1.0.3
+ * Ver. : 1.0.5
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
@@ -163,7 +163,7 @@
              //'use strict';
             var zip = new JSZip(), s;
             if (typeof file === 'string') { // Load
-                zip = zip.load(file, { base64: true });
+                zip = zip.load(file, { base64: true });  //zip.load(file, { base64: true });
                 var rslt_ary = processPPTX(zip);
                 //s = readXmlFile(zip, 'ppt/tableStyles.xml');
                 for(var i=0;i<rslt_ary.length;i++){
@@ -712,7 +712,11 @@
                     //fill="url(#imgPtrn)"
                     //console.log(svgBgImg)
                     result +=  svgBgImg ;
-                }        
+                }else{
+                    if(clrFillType != "SOLID_FILL" && clrFillType != "PATTERN_FILL" && shapType == "arc"){ //Temp solution for arc shape - TODO
+                        fillColor = "none";
+                    }
+                }
                 // Border Color
                 var border = getBorder(node, true);
                 
@@ -749,7 +753,6 @@
                     case "actionButtonMovie":
                     case "actionButtonReturn":
                     case "actionButtonSound":
-                    case "arc":
                     case "bevel":
                     case "blockArc":
                     case "borderCallout1":
@@ -809,8 +812,6 @@
                     case "folderCorner":
                     case "frame":
                     case "funnel":
-                    case "gear6":
-                    case "gear9":
                     case "halfFrame":
                     case "heart":
                     case "homePlate":
@@ -834,8 +835,6 @@
                     case "moon":
                     case "nonIsoscelesTrapezoid":
                     case "noSmoking":
-                    case "pie":
-                    case "pieWedge":
                     case "plaque":
                     case "plaqueTabs":
                     case "quadArrowCallout":
@@ -875,7 +874,7 @@
                         result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' rx='7' ry='7' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                                     "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
-                    case "bentConnector2":    // 直角 (path)
+                    case "bentConnector2": 
                         var d = "";
                         if (isFlipV) {
                             d = "M 0 " + w + " L " + h + " " + w + " L " + h + " 0";
@@ -1045,6 +1044,60 @@
                         var points = shapeStar(adj,starNum);
                         result += " <polygon points='"+points+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "pie":
+                    case "pieWedge":
+                    case "arc":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var adj1, adj2 ,H, shapAdjst1 , shapAdjst2 ,isClose;
+                        if(shapType == "pie"){
+                            adj1 = 0;
+                            adj2 = 270;
+                            H = h;
+                            isClose = true;
+                        }else if(shapType == "pieWedge"){ 
+                            adj1 = 180;
+                            adj2 = 270;
+                            H = 2*h;
+                            isClose = true;
+                        }else if(shapType == "arc"){
+                            adj1 = 0;
+                            adj2 = 270;
+                            H = h;
+                            isClose = false;
+                            //fillColor = "none"; //TODO: bug: why on dfault this is not not "none";
+                            console.log("arc shape: bug: why on default fillColor is not 'none': ",fillColor);
+                        }
+                        if(shapAdjst !== undefined){
+                            shapAdjst1 = getTextByPathList(shapAdjst, ["attrs", "fmla"]);
+                            shapAdjst2 = shapAdjst1;
+                            if(shapAdjst1 === undefined){
+                                shapAdjst1 = shapAdjst[0]["attrs"]["fmla"];
+                                shapAdjst2 = shapAdjst[1]["attrs"]["fmla"];
+                            }
+                            if(shapAdjst1 !== undefined){
+                                adj1 = parseInt(shapAdjst1.substr(4)) /60000;
+                            }
+                            if(shapAdjst2 !== undefined){
+                                adj2 = parseInt(shapAdjst2.substr(4)) /60000;
+                            }
+                        }
+                        var pieVals = shapePie(H,w,adj1,adj2,isClose);
+                        //console.log("shapType: ",shapType,"\nimgFillFlg: ",imgFillFlg,"\ngrndFillFlg: ",grndFillFlg,"\nshpId: ",shpId,"\nfillColor: ",fillColor);
+                        result += "<path   d='"+pieVals[0]+"' transform='"+pieVals[1]+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "gear6":
+                    case "gear9":
+                        txtRotate = 0;
+                        var gearNum = shapType.substr(4) , d;
+                        if(gearNum == "6"){
+                            d = shapeGear(w,h/3.5,parseInt(gearNum));
+                        }else{ //gearNum=="9"
+                            d = shapeGear(w,h/3.5,parseInt(gearNum));
+                        }
+                        result += "<path   d='"+d+"' transform='rotate(20,"+(3/7)*h+","+(3/7)*h+")' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "bentConnector3":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
@@ -1305,6 +1358,7 @@
                 var pathNodes =  getTextByPathList(pathLstNode, ["a:path"]);
                 var lnToNodes = pathNodes["a:lnTo"];
                 var cubicBezToNodes = pathNodes["a:cubicBezTo"];
+                var arcToNodes = pathNodes["a:arcTo"];
                 var sortblAry = [];
                 if(lnToNodes !== undefined){
                     Object.keys(lnToNodes).forEach(function(key) {
@@ -1347,11 +1401,40 @@
                                     ptObj.order = ptOrdr;
                                     ptObj.x = ptX;
                                     ptObj.y = ptY;
-                                    sortblAry.push(ptObj);                            
+                                    sortblAry.push(ptObj);
                                 });
                             });
                         }
                     });
+                }
+                if(arcToNodes !== undefined){
+                    //TODO
+                    
+                    var arcToNodesAttrs = arcToNodes["attrs"];
+                    var arcOrder = arcToNodesAttrs["order"];
+                    var hR = arcToNodesAttrs["hR"];
+                    var wR = arcToNodesAttrs["wR"];
+                    var stAng = arcToNodesAttrs["stAng"];
+                    var swAng = arcToNodesAttrs["swAng"];
+                    var shftX = 0;
+                    var shftY = 0;
+                    var arcToPtNode = getTextByPathList(arcToNodes, ["a:pt","attrs"]);
+                    if(arcToPtNode !== undefined){
+                        shftX = arcToPtNode["x"];
+                        shftY = arcToPtNode["y"];
+                        //console.log("shftX: ",shftX," shftY: ",shftY)
+                    }
+                    var ptObj = {};
+                    ptObj.type = "arcTo";
+                    ptObj.order = arcOrder;
+                    ptObj.hR = hR;
+                    ptObj.wR = wR;
+                    ptObj.stAng = stAng;
+                    ptObj.swAng = swAng;
+                    ptObj.shftX = shftX;
+                    ptObj.shftY = shftY;
+                    sortblAry.push(ptObj);                    
+                   
                 }
                 var sortByOrder = sortblAry.slice(0);
                 sortByOrder.sort(function(a,b) {
@@ -1365,7 +1448,7 @@
                         var Ly = parseInt(sortByOrder[k].y) * 96 / 914400;
                         d += "L" + Lx + "," + Ly;
                         k++;
-                    }else{ //"cubicBezTo"
+                    }else if(sortByOrder[k].type=="cubicBezTo"){ 
                         var Cx1 = parseInt(sortByOrder[k].x) * 96 / 914400;
                         var Cy1 = parseInt(sortByOrder[k].y) * 96 / 914400;
                         var Cx2 = parseInt(sortByOrder[k+1].x) * 96 / 914400;
@@ -1374,7 +1457,34 @@
                         var Cy3 = parseInt(sortByOrder[k+2].y) * 96 / 914400; 
 
                         d += "C" + Cx1 + "," + Cy1 +" "+ Cx2 + "," + Cy2 + " " + Cx3 + "," + Cy3;
-                        k += 3 ; 
+                        k += 3 ;
+                    }else if(sortByOrder[k].type=="arcTo"){
+                        var hR = parseInt(sortByOrder[k].hR) * 96 / 914400;
+                        var wR = parseInt(sortByOrder[k].wR) * 96 / 914400;
+                        var stAng = parseInt(sortByOrder[k].stAng) / 60000;
+                        var swAng = parseInt(sortByOrder[k].swAng) / 60000;
+                        //var shftX = parseInt(sortByOrder[k].shftX) * 96 / 914400;
+                        //var shftY = parseInt(sortByOrder[k].shftY) * 96 / 914400;
+                        var endAng = stAng + swAng;
+                        //console.log("hR:",hR," wR: ",wR," stAng:",stAng," endAng:",endAng," shftX:",shftX," shftY:",shftY)
+                        //x, y, radius, startAngle, endAngle
+                        /*
+                        var radiusH = hR;
+                        var radiusW = wR;
+                        var angle = stAng;
+                        while(angle <= endAng){
+                            var radians= angle * (Math.PI / 180);  // convert degree to radians
+                            var x = hR + Math.cos(radians) * radiusH;  
+                            var y = wR + Math.sin(radians) * radiusW;
+                            if(angle==stAng){
+                                d += " M "+ (x) + " " + (y);
+                            }
+                            d += " L "+x + " " + y;
+                            angle++;
+                        }
+                        */
+                        d += shapeArc(hR,wR,hR,wR,stAng,endAng);
+                        k++;
                     }
                 }
                 result += "<path d='" + d + "' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
@@ -1451,6 +1561,94 @@
             }
             
             return points;            
+        }
+        function shapePie(H,w,adj1,adj2,isClose){
+            var pieVal = parseInt(adj2);
+            var piAngle = parseInt(adj1);
+            var	size = parseInt(H),
+            radius = (size / 2),
+            value = pieVal - piAngle;
+            if(value < 0){
+                value = 360 + value;
+            }
+            //console.log("value: ",value)      
+            value = Math.min(Math.max(value, 0), 360);
+                
+            //calculate x,y coordinates of the point on the circle to draw the arc to. 
+            var x = Math.cos((2 * Math.PI)/(360/value));
+            var y = Math.sin((2 * Math.PI)/(360/value));
+            
+
+            //d is a string that describes the path of the slice.
+            var longArc, d ,rot; 
+            if(isClose){
+                longArc = (value <= 180) ? 0 : 1;
+                d = "M" + radius + "," + radius + " L" + radius + "," + 0 + " A" + radius + "," + radius + " 0 " + longArc + ",1 " + (radius + y*radius) + "," + (radius - x*radius) +" z";
+                rot = "rotate("+(piAngle-270)+", "+radius+", "+radius+")";
+            }else{
+                longArc = (value <= 180) ? 0 : 1;
+                var radius1 = radius;
+                var radius2 = w/2;
+                d = "M" + radius1 + "," + 0 + " A" + radius2 + "," + radius1 + " 0 " + longArc + ",1 " + (radius2 + y*radius2) + "," + (radius1 - x*radius1);
+                rot = "rotate("+(piAngle+90)+", "+radius+", "+radius+")";
+            }
+
+            return [d,rot];
+        }
+        function shapeGear(w,h,points) {
+              var innerRadius = h;//gear.innerRadius;
+              var outerRadius = 1.5*innerRadius; 
+              var cx = outerRadius;//Math.max(innerRadius, outerRadius),                   // center x
+                cy = outerRadius;//Math.max(innerRadius, outerRadius),                    // center y
+                notches =  points,//gear.points,                      // num. of notches
+                radiusO = outerRadius,                    // outer radius
+                radiusI = innerRadius,                    // inner radius
+                taperO  = 50,                     // outer taper %
+                taperI  = 35,                     // inner taper %
+            
+                // pre-calculate values for loop
+            
+                pi2     = 2 * Math.PI,            // cache 2xPI (360deg)
+                angle   = pi2 / (notches * 2),    // angle between notches
+                taperAI = angle * taperI * 0.005, // inner taper offset (100% = half notch)
+                taperAO = angle * taperO * 0.005, // outer taper offset
+                a       = angle,                  // iterator (angle)
+                toggle  = false;
+              // move to starting point
+            var d = " M"+(cx + radiusO * Math.cos(taperAO))+" "+ (cy + radiusO * Math.sin(taperAO));
+            
+            // loop
+            for (; a <= pi2+angle; a += angle) {
+                // draw inner to outer line
+                if (toggle) {
+                    d +=  " L"+(cx + radiusI * Math.cos(a - taperAI)) + "," + (cy + radiusI * Math.sin(a - taperAI));
+                    d +=  " L"+(cx + radiusO * Math.cos(a + taperAO)) + "," + (cy + radiusO * Math.sin(a + taperAO));
+                }else { // draw outer to inner line
+                    d +=  " L"+(cx + radiusO * Math.cos(a - taperAO)) + "," +  (cy + radiusO * Math.sin(a - taperAO)); // outer line
+                    d +=  " L"+(cx + radiusI * Math.cos(a + taperAI)) + "," +  (cy + radiusI * Math.sin(a + taperAI));// inner line
+                               
+                }
+                // switch level
+                toggle = !toggle;
+            }
+            // close the final line
+            d += " ";
+            return d;
+        }
+        function shapeArc(cX,cY,rX,rY,stAng,endAng){
+            var dData;
+            var angle = stAng;
+            while(angle <= endAng){
+                var radians = angle * (Math.PI / 180);  // convert degree to radians
+                var x = cX + Math.cos(radians) * rX;  
+                var y = cY + Math.sin(radians) * rY;
+                if(angle == stAng){
+                    dData = " M "+ x + " " + y;
+                }
+                dData += " L "+ x + " " + y;
+                angle++;
+            }
+            return dData;
         }
         /*
         function shapePolygon(sidesNum) {
@@ -3045,9 +3243,7 @@
             }
 
             if (fillColor !== undefined) {
-                
                 if(fillType == "GRADIENT_FILL"){
-
                     if (isSvgMode) {
                         // console.log("GRADIENT_FILL color", fillColor.color[0])
                         return fillColor;
@@ -3194,10 +3390,9 @@
             return img;
         }
         function getPatternFill(node){
-            //Need to test/////////////////////////////////////////////
             var color = "";
-            var bgClr = node["a:bgClr"];
-            color = getSolidFill(bgClr);
+            var fgClr = node["a:fgClr"];
+            color = getSolidFill(fgClr);
             return color;
         }
 
@@ -3339,21 +3534,38 @@
             }
             //console.log(slideLayoutClrOvride);
             var schmClrName =  schemeClr.substr(2);
-            switch (schmClrName) {
-                case "tx1":
-                case "tx2":
-                case "bg1":
-                case "bg2":
-                    schemeClr = "a:"+slideLayoutClrOvride[schmClrName];
-                    //console.log(schmClrName+ "=> "+schemeClr);
-                    break;
+            if(slideLayoutClrOvride !== undefined){
+                switch (schmClrName) {
+                    case "tx1":
+                    case "tx2":
+                    case "bg1":
+                    case "bg2":
+                        schemeClr = "a:"+slideLayoutClrOvride[schmClrName];
+                        //console.log(schmClrName+ "=> "+schemeClr);
+                        break;
+                }
+            }else{
+                switch (schmClrName) {
+                    case "tx1":
+                        schemeClr = "a:dk1";
+                        break;
+                    case "tx2":
+                        schemeClr = "a:dk2";
+                        break;
+                    case "bg1":
+                        schemeClr = "a:lt1";
+                        break;
+                    case "bg2":
+                        schemeClr = "a:lt2";
+                        break;
+                }
             }
-            
             var refNode = getTextByPathList(themeContent, ["a:theme", "a:themeElements", "a:clrScheme", schemeClr]);
             var color = getTextByPathList(refNode, ["a:srgbClr", "attrs", "val"]);
-            if (color === undefined) {
+            if (color === undefined && refNode !== undefined) {
                 color = getTextByPathList(refNode, ["a:sysClr", "attrs", "lastClr"]);
             }
+            //console.log(color)
             return color;
         }
 
