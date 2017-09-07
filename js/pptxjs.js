@@ -1669,7 +1669,7 @@
         */       
         function processPicNode(node, warpObj) {
             var rtrnData = "";
-            
+            var mediaPicFlag = false;
             var order = node["attrs"]["order"];
             
             var rid = node["p:blipFill"]["a:blip"]["attrs"]["r:embed"];
@@ -1701,6 +1701,7 @@
                     });
                     vdoBlob = URL.createObjectURL(blob);
                     mediaSupportFlag = true;
+                    mediaPicFlag = true;
                 }
             }
             //Audio
@@ -1737,6 +1738,7 @@
                     }
                     audioPlayerFlag = true;
                     mediaSupportFlag = true;
+                    mediaPicFlag = true;
                 }
             }            
             //console.log(node)
@@ -1759,7 +1761,7 @@
                     //'<button onclick="audio_player.pause()">Pause</button>';
                 }
             }
-            if(!mediaSupportFlag){
+            if(!mediaSupportFlag  && mediaPicFlag){
                 rtrnData +=  "<span style='color:red;font-size:40px;position: absolute;'>This media file Not supported by HTML5</span>";
             }
             if((vdoNode !== undefined || audioNode !== undefined) && !mediaProcess && mediaSupportFlag){
