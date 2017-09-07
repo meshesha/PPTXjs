@@ -1,6 +1,6 @@
 /**
  * pptxjs.js
- * Ver. : 1.0.5
+ * Ver. : 1.0.6
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
@@ -52,6 +52,7 @@
             fileInputId: "",
             slideMode: false, /** true,false*/
             keyBoardShortCut: false,  /** true,false ,condition: slideMode: true*/
+            mediaProcess: true, /** true,false: if true then process video and audio files */
             slideModeConfig: {
                 first: 1,
                 nav: true, /** true,false : show or not nav buttons*/
@@ -90,7 +91,7 @@
                 event.preventDefault();
                 var key = event.keyCode;
                 if(key==116 && !isSlideMode){ //F5
-                    console.log(key)
+                    //console.log(key)
                     isSlideMode = true;
                     $("#"+divId+" .slide").hide();
                     //setTimeout(function() {
@@ -140,7 +141,8 @@
             $("#"+settings.fileInputId).on("change", function(evt) {
                 $result.html("");
                 var file = evt.target.files[0];
-               // var fileName = file.name;
+                // var fileName = file.name;
+                var fileSize = file.size;
                 var fileType = file.type;
                 if(fileType=="application/vnd.openxmlformats-officedocument.presentationml.presentation"){
                     var reader = new FileReader();
@@ -718,7 +720,7 @@
                     }
                 }
                 // Border Color
-                var border = getBorder(node, true);
+                var border = getBorder(node, true, "shape");
                 
                 var headEndNodeAttrs = getTextByPathList(node, ["p:spPr", "a:ln", "a:headEnd", "attrs"]);
                 var tailEndNodeAttrs = getTextByPathList(node, ["p:spPr", "a:ln", "a:tailEnd", "attrs"]);
@@ -1530,7 +1532,7 @@
                         "' style='" + 
                             getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
                             getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) + 
-                            getBorder(node, false) +
+                            getBorder(node, false, "shape") +
                             getShapeFill(node, false,warpObj) +
                             " z-index: " + order + ";" +
                             "transform: rotate(" +txtRotate+ "deg);"+
@@ -1666,7 +1668,7 @@
         }
         */       
         function processPicNode(node, warpObj) {
-            
+            var rtrnData = "";
             
             var order = node["attrs"]["order"];
             
@@ -1678,13 +1680,94 @@
             var mimeType = "";
             var xfrmNode = node["p:spPr"]["a:xfrm"];
             ///////////////////////////////////////Amir//////////////////////////////
-            var rotate = angleToDegrees(node["p:spPr"]["a:xfrm"]["attrs"]["rot"]);
+            var rotate = 0;
+            var rotateNode =  getTextByPathList(node, ["p:spPr","a:xfrm","attrs","rot"]);
+            if(rotateNode !== undefined){
+                rotate = angleToDegrees(rotateNode);
+            }
+            //video
+            var vdoNode =  getTextByPathList(node, ["p:nvPicPr","p:nvPr","a:videoFile"]);
+            var vdoRid,vdoFile,vdoFileExt,vdoMimeType,uInt8Array,blob,vdoBlob,mediaSupportFlag=false;
+            var mediaProcess = settings.mediaProcess;
+            if(vdoNode !== undefined & mediaProcess){
+                vdoRid = vdoNode["attrs"]["r:link"];
+                vdoFile = warpObj["slideResObj"][vdoRid]["target"];
+                uInt8Array = zip.file(vdoFile).asArrayBuffer();
+                vdoFileExt = extractFileExtension(vdoFile).toLowerCase();
+                if(vdoFileExt=="mp4" || vdoFileExt=="webm" || vdoFileExt=="ogg"){
+                    vdoMimeType = getMimeType(vdoFileExt);
+                    blob = new Blob([uInt8Array], {
+                        type: vdoMimeType
+                    });
+                    vdoBlob = URL.createObjectURL(blob);
+                    mediaSupportFlag = true;
+                }
+            }
+            //Audio
+            var audioNode =  getTextByPathList(node, ["p:nvPicPr","p:nvPr","a:audioFile"]);
+            var audioRid,audioFile,audioFileExt,audioMimeType,uInt8ArrayAudio,blobAudio,audioBlob;
+            var  audioPlayerFlag = false;
+            var audioObjc;
+            if(audioNode !== undefined & mediaProcess){
+                audioRid = audioNode["attrs"]["r:link"];
+                audioFile = warpObj["slideResObj"][audioRid]["target"];
+                audioFileExt = extractFileExtension(audioFile).toLowerCase();
+                if(audioFileExt=="mp3" || audioFileExt=="wav" || audioFileExt=="ogg"){
+                    uInt8ArrayAudio = zip.file(audioFile).asArrayBuffer();
+                    blobAudio = new Blob([uInt8ArrayAudio]);
+                    audioBlob = URL.createObjectURL(blobAudio);
+                    var cx = parseInt(xfrmNode["a:ext"]["attrs"]["cx"]) * 20;
+                    var cy = xfrmNode["a:ext"]["attrs"]["cy"];
+                    var x = parseInt(xfrmNode["a:off"]["attrs"]["x"]) / 2.5;
+                    var y = xfrmNode["a:off"]["attrs"]["y"];
+                    audioObjc = {
+                        "a:ext" : {
+                            "attrs":{
+                                "cx":cx,
+                                "cy":cy
+                            }
+                        },
+                        "a:off":{
+                            "attrs":{
+                                "x":x,
+                                "y":y
+
+                            }
+                        }
+                    }
+                    audioPlayerFlag = true;
+                    mediaSupportFlag = true;
+                }
+            }            
+            //console.log(node)
             //////////////////////////////////////////////////////////////////////////
-            mimeType = getImageMimeType(imgFileExt);
-            return "<div class='block content' style='" + getPosition(xfrmNode, undefined, undefined) + getSize(xfrmNode, undefined, undefined) +
+            mimeType = getMimeType(imgFileExt);
+            rtrnData =  "<div class='block content' style='" + 
+                     ((mediaProcess && audioPlayerFlag)?getPosition(audioObjc, undefined, undefined):getPosition(xfrmNode, undefined, undefined)) + 
+                    ((mediaProcess && audioPlayerFlag)?getSize(audioObjc, undefined, undefined) :getSize(xfrmNode, undefined, undefined)) +
                     " z-index: " + order + ";" +
-                    "transform: rotate(" +rotate+ "deg);"+
-                    "'><img src='data:" + mimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%; height: 100%'/></div>";
+                    "transform: rotate(" +rotate+ "deg);'>";
+            if((vdoNode === undefined && audioNode === undefined) || !mediaProcess || !mediaSupportFlag){
+                rtrnData +=  "<img src='data:" + mimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%; height: 100%'/>";
+            }else if((vdoNode !== undefined || audioNode !== undefined) && mediaProcess && mediaSupportFlag){
+                if(vdoNode !== undefined){
+                    rtrnData +=  "<video  src='" + vdoBlob +"' controls style='width: 100%; height: 100%'>Your browser does not support the video tag.</video>";
+                }
+                if(audioNode !== undefined){
+                    rtrnData += '<audio id="audio_player" controls ><source src="'+audioBlob+'"></audio>';
+                    //'<button onclick="audio_player.play()">Play</button>'+
+                    //'<button onclick="audio_player.pause()">Pause</button>';
+                }
+            }
+            if(!mediaSupportFlag){
+                rtrnData +=  "<span style='color:red;font-size:40px;position: absolute;'>This media file Not supported by HTML5</span>";
+            }
+            if((vdoNode !== undefined || audioNode !== undefined) && !mediaProcess && mediaSupportFlag){
+                console.log("Founded supported media file but media process disabled (mediaProcess=false)");
+            }
+             rtrnData +=  "</div>";
+             //console.log(rtrnData)
+            return rtrnData;
         }
 
         function processGraphicFrameNode(node, warpObj) {
@@ -1816,10 +1899,10 @@
             }
             var dfltBultColor,dfltBultSize,bultColor,bultSize;
             if (rNode !== undefined) {
-                dfltBultColor = getFontColor(rNode, spNode, type, sldMstrTxtStyles);
+                dfltBultColor = getFontColorPr(rNode, spNode, type, sldMstrTxtStyles)[0];
                 dfltBultSize = getFontSize(rNode, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);       
             }else{
-                dfltBultColor = getFontColor(node, spNode, type, sldMstrTxtStyles);
+                dfltBultColor = getFontColorPr(node, spNode, type, sldMstrTxtStyles)[0];
                 dfltBultSize = getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);         
             }
             //console.log("Bullet Size: " + bultSize);
@@ -1983,7 +2066,7 @@
                     var imgPath =  warpObj["slideResObj"][buPicId]["target"];
                     var imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
                     var imgExt = imgPath.split(".").pop();
-                    var imgMimeType = getImageMimeType(imgExt);
+                    var imgMimeType = getMimeType(imgExt);
                     buImg = "<img src='data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%; height: 100%'/>"
                     //console.log("imgPath: "+imgPath+"\nimgMimeType: "+imgMimeType)
                 }
@@ -2018,16 +2101,18 @@
                 }
             }
             //console.log("genSpanElement: ",node)
+            //getFontColor
+            var fontClrPr = getFontColorPr(node, spNode, type, slideMasterTextStyles);
             var styleText = 
-                "color:" + getFontColor(node, spNode, type, slideMasterTextStyles) + 
-                ";font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + 
-                ";font-family:" + getFontType(node, type, slideMasterTextStyles) + 
-                ";font-weight:" + getFontBold(node, type, slideMasterTextStyles) + 
-                ";font-style:" + getFontItalic(node, type, slideMasterTextStyles) + 
-                ";text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) +
-                ";text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + 
-                ";vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + 
-                ";";
+                "color:" + fontClrPr[0] + ";" +
+                "text-shadow:" + fontClrPr[1] + ";" +
+                "font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + ";" + 
+                "font-family:" + getFontType(node, type, slideMasterTextStyles) + ";" + 
+                "font-weight:" + getFontBold(node, type, slideMasterTextStyles) + ";" +
+                "font-style:" + getFontItalic(node, type, slideMasterTextStyles) + ";" +
+                "text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) + ";" +
+                "text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + ";" +
+                "vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + ";";
             //////////////////Amir///////////////
             var highlight = getTextByPathList(node, ["a:rPr", "a:highlight"]);
             if(highlight !== undefined){
@@ -2142,16 +2227,17 @@
                             var rowTxtStyl = getTextByPathList(thisTblStyle,["a:firstRow","a:tcTxStyle"]);
                             if(rowTxtStyl !== undefined){
                                 /*
+                            var fontClrPr = getFontColorPr(node, spNode, type, slideMasterTextStyles);
                             var styleText = 
-                                "color:" + getFontColor(node, type, slideMasterTextStyles) + 
-                                ";font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + 
-                                ";font-family:" + getFontType(node, type, slideMasterTextStyles) + 
-                                ";font-weight:" + getFontBold(node, type, slideMasterTextStyles) + 
-                                ";font-style:" + getFontItalic(node, type, slideMasterTextStyles) + 
-                                ";text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) +
-                                ";text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + 
-                                ";vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) +
-                                ";";
+                                "color:" + fontClrPr[0] + ";" +
+                                "text-shadow:" + fontClrPr[1] + ";" +
+                                "font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + ";" + 
+                                "font-family:" + getFontType(node, type, slideMasterTextStyles) + ";" + 
+                                "font-weight:" + getFontBold(node, type, slideMasterTextStyles) + ";" +
+                                "font-style:" + getFontItalic(node, type, slideMasterTextStyles) + ";" +
+                                "text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) + ";" +
+                                "text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + ";" +
+                                "vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + ";";
                                 */
                             }
                             
@@ -2659,21 +2745,49 @@
             return (typeface === undefined) ? "inherit" : typeface;
         }
 
-        function getFontColor(node, spNode, type, slideMasterTextStyles) {
-            var solidFillNode = getTextByPathStr(node, "a:rPr a:solidFill");
-            var color;
-            if(solidFillNode === undefined){
-                var sPstyle = getTextByPathList(spNode, ["p:style","a:fontRef"]);
-                if(sPstyle !== undefined){
-                    color = getSolidFill(sPstyle);
+        function getFontColorPr(node, spNode, type, slideMasterTextStyles) {
+            //text border using: text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+            //{getFontColor(..) return color} -> getFontColorPr(..) return array[color,textBordr/shadow]
+            //https://stackoverflow.com/questions/2570972/css-font-border
+            //https://www.w3schools.com/cssref/css3_pr_text-shadow.asp
+            //console.log(node)
+            var rPrNode =  getTextByPathList(node, ["a:rPr"]);
+            var filTyp , color , textBordr;
+            if(rPrNode !== undefined){
+                filTyp = getFillType(rPrNode);
+                if(filTyp == "SOLID_FILL"){
+                    var solidFillNode = getTextByPathList(node, ["a:rPr","a:solidFill"]);
+                    color =   getSolidFill(solidFillNode);
+                }else if(filTyp=="PATTERN_FILL"){
+                    var pattFill = getTextByPathList(node, ["a:rPr","a:pattFill"]);
+                    color = getPatternFill(pattFill);
+                }else{
+                    var sPstyle = getTextByPathList(spNode, ["p:style","a:fontRef"]);
+                    if(sPstyle !== undefined){
+                        color = getSolidFill(sPstyle);
+                    }
                 }
-            }else{
-                color =   getSolidFill(solidFillNode);
+                //console.log(node,filTyp,color)
             }
-            
-            //console.log(themeContent)
-            //var schemeClr = getTextByPathList(buClrNode ,["a:schemeClr", "attrs","val"]);
-            return (color === undefined || color === "FFF") ? "#000" : "#" + color;
+            if (color === undefined || color === "FFF"){
+                color = "#000";
+            }else{
+                color = "#" + color;
+            }
+            //textBordr
+            var txtBrdrNode = getTextByPathList(node, ["a:rPr","a:ln"]);
+            if(txtBrdrNode !== undefined){
+                var txBrd = getBorder(node,false,"text");
+                var txBrdAry = txBrd.split(" ");
+                var brdSize = (parseInt(txBrdAry[0].substring(0,txBrdAry[0].indexOf("pt"))) * (4/3)) + "px";
+                var brdClr = txBrdAry[2];
+                //var brdTyp = txBrdAry[1]; //not in use
+                textBordr = "-"+ brdSize +" 0 "+brdClr+", 0 "+brdSize+" "+brdClr+", "+brdSize+" 0 "+brdClr+", 0 -"+brdSize+" "+brdClr+";"
+                console.log(node,"txBrd: ",textBordr);
+            }else{
+                textBordr = "none";
+            }
+            return [color , textBordr] ;
         }
         function getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) {
             var fontSize = undefined;
@@ -2797,7 +2911,7 @@
                         "a:ln":node["a:bottom"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false);
+                var borders = getBorder(obj, false, "shape");
                 borderStyle += borders.replace("border","border-bottom");
             }
             if(node["a:top"] !== undefined){
@@ -2806,7 +2920,7 @@
                         "a:ln":node["a:top"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false);
+                var borders = getBorder(obj, false, "shape");
                 borderStyle += borders.replace("border","border-top");
             }
             if(node["a:right"] !== undefined){
@@ -2815,7 +2929,7 @@
                         "a:ln":node["a:right"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false);
+                var borders = getBorder(obj, false, "shape");
                 borderStyle += borders.replace("border","border-right");
             }
             if(node["a:left"] !== undefined){
@@ -2824,19 +2938,23 @@
                         "a:ln":node["a:left"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false);
+                var borders = getBorder(obj, false, "shape");
                 borderStyle += borders.replace("border","border-left");
             }
 
             return borderStyle;
         }
         //////////////////////////////////////////////////////////////////
-        function getBorder(node, isSvgMode) {
-            
-            var cssText = "border: ";
-            
-            // 1. presentationML
-            var lineNode = node["p:spPr"]["a:ln"];
+        function getBorder(node, isSvgMode , bType) {
+            var cssText , lineNode;
+            if(bType == "shape"){
+                cssText = "border: ";
+                lineNode = node["p:spPr"]["a:ln"];
+            }else if(bType=="text"){
+                cssText = "";
+                lineNode = node["a:rPr"]["a:ln"];
+
+            }
             
             // Border width: 1pt = 12700, default = 0.75pt
             var borderWidth = parseInt(getTextByPathList(lineNode, ["attrs", "w"])) / 12700;
@@ -3211,7 +3329,7 @@
         function getShapeFill(node, isSvgMode, warpObj) {
             
             // 1. presentationML
-            // p:spPr [a:noFill, solidFill, gradFill, blipFill, pattFill, grpFill]
+            // p:spPr/ [a:noFill, solidFill, gradFill, blipFill, pattFill, grpFill]
             // From slide
             //Fill Type:
             //console.log("ShapeFill: ", node)
@@ -3385,7 +3503,7 @@
                 return undefined;
             }    
             var imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
-            var imgMimeType = getImageMimeType(imgExt);
+            var imgMimeType = getMimeType(imgExt);
             img = "data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer);
             return img;
         }
@@ -3725,7 +3843,7 @@
             }
             return Math.round(angle / 60000);
         }
-        function getImageMimeType(imgFileExt){
+        function getMimeType(imgFileExt){
             var mimeType = "";
             //console.log(imgFileExt)
             switch (imgFileExt.toLowerCase()) {
@@ -3748,8 +3866,30 @@
                 case "svg":
                     mimeType = "image/svg+xml";
                     break;
-                default:
-                    mimeType = "image/*";
+                case "mp4":
+                    mimeType = "video/mp4";
+                    break;
+                case "webm":
+                    mimeType = "video/webm";
+                    break;
+                case "ogg":
+                    mimeType = "video/ogg";
+                    break;
+                case "avi":
+                    mimeType = "video/avi";
+                    break;
+                case "mpg":
+                    mimeType = "video/mpg";
+                    break;
+                case "wmv":
+                    mimeType = "video/wmv";
+                    break;
+                case "mp3":
+                    mimeType = "audio/mpeg";
+                    break;
+                case "wav":
+                    mimeType = "audio/wav";
+                    break;
             }
             return mimeType;
         }
