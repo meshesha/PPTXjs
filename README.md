@@ -1,6 +1,8 @@
 # PPTXjs
-## jQuery plugin for convertation pptx to html using pure javascript.
-### 
+ [![MIT License][license-image]][license-url]
+### jQuery plugin for convertation pptx to html using pure javascript.
+### Demo: 
+#### https://meshesha.github.io/pptxjs/
 
 # Version: 
 ### 1.0.3
@@ -9,7 +11,6 @@
 - IE > 10
 - Edge
 - FireFox
-# documentation 
 Support:
 ----
 * Text
@@ -46,8 +47,9 @@ Support:
   * Background color
   * Background image
 * and more ... see demo
-## Demo: 
-### https://meshesha.github.io/pptxjs/
+usage:
+----
+
 # License
 - Copyright © 2017 Meshesha
 - MIT
