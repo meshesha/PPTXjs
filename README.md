@@ -15,7 +15,8 @@ PPTXjs
 - IE > 10
 - Edge
 - FireFox
-Support:
+- chrome
+### Support:
 ----
 * Text
   * Font size
