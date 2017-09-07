@@ -37,8 +37,14 @@ Support:
 * Custom shape
 * Media
   * Picture (jpg/jpeg,png,gif,svg)
-  * Video (html5 video player: mp4,wmv,ogg)
-  * Audio (html5 audio player:mp3,wma,wav,ogg)
+  * Video (html5 video player: mp4,ogg,WebM)
+    * IE:MP4.
+    * Chrome:MP4,	WebM,Ogg.
+    * Firefox:MP4,WebM,Ogg.
+  * Audio (html5 audio player:mp3,ogg,Wav)
+    * IE:mp3.
+    * Chrome:mp3,Wav,Ogg.
+    * Firefox:mp3,Wav,Ogg  
 * Graph
   * Bar chart
   * Line chart
