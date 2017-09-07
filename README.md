@@ -79,9 +79,9 @@ Support:
  add javascript:
  ```
 <script type="text/javascript">
- $("#result").pptxToHtml({
- pptxFileUrl: "Sample_video.pptx", // Sample_12.pptx
- fileInputId: "uploadFileInput",
+ $("#your_div_id_result").pptxToHtml({
+ pptxFileUrl: "path/to/yore_pptx_file.pptx", 
+ fileInputId: "upload_pptx_fiile",
  slideMode: false,
  keyBoardShortCut: false,
  mediaProcess: true, /** true,false: if true then process video and audio files */
