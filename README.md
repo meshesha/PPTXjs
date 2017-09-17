@@ -66,7 +66,7 @@ PPTXjs
 <link rel="stylesheet" href="./css/pptxjs.css">
 <link rel="stylesheet" href="./css/nv.d3.min.css"> <!-- for charts graphs -->
 ```
- include necessary css files:
+ include necessary js files:
  ```
 <script type="text/javascript" src="./js/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="./js/jszip.min.js"></script> <!-- v2.. , NOT v.3.. -->
