@@ -1,30 +1,12 @@
 /**
  * pptxjs.js
- * Ver. : 1.0.6
+ * Ver. : 1.1.0
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
  */
 
 (function ( $ ) {
-    if (FileReader.prototype.readAsBinaryString === undefined) {
-        FileReader.prototype.readAsBinaryString = function (fileData) {
-            var binary = "";
-            var pt = this;
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                var bytes = new Uint8Array(reader.result);
-                var length = bytes.byteLength;
-                for (var i = 0; i < length; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                //pt.result  - readonly so assign content to another property
-                pt.content = binary;
-                pt.onload(); // thanks to @Denis comment
-            }
-            reader.readAsArrayBuffer(fileData);
-        }
-    }    
     $.fn.pptxToHtml = function( options ) {
  		//var worker;
         var $result = $(this);
@@ -120,42 +102,39 @@
                 }
             });
         }
- 		var loadFile=function(url,callback){
-			JSZipUtils.getBinaryContent(url,callback);
-        }
-        //if(settings.fileInputId ==""){
-            loadFile(settings.pptxFileUrl,function(err,content){
-                var blob  = new Blob([content]);
-                var reader = new FileReader();
-                reader.onload = function(aEvent) {
-                    if (!aEvent) { //for soport readAsBinaryString in IE11
-                        convertToHtml(btoa(reader.content));
-                    }else{
-                        convertToHtml(btoa(aEvent.target.result));
-                    }
-                };
-                reader.readAsBinaryString(blob); 	
+        JSZipUtils.getBinaryContent(settings.pptxFileUrl,function(err,content){
+            var blob  = new Blob([content]);
+            var file_name = settings.pptxFileUrl;
+            var fArry = file_name.split(".");
+            fArry.pop();
+            blob.name = fArry[0];
+            FileReaderJS.setupBlob(blob, {
+                readAsDefault: "ArrayBuffer",
+                on: {
+                  load: function(e, file) {
+                    //console.log(e.target.result);
+                    convertToHtml(e.target.result);
+                  }
+                }
             });
-        //}else{
+        });
         if(settings.fileInputId !=""){
             $("#"+settings.fileInputId).on("change", function(evt) {
                 $result.html("");
                 var file = evt.target.files[0];
-                // var fileName = file.name;
-                var fileSize = file.size;
+                // var fileName = file[0].name;
+                //var fileSize = file[0].size;
                 var fileType = file.type;
                 if(fileType=="application/vnd.openxmlformats-officedocument.presentationml.presentation"){
-                    var reader = new FileReader();
-                    reader.onload = (function(theFile) {
-                        return function(e) {
-                            if (!e) { //for soport readAsBinaryString in IE11
-                                convertToHtml(btoa(reader.content));
-                            }else{
-                                convertToHtml(btoa(e.target.result));
-                            }
+                    FileReaderJS.setupBlob(file, {
+                        readAsDefault: "ArrayBuffer",
+                        on: {
+                          load: function(e, file) {
+                            //console.log(e.target.result);
+                            convertToHtml(e.target.result);
+                          }
                         }
-                    })(file);
-                    reader.readAsBinaryString(file);
+                      });
                 }else{
                     alert("This is not pptx file");
                 }
@@ -164,8 +143,8 @@
         function convertToHtml(file) {
              //'use strict';
             var zip = new JSZip(), s;
-            if (typeof file === 'string') { // Load
-                zip = zip.load(file, { base64: true });  //zip.load(file, { base64: true });
+            //if (typeof file === 'string') { // Load
+                zip = zip.load(file);  //zip.load(file, { base64: true });
                 var rslt_ary = processPPTX(zip);
                 //s = readXmlFile(zip, 'ppt/tableStyles.xml');
                 for(var i=0;i<rslt_ary.length;i++){
@@ -220,13 +199,11 @@
                         default:                        
                     }
                 }
-            }
+            //}
         }
         function processPPTX(zip) {
             var post_ary = [];
             var dateBefore = new Date();
-            
-            //var zip = new JSZip(data);
             
             if (zip.file("docProps/thumbnail.jpeg") !== null) {
                 var pptxThumbImg = base64ArrayBuffer(zip.file("docProps/thumbnail.jpeg").asArrayBuffer());
@@ -279,6 +256,7 @@
         }
         function getContentTypes(zip) {
             var ContentTypesJson = readXmlFile(zip, "[Content_Types].xml");
+            
             var subObj = ContentTypesJson["Types"]["Override"];
             var slidesLocArray = [];
             var slideLayoutsLocArray = [];
@@ -1067,8 +1045,6 @@
                             adj2 = 270;
                             H = h;
                             isClose = false;
-                            //fillColor = "none"; //TODO: bug: why on dfault this is not not "none";
-                            console.log("arc shape: bug: why on default fillColor is not 'none': ",fillColor);
                         }
                         if(shapAdjst !== undefined){
                             shapAdjst1 = getTextByPathList(shapAdjst, ["attrs", "fmla"]);
@@ -1468,23 +1444,7 @@
                         //var shftX = parseInt(sortByOrder[k].shftX) * 96 / 914400;
                         //var shftY = parseInt(sortByOrder[k].shftY) * 96 / 914400;
                         var endAng = stAng + swAng;
-                        //console.log("hR:",hR," wR: ",wR," stAng:",stAng," endAng:",endAng," shftX:",shftX," shftY:",shftY)
-                        //x, y, radius, startAngle, endAngle
-                        /*
-                        var radiusH = hR;
-                        var radiusW = wR;
-                        var angle = stAng;
-                        while(angle <= endAng){
-                            var radians= angle * (Math.PI / 180);  // convert degree to radians
-                            var x = hR + Math.cos(radians) * radiusH;  
-                            var y = wR + Math.sin(radians) * radiusW;
-                            if(angle==stAng){
-                                d += " M "+ (x) + " " + (y);
-                            }
-                            d += " L "+x + " " + y;
-                            angle++;
-                        }
-                        */
+                        
                         d += shapeArc(hR,wR,hR,wR,stAng,endAng);
                         k++;
                     }
@@ -2785,7 +2745,7 @@
                 var brdClr = txBrdAry[2];
                 //var brdTyp = txBrdAry[1]; //not in use
                 textBordr = "-"+ brdSize +" 0 "+brdClr+", 0 "+brdSize+" "+brdClr+", "+brdSize+" 0 "+brdClr+", 0 -"+brdSize+" "+brdClr+";"
-                console.log(node,"txBrd: ",textBordr);
+                //console.log(node,"txBrd: ",textBordr);
             }else{
                 textBordr = "none";
             }
