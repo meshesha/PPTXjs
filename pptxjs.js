@@ -1,6 +1,6 @@
 /**
  * pptxjs.js
- * Ver. : 1.1.0
+ * Ver. : 1.9.0
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
@@ -252,7 +252,13 @@
         }
 
         function readXmlFile(zip, filename) {
-            return tXml(zip.file(filename).asText());
+            var xmlData = tXml(zip.file(filename).asText(),{simplify:1});
+            if(xmlData["?xml"] !== undefined){
+                return xmlData["?xml"];
+            }else{
+                return xmlData;
+            }
+           
         }
         function getContentTypes(zip) {
             var ContentTypesJson = readXmlFile(zip, "[Content_Types].xml");
@@ -651,9 +657,9 @@
                 var txtXframeRot =  getTextByPathList(txtXframeNode,["attrs","rot"]);
                 if (txtXframeRot !== undefined){
                     txtRotate = angleToDegrees(txtXframeRot)+90;
-                }else{
-                    txtRotate = rotate;
                 }
+            }else{
+                txtRotate = rotate;
             }
             //////////////////////////////////////////////////
             if (shapType !== undefined || custShapType !== undefined) {
@@ -693,7 +699,14 @@
                     //console.log(svgBgImg)
                     result +=  svgBgImg ;
                 }else{
-                    if(clrFillType != "SOLID_FILL" && clrFillType != "PATTERN_FILL" && shapType == "arc"){ //Temp solution for arc shape - TODO
+                    if(clrFillType != "SOLID_FILL" && clrFillType != "PATTERN_FILL" && 
+                    (shapType == "arc" || 
+                    shapType == "bracketPair" ||
+                    shapType == "bracePair" ||
+                    shapType == "leftBracket" ||
+                    shapType == "leftBrace" ||
+                    shapType == "rightBrace" ||
+                    shapType == "rightBracket")){ //Temp solution for arc shape - TODO
                         fillColor = "none";
                     }
                 }
@@ -715,145 +728,874 @@
             if (shapType !== undefined && custShapType === undefined) {
                 
                 switch (shapType) {
-                    case "accentBorderCallout1":
-                    case "accentBorderCallout2":
-                    case "accentBorderCallout3":
-                    case "accentCallout1":
-                    case "accentCallout2":
-                    case "accentCallout3":
-                    case "actionButtonBackPrevious":
-                    case "actionButtonBeginning":
-                    case "actionButtonBlank":
-                    case "actionButtonDocument":
-                    case "actionButtonEnd":
-                    case "actionButtonForwardNext":
-                    case "actionButtonHelp":
-                    case "actionButtonHome":
-                    case "actionButtonInformation":
-                    case "actionButtonMovie":
-                    case "actionButtonReturn":
-                    case "actionButtonSound":
-                    case "bevel":
-                    case "blockArc":
-                    case "borderCallout1":
-                    case "borderCallout2":
-                    case "borderCallout3":
-                    case "bracePair":
-                    case "bracketPair":
-                    case "callout1":
-                    case "callout2":
-                    case "callout3":
-                    case "can":
                     case "chartPlus":
                     case "chartStar":
                     case "chartX":
-                    case "chevron":
-                    case "chord":
                     case "cloud":
                     case "cloudCallout":
-                    case "corner":
                     case "cornerTabs":
-                    case "cube":
-                    case "diagStripe":
-                    case "donut":
-                    case "doubleWave":
-                    case "downArrowCallout":
-                    case "ellipseRibbon":
-                    case "ellipseRibbon2":
-                    case "flowChartAlternateProcess":
-                    case "flowChartCollate":
-                    case "flowChartConnector":
-                    case "flowChartDecision":
-                    case "flowChartDelay":
-                    case "flowChartDisplay":
-                    case "flowChartDocument":
-                    case "flowChartExtract":
-                    case "flowChartInputOutput":
-                    case "flowChartInternalStorage":
-                    case "flowChartMagneticDisk":
-                    case "flowChartMagneticDrum":
-                    case "flowChartMagneticTape":
-                    case "flowChartManualInput":
-                    case "flowChartManualOperation":
-                    case "flowChartMerge":
-                    case "flowChartMultidocument":
                     case "flowChartOfflineStorage":
-                    case "flowChartOffpageConnector":
-                    case "flowChartOnlineStorage":
-                    case "flowChartOr":
-                    case "flowChartPredefinedProcess":
-                    case "flowChartPreparation":
-                    case "flowChartProcess":
-                    case "flowChartPunchedCard":
-                    case "flowChartPunchedTape":
-                    case "flowChartSort":
-                    case "flowChartSummingJunction":
-                    case "flowChartTerminator":
                     case "folderCorner":
-                    case "frame":
                     case "funnel":
-                    case "halfFrame":
-                    case "heart":
-                    case "homePlate":
-                    case "horizontalScroll":
+                    case "leftRightRibbon":
+                    case "lineInv":
+                    case "nonIsoscelesTrapezoid":
+                    case "plaqueTabs":
+                    case "squareTabs":
+                    case "upDownArrowCallout":
+                    case "circularArrow":
+
+                    case "rect":
+                    case "flowChartProcess":
+                    case "flowChartPredefinedProcess":
+                    case "flowChartInternalStorage":
+                    case "actionButtonBlank":
+                        if( shapType != "rect" &&
+                            shapType != "flowChartProcess" && 
+                            shapType != "flowChartPredefinedProcess" && 
+                            shapType != "actionButtonBlank" && 
+                            shapType != "flowChartInternalStorage"){
+                            console.log("shapType: ",shapType)
+                        }
+                        result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                       
+                        if(shapType == "flowChartPredefinedProcess"){
+                            result += "<rect x='"+w*(1/8)+"' y='0' width='" + w*(6/8) + "' height='" + h + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        }else if(shapType == "flowChartInternalStorage"){
+                            result += " <polyline points='"+w*(1/8)+" 0," + w*(1/8) +" " + h + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />"; 
+                            result += " <polyline points='0 " + h*(1/8) + "," + w +" " + h*(1/8) + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />"; 
+                        }
+                        break;
+                    case "flowChartCollate":
+                        var d = "M 0,0"+
+                                " L" + w + "," + 0 +
+                                " L" + 0 + "," + h +
+                                " L" + w + "," + h +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "flowChartDocument":
+                        var y1, y2,y3,x1;
+                        x1 = w*10800/21600;
+                        y1 = h*17322/21600;
+                        y2 = h*20172/21600;
+                        y3 = h*23922/21600;
+                        var d = "M" + 0+ "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + y1 +
+                                " C" + x1 + "," + y1 + " " + x1 + "," + y3 + " " + 0 + "," + y2 +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartMultidocument":
+                        var y1,y2,y3,y4,y5,y6,y7,y8,y9,x1,x2,x3,x4,x5,x6,x7;
+                        y1 = h*18022/21600;
+                        y2 = h*3675/21600;
+                        y3 = h*23542/21600;
+                        y4 = h*1815/21600;
+                        y5 = h*16252/21600;
+                        y6 = h*16352/21600;
+                        y7 = h*14392/21600;
+                        y8 = h*20782/21600;
+                        y9 = h*14467/21600;
+                        x1 = w*1532/21600;
+                        x2 = w*20000/21600;
+                        x3 = w*9298/21600;
+                        x4 = w*19298/21600;
+                        x5 = w*18595/21600;
+                        x6 = w*2972/21600;
+                        x7 = w*20800/21600;
+                        var d = "M" + 0 + "," + y2 +
+                                " L" + x5 + "," + y2 +
+                                " L" + x5 + "," + y1 +
+                                " C" + x3 + "," + y1 + " " + x3 + "," + y3 + " " + 0 + "," + y8 +
+                                " z" +
+                                "M" + x1 + "," + y2 +
+                                " L" + x1 + "," + y4 +
+                                " L" + x2 + "," + y4 +
+                                " L" + x2 + "," + y5 +
+                                " C" + x4 + "," + y5 + " " + x5 + "," + y6 + " " + x5 + "," + y6 +
+                                "M" + x6 + "," + y4 +
+                                " L" + x6 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + y7 +
+                                " C" + x7 + "," + y7 + " " + x2 + "," + y9 + " " + x2 + "," + y9;
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "actionButtonBackPrevious":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                "M" + g11 + "," + vc +
+                                " L" + g12 + "," + g9 +
+                                " L" + g12 + "," + g10 +
+                                " z";
+                                
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                
+                        break;
+                    case "actionButtonBeginning":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13/8;
+                        g15 = g13/4;
+                        g16 = g11+g14;
+                        g17 = g11+g15;
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                "M" + g17 + "," + vc +
+                                " L" + g12 + "," + g9 +
+                                " L" + g12 + "," + g10 +
+                                " z" +
+                                "M" + g16 + "," + g9 +
+                                " L" + g11 + "," + g9 +
+                                " L" + g11 + "," + g10 +
+                                " L" + g16 + "," + g10 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonDocument":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, dx1, g11, g12, g13, g14, g15;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        dx1 = ss*9/32;
+                        g11 = hc-dx1;
+                        g12 = hc+dx1;
+                        g13 = ss*3/16;
+                        g14 = g12-g13;
+                        g15 = g9+g13;
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" +0 + "," + h +
+                                " z" +
+                                 "M" + g11 + "," + g9 +
+                                " L" + g14 + "," + g9 +
+                                " L" + g12 + "," + g15 +
+                                " L" + g12 + "," + g10 +
+                                " L" + g11 + "," + g10 +
+                                " z" +
+                                 "M" + g14 + "," + g9 +
+                                " L" + g14 + "," + g15 +
+                                " L" + g12 + "," + g15 +
+                                " z";
+                                
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonEnd":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13*3/4;
+                        g15 = g13*7/8;
+                        g16 = g11+g14;
+                        g17 = g11+g15;
+                        var d = "M" + 0 + "," + h +
+                                " L" + w + "," + h +
+                                " L" + w + "," + 0 +
+                                " L" + 0 + "," + 0 +
+                                " z" +
+                                " M" + g17 + "," + g9 +
+                                " L" + g12 + "," + g9 +
+                                " L" + g12 + "," + g10 +
+                                " L" + g17 + "," + g10 +
+                                " z" +
+                                " M" + g16 + "," + vc +
+                                " L" + g11 + "," + g9 +
+                                " L" + g11 + "," + g10 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonForwardNext":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        
+                        var d = "M" + 0 + "," + h +
+                                " L" + w + "," + h +
+                                " L" + w + "," + 0 +
+                                " L" + 0 + "," + 0 +
+                                " z" +
+                                " M" + g12 + "," + vc +
+                                " L" + g11 + "," + g9 +
+                                " L" + g11 + "," + g10 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonHelp":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g11, g13, g14, g15, g16, g19, g20, g21, g23, g24, g27, g29, g30, g31, g33, g36, g37, g41, g42;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g11 = hc-dx2;
+                        g13 = ss*3/4;
+                        g14 = g13/7;
+                        g15 = g13*3/14;
+                        g16 = g13*2/7;
+                        g19 = g13*3/7;
+                        g20 = g13*4/7;
+                        g21 = g13*17/28;
+                        g23 = g13*21/28;
+                        g24 = g13*11/14;
+                        g27 = g9+g16;
+                        g29 = g9+g21;
+                        g30 = g9+g23;
+                        g31 = g9+g24;
+                        g33 = g11+g15;
+                        g36 = g11+g19;
+                        g37 = g11+g20;
+                        g41 = g13/14;
+                        g42 = g13*3/28;
+                        var cX1 = g33 + g16;
+                        var cX2 = g36 + g14;
+                        var cY3 = g31 + g42;
+                        var cX4 = (g37+g36+g16)/2;
+
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 + 
+                                " L" + w + "," + h + 
+                                " L" + 0 + "," + h + 
+                                " z" +
+                                "M" + g33 + "," + g27+ 
+                                shapeArc(cX1,g27,g16,g16,180,360,false).replace("M","L") +
+                                shapeArc(cX4,g27,g14,g15,0,90,false).replace("M","L") +
+                                shapeArc(cX4,g29,g41,g42,270,180,false).replace("M","L") +
+                                " L" + g37 + "," + g30 + 
+                                " L" + g36 + "," + g30 + 
+                                " L" + g36 + "," + g29 + 
+                                shapeArc(cX2,g29,g14,g15,180,270,false).replace("M","L") +
+                                shapeArc(g37,g27,g41,g42,90,0,false).replace("M","L") +
+                                shapeArc(cX1,g27,g14,g14,0,-180,false).replace("M","L") +
+                                " z" +
+                                "M" + hc + "," + g31 + 
+                                shapeArc(hc,cY3,g42,g42,270,630,false).replace("M","L") +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonHome":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23, g24, g25, g26, g27, g28, g29, g30, g31, g32, g33;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13/16;
+                        g15 = g13/8;
+                        g16 = g13*3/16;
+                        g17 = g13*5/16;
+                        g18 = g13*7/16;
+                        g19 = g13*9/16;
+                        g20 = g13*11/16;
+                        g21 = g13*3/4;
+                        g22 = g13*13/16;
+                        g23 = g13*7/8;
+                        g24 = g9+g14;
+                        g25 = g9+g16;
+                        g26 = g9+g17;
+                        g27 = g9+g21;
+                        g28 = g11+g15;
+                        g29 = g11+g18;
+                        g30 = g11+g19;
+                        g31 = g11+g20;
+                        g32 = g11+g22;
+                        g33 = g11+g23;
+                        
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                " M" + hc + "," + g9 +
+                                " L" + g11 + "," + vc +
+                                " L" + g28 + "," + vc +
+                                " L" + g28 + "," + g10 +
+                                " L" + g33 + "," + g10 +
+                                " L" + g33 + "," + vc +
+                                " L" + g12 + "," + vc +
+                                " L" + g32 + "," + g26 +
+                                " L" + g32 + "," + g24 +
+                                " L" + g31 + "," + g24 +
+                                " L" + g31 + "," + g25 +
+                                " z" +
+                                " M" + g29 + "," + g27 +
+                                " L" + g30 + "," + g27 +
+                                " L" + g30 + "," + g10 +
+                                " L" + g29 + "," + g10 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonInformation":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g11, g13, g14, g17, g18, g19, g20, g22, g23, g24, g25, g28, g29, g30, g31, g32, g34, g35, g37, g38;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g11 = hc-dx2;
+                        g13 = ss*3/4;
+                        g14 = g13/32;
+                        g17 = g13*5/16;
+                        g18 = g13*3/8;
+                        g19 = g13*13/32;
+                        g20 = g13*19/32;
+                        g22 = g13*11/16;
+                        g23 = g13*13/16;
+                        g24 = g13*7/8;
+                        g25 = g9+g14;
+                        g28 = g9+g17;
+                        g29 = g9+g18;
+                        g30 = g9+g23;
+                        g31 = g9+g24;
+                        g32 = g11+g17;
+                        g34 = g11+g19;
+                        g35 = g11+g20;
+                        g37 = g11+g22;
+                        g38 = g13*3/32;
+                        var cY1 = g9 + dx2;
+                        var cY2 = g25 + g38;
+
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                "M" + hc + "," + g9 +
+                                shapeArc(hc,cY1,dx2,dx2,270,630,false).replace("M","L") +
+                                " z" +
+                                "M" + hc + "," + g25 +
+                                shapeArc(hc,cY2,g38,g38,270,630,false).replace("M","L") +
+                                "M" + g32 + "," + g28 +
+                                " L" + g35 + "," + g28 +
+                                " L" + g35 + "," + g30 +
+                                " L" + g37 + "," + g30 +
+                                " L" + g37 + "," + g31 +
+                                " L" + g32 + "," + g31 +
+                                " L" + g32 + "," + g30 +
+                                " L" + g34 + "," + g30 +
+                                " L" + g34 + "," + g29 +
+                                " L" + g32 + "," + g29 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonMovie":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23, g24, g25, g26, g27, 
+                            g28, g29, g30, g31, g32, g33, g34, g35, g36, g37, g38, g39, g40, g41, g42, g43, g44, g45, g46, g47, g48;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13*1455/21600;
+                        g15 = g13*1905/21600;
+                        g16 = g13*2325/21600;
+                        g17 = g13*16155/21600;
+                        g18 = g13*17010/21600;
+                        g19 = g13*19335/21600;
+                        g20 = g13*19725/21600;
+                        g21 = g13*20595/21600;
+                        g22 = g13*5280/21600;
+                        g23 = g13*5730/21600;
+                        g24 = g13*6630/21600;
+                        g25 = g13*7492/21600;
+                        g26 = g13*9067/21600;
+                        g27 = g13*9555/21600;
+                        g28 = g13*13342/21600;
+                        g29 = g13*14580/21600;
+                        g30 = g13*15592/21600;
+                        g31 = g11+g14;
+                        g32 = g11+g15;
+                        g33 = g11+g16;
+                        g34 = g11+g17;
+                        g35 = g11+g18;
+                        g36 = g11+g19;
+                        g37 = g11+g20;
+                        g38 = g11+g21;
+                        g39 = g9+g22;
+                        g40 = g9+g23;
+                        g41 = g9+g24;
+                        g42 = g9+g25;
+                        g43 = g9+g26;
+                        g44 = g9+g27;
+                        g45 = g9+g28;
+                        g46 = g9+g29;
+                        g47 = g9+g30;
+                        g48 = g9+g31;
+                        
+                        var d = "M" + 0 + "," + h +
+                                " L" + w + "," + h +
+                                " L" + w + "," + 0 +
+                                " L" + 0 + "," + 0 +
+                                " z" +
+                                "M" + g11 + "," + g39 +
+                                " L" + g11 + "," + g44 +
+                                " L" + g31 + "," + g44 +
+                                " L" + g32 + "," + g43 +
+                                " L" + g33 + "," + g43 +
+                                " L" + g33 + "," + g47 +
+                                " L" + g35 + "," + g47 +
+                                " L" + g35 + "," + g45 +
+                                " L" + g36 + "," + g45 +
+                                " L" + g38 + "," + g46 +
+                                " L" + g12 + "," + g46 +
+                                " L" + g12 + "," + g41 +
+                                " L" + g38 + "," + g41 +
+                                " L" + g37 + "," + g42 +
+                                " L" + g35 + "," + g42 +
+                                " L" + g35 + "," + g41 +
+                                " L" + g34 + "," + g40 +
+                                " L" + g32 + "," + g40 +
+                                " L" + g31 + "," + g39 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonReturn":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23, g24, g25, g26, g27;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13*7/8;
+                        g15 = g13*3/4;
+                        g16 = g13*5/8;
+                        g17 = g13*3/8;
+                        g18 = g13/4;
+                        g19 = g9+g15;
+                        g20 = g9+g16;
+                        g21 = g9+g18;
+                        g22 = g11+g14;
+                        g23 = g11+g15;
+                        g24 = g11+g16;
+                        g25 = g11+g17;
+                        g26 = g11+g18;
+                        g27 = g13/8;
+                        var cX1 = g24 - g27;
+                        var cY2 = g19 - g27;
+                        var cX3 = g11 + g17;
+                        var cY4 = g10 - g17;
+
+                        var d = "M" + 0 + "," + h +
+                                " L" + w + "," + h +
+                                " L" + w + "," + 0 +
+                                " L" + 0 + "," + 0 +
+                                " z" +
+                                " M" + g12 + "," + g21 +
+                                " L" + g23 + "," + g9 +
+                                " L" + hc + "," + g21 +
+                                " L" + g24 + "," + g21 +
+                                " L" + g24 + "," + g20 +
+                                shapeArc(cX1,g20,g27,g27,0,90,false).replace("M","L") +
+                                " L" + g25 + "," + g19 +
+                                shapeArc(g25,cY2,g27,g27,90,180,false).replace("M","L") +
+                                " L" + g26 + "," + g21 +
+                                " L" + g11 + "," + g21 +
+                                " L" + g11 + "," + g20 +
+                                shapeArc(cX3,g20,g17,g17,180,90,false).replace("M","L") +
+                                " L" + hc + "," + g10 +
+                                shapeArc(hc,cY4,g17,g17,90,0,false).replace("M","L") +
+                                " L" + g22 + "," + g21 +
+                                " z";
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "actionButtonSound":
+                        var hc = w/2, vc = h/2 , ss=Math.min(w,h);
+                        var dx2, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20, g21, g22, g23, g24, g25, g26;
+                        
+                        dx2 = ss*3/8;
+                        g9 = vc-dx2;
+                        g10 = vc+dx2;
+                        g11 = hc-dx2;
+                        g12 = hc+dx2;
+                        g13 = ss*3/4;
+                        g14 = g13/8;
+                        g15 = g13*5/16;
+                        g16 = g13*5/8;
+                        g17 = g13*11/16;
+                        g18 = g13*3/4;
+                        g19 = g13*7/8;
+                        g20 = g9+g14;
+                        g21 = g9+g15;
+                        g22 = g9+g17;
+                        g23 = g9+g19;
+                        g24 = g11+g15;
+                        g25 = g11+g16;
+                        g26 = g11+g18;
+                        
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                " M" + g11 + "," + g21 +
+                                " L" + g24 + "," + g21 +
+                                " L" + g25 + "," + g9 +
+                                " L" + g25 + "," + g10 +
+                                " L" + g24 + "," + g22 +
+                                " L" + g11 + "," + g22 +
+                                " z" +
+                                " M" + g26 + "," + g21 +
+                                " L" + g12 + "," + g20 +
+                                " M" + g26 + "," + vc +
+                                " L" + g12 + "," + vc +
+                                " M" + g26 + "," + g22 +
+                                " L" + g12 + "," + g23;
+
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
                     case "irregularSeal1":
                     case "irregularSeal2":
-                    case "leftArrowCallout":
-                    case "leftBrace":
-                    case "leftBracket":
-                    case "leftRightArrowCallout":
-                    case "leftRightRibbon":
-                    case "irregularSeal1":
-                    case "lightningBolt":
-                    case "lineInv":
-                    case "mathDivide":
-                    case "mathEqual":
-                    case "mathMinus":
-                    case "mathMultiply":
-                    case "mathNotEqual":
-                    case "mathPlus":
-                    case "moon":
-                    case "nonIsoscelesTrapezoid":
-                    case "noSmoking":
-                    case "plaque":
-                    case "plaqueTabs":
-                    case "quadArrowCallout":
-                    case "rect":
-                    case "ribbon":
-                    case "ribbon2":
-                    case "rightArrowCallout":
-                    case "rightBrace":
-                    case "rightBracket":
+                        if(shapType == "irregularSeal1"){
+                            var d = "M" + w*10800/21600 + "," + h*5800/21600 +
+                                " L" + w*14522/21600 + "," + 0 +
+                                " L" + w*14155/21600 + "," + h*5325/21600 +
+                                " L" + w*18380/21600 + "," + h*4457/21600 +
+                                " L" + w*16702/21600 + "," + h*7315/21600 +
+                                " L" + w*21097/21600 + "," + h*8137/21600 +
+                                " L" + w*17607/21600 + "," + h*10475/21600 +
+                                " L" + w + "," + h*13290/21600 +
+                                " L" + w*16837/21600 + "," + h*12942/21600 +
+                                " L" + w*18145/21600 + "," + h*18095/21600 +
+                                " L" + w*14020/21600 + "," + h*14457/21600 +
+                                " L" + w*13247/21600 + "," + h*19737/21600 +
+                                " L" + w*10532/21600 + "," + h*14935/21600 +
+                                " L" + w*8485/21600 + "," + h +
+                                " L" + w*7715/21600 + "," + h*15627/21600 +
+                                " L" + w*4762/21600 + "," + h*17617/21600 +
+                                " L" + w*5667/21600 + "," + h*13937/21600 +
+                                " L" + w*135/21600 + "," + h*14587/21600 +
+                                " L" + w*3722/21600 + "," + h*11775/21600 +
+                                " L" + 0 + "," + h*8615/21600 +
+                                " L" + w*4627/21600 + "," + h*7617/21600 +
+                                " L" + w*370/21600 + "," + h*2295/21600 +
+                                " L" + w*7312/21600 + "," + h*6320/21600 +
+                                " L" + w*8352/21600 + "," + h*2295/21600 +
+                                " z";
+                        }else if(shapType == "irregularSeal2"){
+                            var d = "M" + w*11462/21600 + "," + h*4342/21600 +
+                                " L" + w*14790/21600 + "," + 0 +
+                                " L" + w*14525/21600 + "," + h*5777/21600 +
+                                " L" + w*18007/21600 + "," + h*3172/21600 +
+                                " L" + w*16380/21600 + "," + h*6532/21600 +
+                                " L" + w + "," + h*6645/21600 +
+                                " L" + w*16985/21600 + "," + h*9402/21600 +
+                                " L" + w*18270/21600 + "," + h*11290/21600 +
+                                " L" + w*16380/21600 + "," + h*12310/21600 +
+                                " L" + w*18877/21600 + "," + h*15632/21600 +
+                                " L" + w*14640/21600 + "," + h*14350/21600 +
+                                " L" + w*14942/21600 + "," + h*17370/21600 +
+                                " L" + w*12180/21600 + "," + h*15935/21600 +
+                                " L" + w*11612/21600 + "," + h*18842/21600 +
+                                " L" + w*9872/21600 + "," + h*17370/21600 +
+                                " L" + w*8700/21600 + "," + h*19712/21600 +
+                                " L" + w*7527/21600 + "," + h*18125/21600 +
+                                " L" + w*4917/21600 + "," + h +
+                                " L" + w*4805/21600 + "," + h*18240/21600 +
+                                " L" + w*1285/21600 + "," + h*17825/21600 +
+                                " L" + w*3330/21600 + "," + h*15370/21600 +
+                                " L" + 0 + "," + h*12877/21600 +
+                                " L" + w*3935/21600 + "," + h*11592/21600 +
+                                " L" + w*1172/21600 + "," + h*8270/21600 +
+                                " L" + w*5372/21600 + "," + h*7817/21600 +
+                                " L" + w*4502/21600 + "," + h*3625/21600 +
+                                " L" + w*8550/21600 + "," + h*6382/21600 +
+                                " L" + w*9722/21600 + "," + h*1887/21600 +
+                                " z";
+                        }
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartTerminator":
+                        var x1, x2, y1, cd2=180,cd4=90,c3d4=270;
+                        x1 = w*3475/21600;
+                        x2 = w*18125/21600;
+                        y1 = h*10800/21600;
+                        //path attrs: w = 21600; h = 21600; 
+                        var d = "M" + x1 + "," + 0 +
+                                " L" + x2 + "," + 0 +
+                                shapeArc(x2,h/2,x1,y1,c3d4,c3d4+cd2,false).replace("M","L") +
+                                " L" + x1 + "," + h +
+                                shapeArc(x1,h/2,x1,y1,cd4,cd4+cd2,false).replace("M","L") +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartPunchedTape":
+                        var x1, x1,y1,y2, cd2=180;
+                        x1 = w*5/20;
+                        y1 = h*2/20;
+                        y2 = h*18/20;
+                        var d = "M" + 0 + "," + y1 +
+                                shapeArc(x1,y1,x1,y1,cd2,0,false).replace("M","L") +
+                                shapeArc(w*(3/4),y1,x1,y1,cd2,360,false).replace("M","L") +
+                                " L" + w + "," + y2 +
+                                shapeArc(w*(3/4),y2,x1,y1,0,-cd2,false).replace("M","L") +
+                                shapeArc(x1,y2,x1,y1,0,cd2,false).replace("M","L") +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartOnlineStorage":
+                        var x1, y1,c3d4=270,cd4=90;
+                        x1 = w*1/6;
+                        y1 = h*3/6;
+                        var d = "M" + x1 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                shapeArc(w,h/2,x1,y1,c3d4,90,false).replace("M","L") +
+                                " L" + x1 + "," + h +
+                                shapeArc(x1,h/2,x1,y1,cd4,270,false).replace("M","L") +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartDisplay":
+                        var x1, x2, y1,c3d4=270,cd2=180;
+                        x1 = w*1/6;
+                        x2 = w*5/6;
+                        y1 = h*3/6;
+                        //path attrs: w = 6; h = 6; 
+                        var d = "M" + 0 + "," + y1 +
+                                " L" + x1 + "," + 0 +
+                                " L" + x2 + "," + 0 +
+                                shapeArc(w,h/2,x1,y1,c3d4,c3d4+cd2,false).replace("M","L") +
+                                " L" + x1 + "," + h +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartDelay":
+                        var wd2=w/2,hd2=h/2, cd2=180 ,c3d4=270,cd4=90;
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + wd2 + "," + 0 +
+                                shapeArc(wd2,hd2,wd2,hd2,c3d4,c3d4+cd2,false).replace("M","L") +
+                                " L" + 0 + "," + h +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "flowChartMagneticTape":
+                        var wd2=w/2,hd2=h/2, cd2=180 ,c3d4=270,cd4=90;
+                        var idy,ib,ang1;
+                        idy = hd2*Math.sin(Math.PI/4);
+                        ib = hd2+idy;
+                        ang1 = Math.atan(h/w);
+                        var ang1Dg = ang1*180/Math.PI;
+                        var d = "M" + wd2 + "," + h +
+                                shapeArc(wd2,hd2,wd2,hd2,cd4,cd2,false).replace("M","L") +
+                                shapeArc(wd2,hd2,wd2,hd2,cd2,c3d4,false).replace("M","L") +
+                                shapeArc(wd2,hd2,wd2,hd2,c3d4,360,false).replace("M","L") +
+                                shapeArc(wd2,hd2,wd2,hd2,0,ang1Dg,false).replace("M","L") +
+                                " L" + w + "," + ib +
+                                " L" + w + "," + h +
+                                " z";
+                        result += "<path d='" + d + "'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "ellipse":
+                    case "flowChartConnector":
+                    case "flowChartSummingJunction":
+                    case "flowChartOr":
+                        result += "<ellipse cx='" + (w / 2) + "' cy='" + (h / 2) + "' rx='" + (w / 2) + "' ry='" + (h / 2) + "' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        if(shapType == "flowChartOr"){
+                            result += " <polyline points='"+w/2+" " + 0 + "," + w/2 +" " + h + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            result += " <polyline points='"+0+" " + h/2 + "," + w +" " + h/2 + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />"; 
+                        }else if(shapType == "flowChartSummingJunction"){
+                            var idx, idy, il, ir, it, ib , hc = w/2 , vc = h/2 ,wd2=w/2, hd2 = h/2 ;
+                            var angVal = Math.PI/4;
+                            idx = wd2*Math.cos(angVal);
+                            idy = hd2*Math.sin(angVal);
+                            il = hc-idx;
+                            ir = hc+idx;
+                            it = vc-idy;
+                            ib = vc+idy;
+                            result += " <polyline points='"+il+" " + it + "," + ir +" " + ib + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            result += " <polyline points='"+ir+" " + it + "," + il +" " + ib + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />"; 
+                        }
+                        break;
+                    case "roundRect":
                     case "round1Rect":
                     case "round2DiagRect":
                     case "round2SameRect":
-                    case "smileyFace":
                     case "snip1Rect":
                     case "snip2DiagRect":
                     case "snip2SameRect":
+                    case "flowChartAlternateProcess":
+                    case "flowChartPunchedCard":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,sAdj1_val;// = 0.33334;
+                        var sAdj2,sAdj2_val;// = 0.33334;
+                        var shpTyp, adjTyp;
+                        if(shapAdjst_ary !== undefined && shapAdjst_ary.constructor === Array){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj1_val = parseInt(sAdj1.substr(4)) /50000;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj2_val = parseInt(sAdj2.substr(4)) /50000;
+                                }
+                            }
+                        }else if(shapAdjst_ary !== undefined && shapAdjst_ary.constructor !== Array){
+                            var sAdj = getTextByPathList(shapAdjst_ary,["attrs","fmla"]);
+                            sAdj1_val = parseInt(sAdj.substr(4)) /50000;
+                            sAdj2_val = 0;
+                        }
+                        //console.log("shapType: ",shapType,",node: ",node )
+                        var tranglRott = "";
+                        switch(shapType){
+                            case "roundRect":
+                            case "flowChartAlternateProcess":
+                                shpTyp = "round";
+                                adjTyp = "cornrAll";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                sAdj2_val = 0;
+                                break;
+                            case "round1Rect":
+                                shpTyp = "round";
+                                adjTyp = "cornr1";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                sAdj2_val = 0;
+                                break;
+                            case "round2DiagRect":
+                                shpTyp = "round";
+                                adjTyp = "diag";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                if(sAdj2_val === undefined) sAdj2_val = 0;
+                                break;
+                            case "round2SameRect":
+                                shpTyp = "round";
+                                adjTyp = "cornr2";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                if(sAdj2_val === undefined) sAdj2_val = 0;
+                                break;
+                            case "snip1Rect":
+                            case "flowChartPunchedCard":
+                                shpTyp = "snip";
+                                adjTyp = "cornr1";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                sAdj2_val = 0;
+                                if(shapType == "flowChartPunchedCard"){
+                                    tranglRott = "transform='translate(" + w + ",0) scale(-1,1)'";
+                                }
+                                break;
+                            case "snip2DiagRect":
+                                shpTyp = "snip";
+                                adjTyp = "diag";
+                                if(sAdj1_val === undefined) sAdj1_val = 0;
+                                if(sAdj2_val === undefined) sAdj2_val = 0.33334;
+                                break;
+                            case "snip2SameRect":
+                                shpTyp = "snip";
+                                adjTyp = "cornr2";
+                                if(sAdj1_val === undefined) sAdj1_val = 0.33334;
+                                if(sAdj2_val === undefined) sAdj2_val = 0;
+                                break;
+                        }
+                        var d_val = shapeSnipRoundRect(w,h,sAdj1_val,sAdj2_val,shpTyp,adjTyp);                        
+                        result += "<path " + tranglRott + "  d='"+d_val+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
                     case "snipRoundRect":
-                    case "squareTabs":
-                    case "sun":
-                    case "teardrop":
-                    case "upArrowCallout":
-                    case "upDownArrowCallout":
-                    case "verticalScroll":
-                    case "wave":
-                    case "wedgeEllipseCallout":
-                    case "wedgeRectCallout":
-                    case "wedgeRoundRectCallout":
-                    case "rect":
-                        result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
-                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
-                        break;
-                    case "ellipse":
-                        result += "<ellipse cx='" + (w / 2) + "' cy='" + (h / 2) + "' rx='" + (w / 2) + "' ry='" + (h / 2) + "' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
-                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
-                        break;
-                    case "roundRect":
-                        result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' rx='7' ry='7' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
-                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
-                        break;
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,sAdj1_val = 0.33334;
+                        var sAdj2,sAdj2_val = 0.33334;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj1_val = parseInt(sAdj1.substr(4)) /50000;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj2_val = parseInt(sAdj2.substr(4)) /50000;
+                                }
+                            }
+                        }
+                        var d_val = "M0," + h + " L" + w + "," + h + " L" + w + "," + (h/2)*sAdj2_val + 
+                            " L" + (w/2 + (w/2)*(1-sAdj2_val)) + ",0 L" + (w/2)*sAdj1_val + ",0 Q0,0 0," + (h/2)*sAdj1_val + " z";
+
+                        result += "<path   d='"+d_val+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;    
                     case "bentConnector2": 
                         var d = "";
                         if (isFlipV) {
@@ -876,32 +1618,55 @@
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "triangle":
+                    case "flowChartExtract":
+                    case "flowChartMerge":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
                         var shapAdjst_val = 0.5;
                         if(shapAdjst !== undefined){
                             shapAdjst_val = parseInt(shapAdjst.substr(4)) * 96 / 9144000;
                             //console.log("w: "+w+"\nh: "+h+"\nshapAdjst: "+shapAdjst+"\nshapAdjst_val: "+shapAdjst_val);
                         }
-                        result += " <polygon points='"+(w*shapAdjst_val)+" 0,0 " + h + ","+w+" "+h+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        var tranglRott = "";
+                        if(shapType == "flowChartMerge"){
+                            tranglRott = "transform='rotate(180 " + w/2 +"," + h/2 +  ")'";
+                        }
+                        result += " <polygon " + tranglRott + " points='"+(w*shapAdjst_val)+" 0,0 " + h + ","+w+" "+h+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";            
                         break;
                     case "diamond":
+                    case "flowChartDecision":
+                    case "flowChartSort":
                         result += " <polygon points='" + (w/2) + " 0,0 " + (h/2) + "," + (w/2)+" "+h+"," + w + " " + (h/2) +"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            if(shapType == "flowChartSort"){
+                                result += " <polyline points='0 " + h/2 + "," + w +" " + h/2 + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />"; 
+                            }
                         break;
                     case "trapezoid":
+                    case "flowChartManualOperation":
+                    case "flowChartManualInput":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
-                        var adjst_val = 0.25;
+                        var adjst_val = 0.2;
                         var max_adj_const = 0.7407;
                         if(shapAdjst !== undefined){
                             var adjst = parseInt(shapAdjst.substr(4)) * 96 / 9144000;
                             adjst_val = (adjst*0.5)/max_adj_const;
                         // console.log("w: "+w+"\nh: "+h+"\nshapAdjst: "+shapAdjst+"\nadjst_val: "+adjst_val);
                         }
-                        result += " <polygon points='"+(w*adjst_val)+" 0,0 " + h + ","+w+" "+h+","+(1-adjst_val)*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        var cnstVal = 0;
+                        var tranglRott = "";
+                        if(shapType == "flowChartManualOperation"){
+                            tranglRott = "transform='rotate(180 " + w/2 +"," + h/2 +  ")'";
+                        }
+                        if(shapType == "flowChartManualInput"){
+                            adjst_val = 0;
+                            cnstVal = h/5;
+                        }
+                        result += " <polygon " + tranglRott + " points='"+(w*adjst_val)+" " + cnstVal + ",0 " + h + ","+w+" "+h+","+(1-adjst_val)*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";    
                         break;
                     case "parallelogram":
+                    case "flowChartInputOutput":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
                         var adjst_val = 0.25;
                         var max_adj_const;
@@ -925,23 +1690,37 @@
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "hexagon":
-                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
-                        var shapAdjst = undefined;
-                        for(var i=0; i<shapAdjst_ary.length; i++){
-                            if( getTextByPathList(shapAdjst_ary[i],["attrs","name"]) =="adj"){
-                                shapAdjst = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
-                            }
-                        }
-                        var adjst_val = 0.25;
-                        var max_adj_const = 0.62211;
-                    
+                    case "flowChartPreparation":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 25000*96/914400;
+                        var vf = 115470*96/914400;;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var angVal1 = 60*Math.PI/180;
                         if(shapAdjst !== undefined){
-                            var adjst = parseInt(shapAdjst.substr(4)) * 96 / 9144000;
-                            adjst_val = (adjst*0.5)/max_adj_const;
-                            //console.log("w: "+w+"\nh: "+h+"\nadjst: "+adjst_val);
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
                         }
-                        result += " <polygon points='"+(w*adjst_val)+" 0,0 " + (h/2) + ","+(w*adjst_val)+" "+h+","+(1-adjst_val)*w+" "+h+","+w+" "+(h/2)+","+(1-adjst_val)*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
-                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";    
+                        var maxAdj, a, shd2, x1, x2, dy1, y1, y2 , vc = h/2 ,hd2=h/2;
+                        var ss = Math.min(w,h);
+                        maxAdj = cnstVal1*w/ss;
+                        a = (adj<0)?0:(adj>maxAdj)?maxAdj:adj;
+                        shd2 = hd2*vf/cnstVal2;
+                        x1 = ss*a/cnstVal2;
+                        x2 = w-x1;
+                        dy1 = shd2*Math.sin(angVal1);
+                        y1 = vc-dy1;
+                        y2 = vc+dy1;
+
+                        var d = "M" + 0 + "," + vc +
+                                " L" + x1 + "," + y1 +
+                                " L" + x2 + "," + y1 +
+                                " L" + w + "," + vc +
+                                " L" + x2 + "," + y2 +
+                                " L" + x1 + "," + y2 +
+                                " z";
+                             
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "heptagon":
                         result += " <polygon points='" + (0.5*w) + " 0,"+w/8+" " + h/4 + ",0 "+(5/8)*h+"," + w/4 + " " + h + "," + (3/4)*w + " " +h +","+
@@ -1041,8 +1820,8 @@
                             H = 2*h;
                             isClose = true;
                         }else if(shapType == "arc"){
-                            adj1 = 0;
-                            adj2 = 270;
+                            adj1 = 270;
+                            adj2 = 0;
                             H = h;
                             isClose = false;
                         }
@@ -1063,6 +1842,580 @@
                         var pieVals = shapePie(H,w,adj1,adj2,isClose);
                         //console.log("shapType: ",shapType,"\nimgFillFlg: ",imgFillFlg,"\ngrndFillFlg: ",grndFillFlg,"\nshpId: ",shpId,"\nfillColor: ",fillColor);
                         result += "<path   d='"+pieVals[0]+"' transform='"+pieVals[1]+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "chord":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,sAdj1_val = 45;
+                        var sAdj2,sAdj2_val = 270;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj1_val = parseInt(sAdj1.substr(4)) /60000;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj2_val = parseInt(sAdj2.substr(4)) /60000;
+                                }
+                            }
+                        }
+                        var hR = h/2;
+                        var wR = w/2;
+                        var d_val = shapeArc(wR,hR,wR,hR,sAdj1_val,sAdj2_val,true);
+                        //console.log("shapType: ",shapType,", sAdj1_val: ",sAdj1_val,", sAdj2_val: ",sAdj2_val)
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "frame":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj1 = 12500*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj1 = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a1,x1,x4,y4;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnstVal1) a1 = cnstVal1
+                        else a1 = adj1
+                        x1 = Math.min(w,h)*a1/cnstVal2;
+                        x4 = w - x1;
+                        y4 = h - x1;
+                        var d = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                "M" + x1 + "," + x1 +
+                                " L" + x1 + "," + y4 +
+                                " L" + x4 + "," + y4 +
+                                " L" + x4 + "," + x1 +
+                                " z";                    
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "donut":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a,dr,iwd2,ihd2;
+                        if(adj < 0) a = 0
+                        else if (adj > cnstVal1) a = cnstVal1
+                        else a = adj
+                        dr = Math.min(w,h)*a/cnstVal2;
+                        iwd2 = w/2 - dr;
+                        ihd2 = h/2 - dr;
+                        var d = "M" + 0 + "," + h/2 +
+                                shapeArc(w/2,h/2,w/2,h/2,180,270,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,270,360,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,0,90,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,90,180,false).replace("M","L") +
+                                " z" +
+                                "M" + dr + "," + h/2 + 
+                                shapeArc(w/2,h/2,iwd2,ihd2,180,90,false).replace("M","L") +
+                                shapeArc(w/2,h/2,iwd2,ihd2,90,0,false).replace("M","L") +
+                                shapeArc(w/2,h/2,iwd2,ihd2,0,-90,false).replace("M","L") +
+                                shapeArc(w/2,h/2,iwd2,ihd2,270,180,false).replace("M","L") +
+                                " z";                    
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "noSmoking":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 18750*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a,dr,iwd2,ihd2,ang,ang2rad,ct,st,m,n,drd2,dang,dang2,swAng,t3,stAng1,stAng2;
+                        if(adj < 0) a = 0
+                        else if (adj > cnstVal1) a = cnstVal1
+                        else a = adj
+                        dr = Math.min(w,h)*a/cnstVal2;
+                        iwd2 = w/2 - dr;
+                        ihd2 = h/2 - dr;
+                        ang = Math.atan(h/w);
+                        //ang2rad = ang*Math.PI/180;
+                        ct = ihd2*Math.cos(ang);
+                        st = iwd2*Math.sin(ang);
+                        m = Math.sqrt(ct*ct+st*st); //"mod ct st 0"
+                        n = iwd2*ihd2/m;
+                        drd2 = dr/2;
+                        dang = Math.atan(drd2/n);
+                        dang2 = dang*2;
+                        swAng = -Math.PI+dang2;
+                        //t3 = Math.atan(h/w);
+                        stAng1 = ang-dang;
+                        stAng2 = stAng1-Math.PI;
+                        var ct1,st1,m1,n1,dx1,dy1,x1,y1,y1,y2;
+                        ct1 = ihd2*Math.cos(stAng1);
+                        st1 = iwd2*Math.sin(stAng1);
+                        m1 =Math.sqrt(ct1*ct1 + st1*st1); //"mod ct1 st1 0"
+                        n1 = iwd2*ihd2/m1;
+                        dx1 = n1*Math.cos(stAng1);
+                        dy1 = n1*Math.sin(stAng1);
+                        x1 = w/2+dx1;
+                        y1 = h/2+dy1;
+                        x2 = w/2-dx1;
+                        y2 = h/2-dy1;
+                        var stAng1deg = stAng1*180/Math.PI;
+                        var stAng2deg = stAng2*180/Math.PI;
+                        var swAng2deg = swAng*180/Math.PI;
+                        var d = "M" + 0 + "," + h/2 +
+                                shapeArc(w/2,h/2,w/2,h/2,180,270,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,270,360,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,0,90,false).replace("M","L") +
+                                shapeArc(w/2,h/2,w/2,h/2,90,180,false).replace("M","L") +
+                                " z" +
+                                "M" + x1 + "," + y1 + 
+                                shapeArc(w/2,h/2,iwd2,ihd2,stAng1deg,(stAng1deg+swAng2deg),false).replace("M","L") +
+                                " z" +
+                                "M" + x2 + "," + y2 + 
+                                shapeArc(w/2,h/2,iwd2,ihd2,stAng2deg,(stAng2deg+swAng2deg),false).replace("M","L") +
+                                " z";
+                        //console.log("adj: ",adj,"x1:",x1,",y1:",y1," x2:",x2,",y2:",y2,",stAng1:",stAng1,",stAng1deg:",stAng1deg,",stAng2:",stAng2,",stAng2deg:",stAng2deg,",swAng:",swAng,",swAng2deg:",swAng2deg)
+                       
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "halfFrame":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,sAdj1_val= 3.5;
+                        var sAdj2,sAdj2_val = 3.5;
+                        var cnsVal = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj1_val = parseInt(sAdj1.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj2_val = parseInt(sAdj2.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        var minWH = Math.min(w,h);
+                        var maxAdj2 = (cnsVal * w)/minWH;
+                        var a1,a2;
+                        if(sAdj2_val < 0) a2 = 0
+                        else if (sAdj2_val > maxAdj2) a2 = maxAdj2
+                        else a2 = sAdj2_val
+                        var x1 = (minWH* a2)/cnsVal;
+                        var g1 = h *x1/w;
+                        var g2 = h-g1;
+                        var maxAdj1 = (cnsVal * g2)/ minWH;
+                        if(sAdj1_val < 0) a1 = 0
+                        else if (sAdj1_val > maxAdj1) a1 = maxAdj1
+                        else a1 = sAdj1_val
+                        var y1 = minWH*a1/cnsVal;
+                        var dx2 = y1* w/h;
+                        var x2 = w - dx2;
+                        var dy2 = x1*h/w;
+                        var y2 = h - dy2;
+                        var d = "M0,0" + 
+                        " L" + w + "," + 0 + 
+                        " L" + x2 + "," + y1 + 
+                        " L" + x1 + "," + y1 + 
+                        " L"+ x1 + "," + y2 +
+                        " L0," + h +" z";
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        //console.log("w: ",w,", h: ",h,", sAdj1_val: ",sAdj1_val,", sAdj2_val: ",sAdj2_val,",maxAdj1: ",maxAdj1,",maxAdj2: ",maxAdj2)
+                        break;
+                    case "blockArc":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1= 180;
+                        var sAdj2,adj2 = 0;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))/60000;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))/60000;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        
+                        var stAng,istAng,a3,sw11,sw12,swAng,iswAng;
+                        var cd1 = 360;
+                        if(adj1 < 0) stAng = 0
+                        else if (adj1 > cd1) stAng = cd1
+                        else stAng = adj1 //180
+
+                        if(adj2 < 0) istAng = 0
+                        else if (adj2 > cd1) istAng = cd1
+                        else istAng = adj2 //0
+
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > cnstVal1) a3 = cnstVal1
+                        else a3 = adj3
+
+                        sw11 = istAng - stAng; // -180
+                        sw12 = sw11 + cd1; //180
+                        swAng = (sw11>0)?sw11:sw12; //180
+                        iswAng = -swAng; //-180
+
+                        var endAng = stAng + swAng;
+                        var iendAng = istAng + iswAng;
+                        
+                        var wt1,ht1,dx1,dy1,x1,y1,stRd,istRd,wd2,hd2,hc,vc;
+                        stRd = stAng*(Math.PI)/180;
+                        istRd = istAng*(Math.PI)/180;
+                        wd2 = w/2;
+                        hd2 = h/2;
+                        hc = w/2;
+                        vc = h/2;
+                        if(stAng > 90 && stAng < 270){
+                            wt1 = wd2*(Math.sin((Math.PI)/2 - stRd));
+                            ht1 = hd2*(Math.cos((Math.PI)/2 - stRd));
+                            
+                            dx1 = wd2*(Math.cos(Math.atan(ht1/wt1))); 
+                            dy1 = hd2*(Math.sin(Math.atan(ht1/wt1)));
+                            
+                            x1 = hc - dx1;
+                            y1 = vc - dy1;
+                        }else{
+                            wt1 = wd2*(Math.sin(stRd)); 
+                            ht1 = hd2*(Math.cos(stRd)); 
+                            
+                            dx1 = wd2*(Math.cos(Math.atan(wt1/ht1))); 
+                            dy1 = hd2*(Math.sin(Math.atan(wt1/ht1)));
+                            
+                            x1 = hc + dx1;
+                            y1 = vc + dy1;
+                        }
+                        var dr,iwd2,ihd2,wt2,ht2,dx2,dy2,x2,y2;
+                        dr = Math.min(w,h)*a3/cnstVal2;
+                        iwd2 = wd2 - dr;
+                        ihd2 = hd2 - dr;
+                        //console.log("stAng: ",stAng," swAng: ",swAng ," endAng:",endAng)
+                        if((endAng <= 450 && endAng > 270) || ((endAng >=630 && endAng <720)) ){
+                            wt2 = iwd2*(Math.sin(istRd));
+                            ht2 = ihd2*(Math.cos(istRd));
+                            dx2 = iwd2*(Math.cos(Math.atan(wt2/ht2)));
+                            dy2 = ihd2*(Math.sin(Math.atan(wt2/ht2)));
+                            x2 = hc + dx2;
+                            y2 = vc + dy2;
+                        }else{
+                            wt2 = iwd2*(Math.sin((Math.PI)/2 - istRd));
+                            ht2 = ihd2*(Math.cos((Math.PI)/2 - istRd));
+
+                            dx2 = iwd2*(Math.cos(Math.atan(ht2/wt2)));
+                            dy2 = ihd2*(Math.sin(Math.atan(ht2/wt2)));
+                            x2 = hc - dx2;
+                            y2 = vc - dy2;
+                        }
+                        var d = "M" + x1 + "," + y1 + 
+                            shapeArc(wd2,hd2,wd2,hd2,stAng,endAng,false).replace("M","L") +
+                            " L" + x2 + "," + y2 + 
+                            shapeArc(wd2,hd2,iwd2,ihd2,istAng,iendAng,false).replace("M","L") +
+                            " z";
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "bracePair":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 8333*96/914400;
+                        var cnstVal1 = 25000*96/914400;
+                        var cnstVal2 = 50000*96/914400;
+                        var cnstVal3 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var vc=h/2,cd=360,cd2=180,cd4=90,c3d4=270,a,x1,x2,x3,x4,y2,y3,y4;
+                        if(adj < 0) a = 0
+                        else if (adj > cnstVal1) a = cnstVal1
+                        else a = adj
+                        var minWH = Math.min(w,h);
+                        x1 = minWH*a/cnstVal3;
+                        x2 = minWH*a/cnstVal2;
+                        x3 = w - x2;
+                        x4 = w - x1;
+                        y2 = vc - x1;
+                        y3 = vc + x1;
+                        y4 = h - x1;
+                        //console.log("w:",w," h:",h," x1:",x1," x2:",x2," x3:",x3," x4:",x4," y2:",y2," y3:",y3," y4:",y4)
+                        var d = "M" + x2 + "," + h +
+                            shapeArc(x2,y4,x1,x1,cd4,cd2,false).replace("M","L") +
+                            " L" + x1 + "," + y3 +
+                            shapeArc(0,y3,x1,x1,0,(-cd4),false).replace("M","L") +
+                            shapeArc(0,y2,x1,x1,cd4,0,false).replace("M","L") +
+                            " L" + x1 + "," + x1 +
+                            shapeArc(x2,x1,x1,x1,cd2,c3d4,false).replace("M","L") +
+                            " M" + x3 + "," + 0 +
+                            shapeArc(x3,x1,x1,x1,c3d4,cd,false).replace("M","L") +
+                            " L" + x4 + "," + y2 +
+                            shapeArc(w,y2,x1,x1,cd2,cd4,false).replace("M","L") +
+                            shapeArc(w,y3,x1,x1,c3d4,cd2,false).replace("M","L") +
+                            " L" + x4 + "," + y4 +
+                            shapeArc(x3,y4,x1,x1,0,cd4,false).replace("M","L");
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "leftBrace":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 8333*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,cd2=180,cd4=90,c3d4=270,a1,a2,q1,q2,q3,y1,y2,y3,y4;
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal2) a2 = cnstVal2
+                        else a2 = adj2
+                        var minWH = Math.min(w,h);
+                        q1 = cnstVal2 - a2;
+                        if(q1 < a2) q2 = q1
+                        else q2 = a2
+                        q3 = q2/2;
+                        var maxAdj1 = q3*h/minWH;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        y1 = minWH*a1/cnstVal2;
+                        y3 = h*a2/cnstVal2;
+                        y2 = y3 - y1;
+                        y4 = y3 + y1;
+                        //console.log("w:",w," h:",h," q1:",q1," q2:",q2," q3:",q3," y1:",y1," y3:",y3," y4:",y4," maxAdj1:",maxAdj1)
+                        var d = "M" + w + "," + h +
+                            shapeArc(w,h-y1,w/2,y1,cd4,cd2,false).replace("M","L") +
+                            " L" + w/2 + "," + y4 +
+                            shapeArc(0,y4,w/2,y1,0,(-cd4),false).replace("M","L") +
+                            shapeArc(0,y2,w/2,y1,cd4,0,false).replace("M","L") +
+                            " L" + w/2 + "," + y1 +
+                            shapeArc(w,y1,w/2,y1,cd2,c3d4,false).replace("M","L");
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "rightBrace":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 8333*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,cd=360,cd2=180,cd4=90,c3d4=270,a1,a2,q1,q2,q3,y1,y2,y3,y4;
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal2) a2 = cnstVal2
+                        else a2 = adj2
+                        var minWH = Math.min(w,h);
+                        q1 = cnstVal2 - a2;
+                        if(q1 < a2) q2 = q1
+                        else q2 = a2
+                        q3 = q2/2;
+                        var maxAdj1 = q3*h/minWH;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        y1 = minWH*a1/cnstVal2;
+                        y3 = h*a2/cnstVal2;
+                        y2 = y3 - y1;
+                        y4 = h - y1;
+                        //console.log("w:",w," h:",h," q1:",q1," q2:",q2," q3:",q3," y1:",y1," y2:",y2," y3:",y3," y4:",y4," maxAdj1:",maxAdj1)
+                        var d = "M" + 0 + "," + 0 +
+                            shapeArc(0,y1,w/2,y1,c3d4,cd,false).replace("M","L") +
+                            " L" + w/2 + "," + y2 +
+                            shapeArc(w,y2,w/2,y1,cd2,cd4,false).replace("M","L") +
+                            shapeArc(w,y3+y1,w/2,y1,c3d4,cd2,false).replace("M","L") +
+                            " L" + w/2 + "," + y4 +
+                            shapeArc(0,y4,w/2,y1,0,cd4,false).replace("M","L");
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "bracketPair":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 16667*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var r=w,b=h,cd2=180,cd4=90,c3d4=270,a,x1,x2,y2;
+                        if(adj < 0) a = 0
+                        else if (adj > cnstVal1) a = cnstVal1
+                        else a = adj
+                        x1 = Math.min(w,h)*a/cnstVal2;
+                        x2 = r - x1;
+                        y2 = b - x1;
+                        //console.log("w:",w," h:",h," x1:",x1," x2:",x2," y2:",y2)
+                        var d = shapeArc(x1,x1,x1,x1,c3d4,cd2,false) +
+                            shapeArc(x1,y2,x1,x1,cd2,cd4,false).replace("M","L") +
+                            shapeArc(x2,x1,x1,x1,c3d4,(c3d4+cd4),false) +
+                            shapeArc(x2,y2,x1,x1,0,cd4,false).replace("M","L");
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "leftBracket":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 8333*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var maxAdj = cnstVal1*h/Math.min(w,h);
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var r=w,b=h,cd2=180,cd4=90,c3d4=270,a,y1,y2;
+                        if(adj < 0) a = 0
+                        else if (adj > maxAdj) a = maxAdj
+                        else a = adj
+                        y1 = Math.min(w,h)*a/cnstVal2;
+                        if(y1>w) y1=w;
+                        y2 = b - y1;
+                        var d = "M"+ r + "," + b +
+                            shapeArc(y1,y2,y1,y1,cd4,cd2,false).replace("M","L") +
+                            " L"+ 0 + "," + y1 +
+                            shapeArc(y1,y1,y1,y1,cd2,c3d4,false).replace("M","L") +
+                            " L"+ r + "," + 0
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "rightBracket":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 8333*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var maxAdj = cnstVal1*h/Math.min(w,h);
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var cd=360,cd2=180,cd4=90,c3d4=270,a,y1,y2,y3;
+                        if(adj < 0) a = 0
+                        else if (adj > maxAdj) a = maxAdj
+                        else a = adj
+                        y1 = Math.min(w,h)*a/cnstVal2;
+                        y2 = h - y1;
+                        y3 = w - y1;
+                        //console.log("w:",w," h:",h," y1:",y1," y2:",y2," y3:",y3)
+                        var d = "M"+ 0 + "," + h +
+                            shapeArc(y3,y2,y1,y1,cd4,0,false).replace("M","L") +
+                            //" L"+ r + "," + y2 +
+                            " L"+ w + "," + h/2 +
+                            shapeArc(y3,y1,y1,y1,cd,c3d4,false).replace("M","L") +
+                            " L"+ 0 + "," + 0
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "moon":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 0.5;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))/100000;//*96/914400;;
+                        }
+                        var hd2,cd2,cd4;
+
+                        hd2 = h/2;
+                        cd2 = 180;
+                        cd4 = 90;
+
+                        var adj2 = (1-adj) * w;
+                        var d = "M" + w + "," + h + 
+                            shapeArc(w,hd2,w,hd2,cd4,(cd4+cd2),false).replace("M","L") +
+                            shapeArc(w,hd2,adj2,hd2,(cd4+cd2),cd4,false).replace("M","L") +
+                            " z";
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "corner":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,sAdj1_val= 50000*96/914400;
+                        var sAdj2,sAdj2_val = 50000*96/914400;
+                        var cnsVal = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj1_val = parseInt(sAdj1.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    sAdj2_val = parseInt(sAdj2.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        var minWH = Math.min(w,h);
+                        var maxAdj1 = cnsVal*h/minWH;
+                        var maxAdj2 = cnsVal*w/minWH;
+                        var a1,a2,x1,dy1,y1;
+                        if(sAdj1_val < 0) a1 = 0
+                        else if (sAdj1_val > maxAdj1) a1 = maxAdj1
+                        else a1 = sAdj1_val
+
+                        if(sAdj2_val < 0) a2 = 0
+                        else if (sAdj2_val > maxAdj2) a2 = maxAdj2
+                        else a2 = sAdj2_val
+                        x1 = minWH*a2/cnsVal;
+                        dy1 = minWH*a1/cnsVal;
+                        y1 = h - dy1;
+
+                        var d = "M0,0" + 
+                        " L" + x1 + "," + 0 + 
+                        " L" + x1 + "," + y1 + 
+                        " L" + w + "," + y1 + 
+                        " L"+ w + "," + h +
+                        " L0," + h +" z";
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "diagStripe":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var sAdj1_val= 50000*96/914400;
+                        var cnsVal = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            sAdj1_val = parseInt(shapAdjst.substr(4))* 96/914400;
+                        }
+                        var a1 , x2 , y2;
+                        if(sAdj1_val < 0) a1 = 0
+                        else if (sAdj1_val > cnsVal) a1 = cnsVal
+                        else a1 = sAdj1_val
+                        x2 = w*a1/cnsVal;
+                        y2 = h*a1/cnsVal;
+                        var d = "M" + 0 + "," + y2 + 
+                        " L" + x2 + "," + 0 + 
+                        " L" + w + "," + 0 + 
+                        " L"+ 0 + "," + h +" z";
+
+                        result += "<path   d='"+d+"'  fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "gear6":
@@ -1113,6 +2466,1383 @@
                                     +w+" "+adj1*h+","+adj2*w+" "+adj1*h+","+adj2*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";    
                         //console.log((!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")")) 
+                        break;
+                    case "teardrop":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var adj1 = 100000*96/914400;
+                        var cnsVal1 = adj1;
+                        var cnsVal2 = 200000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj1 = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a1 ,r2 ,tw,th,sw,sh,dx1,dy1,x1,y1, x2 , y2 ,rd45;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnsVal2) a1 = cnsVal2
+                        else a1 = adj1
+                        r2 = Math.sqrt(2);
+                        tw = r2*(w/2);
+                        th = r2*(h/2);
+                        sw = (tw*a1)/cnsVal1;
+                        sh = (th*a1)/cnsVal1;
+                        rd45 = (45*(Math.PI)/180);
+                        dx1 = sw*(Math.cos(rd45));
+                        dy1 = sh*(Math.cos(rd45));
+                        x1 = (w/2) + dx1;
+                        y1 = (h/2) - dy1;
+                        x2 = ((w/2)+x1)/2;
+                        y2 = ((h/2)+y1)/2;
+
+                        var d_val = shapeArc(w/2,h/2,w/2,h/2,180,270,false) + 
+                                    "Q " + x2 + ",0 " + x1 + "," + y1 + 
+                                    "Q " + w + "," + y2 + " " + w + "," + h/2 +
+                                    shapeArc(w/2,h/2,w/2,h/2,0,90,false).replace("M","L") + 
+                                    shapeArc(w/2,h/2,w/2,h/2,90,180,false).replace("M","L") + " z";
+                        result += "<path   d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                       // console.log("shapAdjst: ",shapAdjst,", adj1: ",adj1);
+                        break;
+                    case "plaque":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var adj1 = 16667*96/914400;
+                        var cnsVal1 = 50000*96/914400;
+                        var cnsVal2 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj1 = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a1 ,x1, x2 , y2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnsVal1) a1 = cnsVal1
+                        else a1 = adj1
+                        x1 = a1*(Math.min(w,h))/cnsVal2;
+                        x2 = w-x1;
+                        y2 = h-x1;
+
+                        var d_val = "M0," + x1 +
+                                    shapeArc(0,0,x1,x1,90,0,false).replace("M","L") + 
+                                    " L" + x2 + "," + 0 + 
+                                    shapeArc(w,0,x1,x1,180,90,false).replace("M","L") +
+                                    " L" + w + "," + y2 + 
+                                    shapeArc(w,h,x1,x1,270,180,false).replace("M","L") +
+                                    " L" + x1 + "," + h +
+                                    shapeArc(0,h,x1,x1,0,-90,false).replace("M","L") + " z";
+                        result += "<path   d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+            
+                        break;
+                    case "sun":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj1 = 25000*refr;
+                        var cnstVal1 = 12500*refr;
+                        var cnstVal2 = 46875*refr;
+                        if(shapAdjst !== undefined){
+                            adj1 = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var a1;
+                        if(adj1 < cnstVal1) a1 = cnstVal1
+                        else if (adj1 > cnstVal2) a1 = cnstVal2
+                        else a1 = adj1
+
+                        var cnstVa3 =  50000*refr;
+                        var cnstVa4 =  100000*refr;
+                        var g0 = cnstVa3 - a1,
+                        g1 = g0*(30274*refr)/(32768*refr),
+                        g2 = g0*(12540*refr)/(32768*refr),
+                        g3 = g1+cnstVa3,
+                        g4 = g2+cnstVa3,
+                        g5 = cnstVa3-g1,
+                        g6 = cnstVa3-g2,
+                        g7 = g0*(23170*refr)/(32768*refr),
+                        g8 = cnstVa3+g7,
+                        g9 = cnstVa3-g7,
+                        g10 = g5*3/4,
+                        g11 = g6*3/4,
+                        g12 = g10+3662*refr,
+                        g13 = g11+36620*refr,
+                        g14 = g11+12500*refr,
+                        g15 = cnstVa4-g10,
+                        g16 = cnstVa4-g12,
+                        g17 = cnstVa4-g13,
+                        g18 = cnstVa4-g14,
+                        ox1 = w*(18436*refr)/(21600*refr),
+                        oy1 = h*(3163*refr)/(21600*refr),
+                        ox2 = w*(3163*refr)/(21600*refr),
+                        oy2 = h*(18436*refr)/(21600*refr),
+                        x8 = w*g8/cnstVa4,
+                        x9 = w*g9/cnstVa4,
+                        x10 = w*g10/cnstVa4,
+                        x12 = w*g12/cnstVa4,
+                        x13 = w*g13/cnstVa4,
+                        x14 = w*g14/cnstVa4,
+                        x15 = w*g15/cnstVa4,
+                        x16 = w*g16/cnstVa4,
+                        x17 = w*g17/cnstVa4,
+                        x18 = w*g18/cnstVa4,
+                        x19 = w*a1/cnstVa4,
+                        wR = w*g0/cnstVa4,
+                        hR = h*g0/cnstVa4,
+                        y8 = h*g8/cnstVa4,
+                        y9 = h*g9/cnstVa4,
+                        y10 = h*g10/cnstVa4,
+                        y12 = h*g12/cnstVa4,
+                        y13 = h*g13/cnstVa4,
+                        y14 = h*g14/cnstVa4,
+                        y15 = h*g15/cnstVa4,
+                        y16 = h*g16/cnstVa4,
+                        y17 = h*g17/cnstVa4,
+                        y18 = h*g18/cnstVa4;
+
+                        var d_val = "M"+w+"," + h/2 +
+                        " L"+x15+","+y18+
+                        " L"+x15+","+y14+
+                        "z" +
+                        " M"+ox1+","+oy1+
+                        " L"+x16+","+y17+
+                        " L"+x13+","+y12+
+                        "z" +
+                        " M"+w/2+","+0+
+                        " L"+x18+","+y10+
+                        " L"+x14+","+y10+
+                        "z" +
+                        " M"+ox2+","+oy1+
+                        " L"+x17+","+y12+
+                        " L"+x12+","+y17+
+                        "z" +
+                        " M"+0+","+h/2+
+                        " L"+x10+","+y14+
+                        " L"+x10+","+y18+
+                        "z" +
+                        " M"+ox2+","+oy2+
+                        " L"+x12+","+y13+
+                        " L"+x17+","+y16+
+                        "z" +
+                        " M"+w/2+","+h+
+                        " L"+x14+","+y15+
+                        " L"+x18+","+y15+
+                        "z" +
+                        " M"+ox1+","+oy2+
+                        " L"+x13+","+y16+
+                        " L"+x16+","+y13+
+                        " z" +
+                        " M"+x19+","+h/2+
+                        shapeArc(w/2,h/2,wR,hR,180,540,false).replace("M","L") +
+                        " z";
+                        //console.log("adj1: ",adj1,d_val);
+                        result += "<path   d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+            
+
+                        break;
+                    case "heart":
+                        var dx1,dx2,x1, x2,x3,x4,y1;
+                        dx1 = w*49/48;
+                        dx2 = w*10/48
+                        x1 = w/2-dx1
+                        x2 = w/2-dx2
+                        x3 = w/2+dx2
+                        x4 = w/2+dx1
+                        y1 = -h/3;
+                        var d_val = "M" + w/2 + "," + h/4 +
+                                    "C" + x3 + "," + y1 +" "+ x4 + "," + h/4 + " " + w/2 + "," + h +
+                                    "C" + x1 + "," + h/4 +" "+ x2 + "," + y1 + " " + w/2 + "," + h/4 + " z";
+                                    
+                        result += "<path   d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "lightningBolt":
+                        var x1 = w*5022/21600,
+                        x2 = w*11050/21600,
+                        x3 = w*8472/21600,
+                        x4 = w*8757/21600,
+                        x5 = w*10012/21600,
+                        x6 = w*14767/21600,
+                        x7 = w*12222/21600,
+                        x8 = w*12860/21600,
+                        x9 = w*13917/21600,
+                        x10 = w*7602/21600,
+                        x11 = w*16577/21600,
+                        y1 = h*3890/21600,
+                        y2 = h*6080/21600,
+                        y3 = h*6797/21600,
+                        y4 = h*7437/21600,
+                        y5 = h*12877/21600,
+                        y6 = h*9705/21600,
+                        y7 = h*12007/21600,
+                        y8 = h*13987/21600,
+                        y9 = h*8382/21600,
+                        y10 = h*14277/21600,
+                        y11 = h*14915/21600;
+
+                        var d_val = "M" + x3 + "," + 0 +
+                                    " L" + x8 + "," + y2  +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x11 + "," + y7 +
+                                    " L" + x6 + "," + y5 +
+                                    " L" + w + "," + h +
+                                    " L" + x5 + "," + y11 +
+                                    " L" + x7 + "," + y8 +
+                                    " L" + x1 + "," + y6 + 
+                                    " L" + x10 + "," +  y9 + 
+                                    " L" + 0 + "," + y1  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "cube":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj = 25000*refr;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var d_val;
+                        var cnstVal2 = 100000*refr;
+                        var ss = Math.min(w,h);
+                        var a, y1, y4, x4;
+                        a = (adj<0)?0:(adj>cnstVal2)?cnstVal2:adj;
+                        y1 = ss*a/cnstVal2;
+                        y4 = h-y1;
+                        x4 = w-y1;
+                        d_val = "M" + 0 + "," + y1 +
+                                " L" + y1 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + y4 +
+                                " L" + x4 + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                "M" + 0 + "," + y1 +
+                                " L" + x4 + "," + y1 +
+                                " M" + x4 + "," + y1 +
+                                " L" + w + "," + 0 +
+                                "M" + x4 + "," + y1 +
+                                " L" + x4 + "," + h;
+
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "bevel":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj = 12500*refr;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var d_val;
+                        var cnstVal1 = 50000*refr;
+                        var cnstVal2 = 100000*refr;
+                        var ss = Math.min(w,h);
+                        var a, x1, x2, y2;
+                        a = (adj<0)?0:(adj>cnstVal1)?cnstVal1:adj;
+                        x1 = ss*a/cnstVal2;
+                        x2 = w-x1;
+                        y2 = h-x1;
+                        d_val = "M" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + h +
+                                " L" + 0 + "," + h +
+                                " z" +
+                                " M" + x1 + "," + x1 +
+                                " L" + x2 + "," + x1 +
+                                " L" + x2 + "," + y2 +
+                                " L" + x1 + "," + y2 +
+                                " z" +
+                                " M" + 0 + "," + 0 +
+                                " L" + x1 + "," + x1 +
+                                " M" + 0 + "," + h +
+                                " L" + x1 + "," + y2 +
+                                " M" + w + "," + 0 +
+                                " L" + x2 + "," + x1 +
+                                " M" + w + "," + h +
+                                " L" + x2 + "," + y2;
+                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                                
+                        break;
+                    case "foldedCorner":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj = 16667*refr;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var d_val;
+                        var cnstVal1 = 50000*refr;
+                        var cnstVal2 = 100000*refr;
+                        var ss = Math.min(w,h);
+                        var a, dy2, dy1, x1, x2, y2, y1;
+                        a = (adj<0)?0:(adj>cnstVal1)?cnstVal1:adj;
+                        dy2 = ss*a/cnstVal2;
+                        dy1 = dy2/5;
+                        x1 = w-dy2;
+                        x2 = x1+dy1;
+                        y2 = h-dy2;
+                        y1 = y2+dy1;
+                        d_val = "M" + x1 + "," + h +
+                                " L" + x2 + "," + y1 +
+                                " L" + w + "," + y2 +
+                                " L" + x1 + "," + h +
+                                " L" + 0 + "," + h +
+                                " L" + 0 + "," + 0 +
+                                " L" + w + "," + 0 +
+                                " L" + w + "," + y2;
+                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            
+                        break;
+                    case "smileyFace":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj = 4653*refr;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var d_val;
+                        var cnstVal1 = 50000*refr;
+                        var cnstVal2 = 100000*refr;
+                        var cnstVal3 = 4653*refr;
+                        var ss = Math.min(w,h);
+                        var a, x1, x2, x3, x4, y1, y3, dy2, y2, y4, dy3, y5, wR, hR, wd2, hd2;
+                        wd2 = w/2;
+                        hd2 = h/2;
+                        a = (adj<-cnstVal3)?-cnstVal3:(adj>cnstVal3)?cnstVal3:adj;
+                        x1 = w*4969/21699;
+                        x2 = w*6215/21600;
+                        x3 = w*13135/21600;
+                        x4 = w*16640/21600;
+                        y1 = h*7570/21600;
+                        y3 = h*16515/21600;
+                        dy2 = h*a/cnstVal2;
+                        y2 = y3-dy2;
+                        y4 = y3+dy2;
+                        dy3 = h*a/cnstVal1;
+                        y5 = y4+dy3;
+                        wR = w*1125/21600;
+                        hR = h*1125/21600;
+                        var cX1 = x2 - wR*Math.cos(Math.PI);
+                        var cY1 = y1 - hR*Math.sin(Math.PI);
+                        var cX2 = x3 - wR*Math.cos(Math.PI);
+                        d_val = //eyes
+                                shapeArc(cX1,cY1,wR,hR,180,540,false) +
+                                shapeArc(cX2,cY1,wR,hR,180,540,false) +
+                                //mouth
+                                " M" + x1 + "," + y2 +
+                                " Q" + wd2 + "," + y5 + " " + x4 + "," + y2 +
+                                " Q" + wd2 + "," + y5 + " " + x1 + "," + y2 +
+                                //head
+                                " M" + 0 + "," + hd2 +
+                                shapeArc(wd2,hd2,wd2,hd2,180,540,false).replace("M","L") +
+                                " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            
+                        break;
+                    case "verticalScroll":
+                    case "horizontalScroll":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd", "attrs", "fmla"]);
+                        var refr = 96/914400;
+                        var adj = 12500*refr;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*refr;
+                        }
+                        var d_val;
+                        var cnstVal1 = 25000*refr;
+                        var cnstVal2 = 100000*refr;
+                        var ss = Math.min(w,h);
+                        var t=0,l=0,b=h,r=w;
+                        var a, ch, ch2, ch4;
+                        a = (adj<0)?0:(adj>cnstVal1)?cnstVal1:adj;
+                        ch = ss*a/cnstVal2;
+                        ch2 = ch/2;
+                        ch4 = ch/4;
+                        if(shapType == "verticalScroll"){
+                            var x3, x4, x6, x7, x5, y3, y4;
+                            x3 = ch+ch2;
+                            x4 = ch+ch;
+                            x6 = r-ch;
+                            x7 = r-ch2;
+                            x5 = x6-ch2;
+                            y3 = b-ch;
+                            y4 = b-ch2;
+
+                            d_val = "M" + ch + "," + y3 +
+                                    " L" + ch + "," + ch2 +
+                                    shapeArc(x3,ch2,ch2,ch2,180,270,false).replace("M","L") +
+                                    " L" + x7 + "," + t +
+                                    shapeArc(x7,ch2,ch2,ch2,270,450,false).replace("M","L") +
+                                    " L" + x6 + "," + ch +
+                                    " L" + x6 + "," + y4 +
+                                    shapeArc(x5,y4,ch2,ch2,0,90,false).replace("M","L") +
+                                    " L" + ch2 + "," + b +
+                                    shapeArc(ch2,y4,ch2,ch2,90,270,false).replace("M","L") +
+                                     " z" +
+                                    " M" + x3 + "," + t +
+                                    shapeArc(x3,ch2,ch2,ch2,270,450,false).replace("M","L") +
+                                    shapeArc(x3,x3/2,ch4,ch4,90,270,false).replace("M","L") +
+                                    " L" + x4 + "," + ch2 +
+                                    " M" + x6 + "," + ch +
+                                    " L" + x3 + "," + ch +
+                                    " M" + ch + "," + y4 +
+                                    shapeArc(ch2,y4,ch2,ch2,0,270,false).replace("M","L") +
+                                    shapeArc(ch2,(y4+y3)/2,ch4,ch4,270,450,false).replace("M","L") +
+                                    " z"+
+                                    " M" + ch + "," + y4 +
+                                    " L" + ch + "," + y3;
+                        }else if(shapType == "horizontalScroll"){
+                            var y3, y4, y6, y7, y5, x3, x4;
+                            y3 = ch+ch2;
+                            y4 = ch+ch;
+                            y6 = b-ch;
+                            y7 = b-ch2;
+                            y5 = y6-ch2;
+                            x3 = r-ch;
+                            x4 = r-ch2;
+
+                            d_val = "M" + l + "," + y3 +
+                                    shapeArc(ch2,y3,ch2,ch2,180,270,false).replace("M","L") +
+                                    " L" + x3 + "," + ch +
+                                    " L" + x3 + "," + ch2 +
+                                    shapeArc(x4,ch2,ch2,ch2,180,360,false).replace("M","L") +
+                                    " L" + r + "," + y5 +
+                                    shapeArc(x4,y5,ch2,ch2,0,90,false).replace("M","L") +
+                                    " L" + ch + "," + y6 +
+                                    " L" + ch + "," + y7 +
+                                    shapeArc(ch2,y7,ch2,ch2,0,180,false).replace("M","L") +
+                                     " z" +
+                                     "M" + x4 + "," + ch +
+                                     shapeArc(x4,ch2,ch2,ch2,90,-180,false).replace("M","L") +
+                                     shapeArc((x3+x4)/2,ch2,ch4,ch4,180,0,false).replace("M","L") +
+                                     " z" +
+                                     " M" + x4 + "," + ch +
+                                     " L" + x3 + "," + ch +
+                                    " M" + ch2 + "," + y4 +
+                                    " L" + ch2 + "," + y3 +
+                                    shapeArc(y3/2,y3,ch4,ch4,180,360,false).replace("M","L") +
+                                    shapeArc(ch2,y3,ch2,ch2,0,180,false).replace("M","L") +
+                                    " M" + ch + "," + y3 +
+                                    " L" + ch + "," + y6;
+                        }
+
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "wedgeEllipseCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var refr = 96/914400;
+                        var sAdj1,adj1= -20833*refr;
+                        var sAdj2,adj2 = 62500*refr;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*refr;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*refr;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 100000*96/914400;
+                        var angVal1 = 11*Math.PI/180;
+                        var ss = Math.min(w,h);
+                        var dxPos, dyPos, xPos, yPos, sdx, sdy, pang, stAng, enAng, dx1, dy1, x1, y1, dx2, dy2, 
+                            x2, y2, stAng1, enAng1, swAng1, swAng2, swAng,
+                            vc = h/2 , hc = w/2;
+                        dxPos = w*adj1/cnstVal1;
+                        dyPos = h*adj2/cnstVal1;
+                        xPos = hc+dxPos;
+                        yPos = vc+dyPos;
+                        sdx = dxPos*h;
+                        sdy = dyPos*w;
+                        pang = Math.atan(sdy/sdx);
+                        stAng = pang+angVal1;
+                        enAng = pang-angVal1;
+                        console.log("dxPos: ",dxPos,"dyPos: ",dyPos)
+                        dx1 = hc*Math.cos(stAng);
+                        dy1 = vc*Math.sin(stAng);
+                        dx2 = hc*Math.cos(enAng);
+                        dy2 = vc*Math.sin(enAng);
+                        if(dxPos >= 0 ){
+                            x1 = hc+dx1;
+                            y1 = vc+dy1;
+                            x2 = hc+dx2;
+                            y2 = vc+dy2;
+                        }else{
+                            x1 = hc-dx1;
+                            y1 = vc-dy1;
+                            x2 = hc-dx2;
+                            y2 = vc-dy2;
+                        }
+                        /*
+                        //stAng = pang+angVal1;
+                        //enAng = pang-angVal1;
+                        //dx1 = hc*Math.cos(stAng);
+                        //dy1 = vc*Math.sin(stAng);
+                        x1 = hc+dx1;
+                        y1 = vc+dy1;
+                        dx2 = hc*Math.cos(enAng);
+                        dy2 = vc*Math.sin(enAng);
+                        x2 = hc+dx2;
+                        y2 = vc+dy2;
+                        stAng1 = Math.atan(dy1/dx1);
+                        enAng1 = Math.atan(dy2/dx2);
+                        swAng1 = enAng1-stAng1;
+                        swAng2 = swAng1+2*Math.PI;
+                        swAng = (swAng1 > 0)?swAng1:swAng2;
+                        var stAng1Dg = stAng1*180/Math.PI;
+                        var swAngDg = swAng*180/Math.PI;
+                        var endAng = stAng1Dg + swAngDg;
+                        */
+                        d_val = "M" + x1 + "," + y1 +
+                                " L" + xPos + "," + yPos +
+                                " L" + x2 + "," + y2 +
+                                //" z" +
+                                shapeArc(hc,vc,hc,vc,0,360,true);// +
+                                //shapeArc(hc,vc,hc,vc,stAng1Dg,stAng1Dg+swAngDg,false).replace("M","L") +
+                                //" z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "wedgeRectCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var refr = 96/914400;
+                        var sAdj1,adj1= -20833*refr;
+                        var sAdj2,adj2 = 62500*refr;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*refr;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*refr;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 100000*96/914400;
+                        var dxPos, dyPos, xPos, yPos, dx, dy, dq, ady, adq, dz, xg1, xg2, x1, x2, 
+                            yg1, yg2, y1, y2, t1, xl, t2, xt, t3, xr, t4, xb, t5, yl, t6, yt, t7, yr, t8, yb,
+                            vc = h/2 , hc = w/2;
+                        dxPos = w*adj1/cnstVal1;
+                        dyPos = h*adj2/cnstVal1;
+                        xPos = hc+dxPos;
+                        yPos = vc+dyPos;
+                        dx = xPos-hc;
+                        dy = yPos-vc;
+                        dq = dxPos*h/w;
+                        ady = Math.abs(dyPos);
+                        adq = Math.abs(dq);
+                        dz = ady-adq;
+                        xg1 = (dxPos > 0)?7:2;
+                        xg2 = (dxPos > 0)?10:5;
+                        x1 = w*xg1/12;
+                        x2 = w*xg2/12;
+                        yg1 = (dyPos > 0)?7:2;
+                        yg2 = (dyPos > 0)?10:5;
+                        y1 = h*yg1/12;
+                        y2 = h*yg2/12;
+                        t1 = (dxPos > 0)?0:xPos;
+                        xl = (dz > 0)?0:t1;
+                        t2 = (dyPos > 0)?x1:xPos;
+                        xt = (dz > 0)?t2:x1;
+                        t3 = (dxPos > 0)?xPos:w;
+                        xr = (dz > 0)?w:t3;
+                        t4 = (dyPos > 0)?xPos:x1;
+                        xb = (dz > 0)?t4:x1;
+                        t5 = (dxPos > 0)?y1:yPos;
+                        yl = (dz > 0)?y1:t5;
+                        t6 = (dyPos > 0)?0:yPos;
+                        yt = (dz > 0)?t6:0;
+                        t7 = (dxPos > 0)?yPos:y1;
+                        yr = (dz > 0)?y1:t7;
+                        t8 = (dyPos > 0)?yPos:h;
+                        yb = (dz > 0)?t8:h;
+
+                        d_val = "M" + 0 + "," +0 +
+                                " L" + x1 + "," +0 +
+                                " L" + xt + "," +yt +
+                                " L" + x2 + "," +0 +
+                                " L" + w + "," +0 +
+                                " L" + w + "," +y1 +
+                                " L" + xr + "," +yr +
+                                " L" + w + "," +y2 +
+                                " L" + w + "," +h +
+                                " L" + x2 + "," +h +
+                                " L" + xb + "," +yb +
+                                " L" + x1 + "," +h +
+                                " L" + 0 + "," +h +
+                                " L" + 0 + "," +y2 +
+                                " L" + xl + "," +yl +
+                                " L" + 0 + "," +y1 +
+                                " z";
+
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "wedgeRoundRectCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var refr = 96/914400;
+                        var sAdj1,adj1= -20833*refr;
+                        var sAdj2,adj2 = 62500*refr;
+                        var sAdj3,adj3 = 16667*refr;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*refr;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*refr;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*refr;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 100000*96/914400;
+                        var ss = Math.min(w,h);
+                        var dxPos, dyPos, xPos, yPos, dq, ady, adq, dz, xg1, xg2, x1, x2, yg1, yg2, y1, y2, 
+                            t1, xl, t2, xt, t3, xr, t4, xb, t5, yl, t6, yt, t7, yr, t8, yb, u1, u2, v2,
+                            vc = h/2 , hc = w/2;
+                        dxPos = w*adj1/cnstVal1;
+                        dyPos = h*adj2/cnstVal1;
+                        xPos = hc+dxPos;
+                        yPos = vc+dyPos;
+                        dq = dxPos*h/w;
+                        ady = Math.abs(dyPos);
+                        adq = Math.abs(dq);
+                        dz = ady-adq;
+                        xg1 = (dxPos > 0)?7:2;
+                        xg2 = (dxPos > 0)?10:5;
+                        x1 = w*xg1/12;
+                        x2 = w*xg2/12;
+                        yg1 = (dyPos > 0)?7:2;
+                        yg2 = (dyPos > 0)?10:5;
+                        y1 = h*yg1/12;
+                        y2 = h*yg2/12;
+                        t1 = (dxPos > 0)?0:xPos;
+                        xl = (dz > 0)?0:t1;
+                        t2 = (dyPos > 0)?x1:xPos;
+                        xt = (dz > 0)?t2:x1;
+                        t3 = (dxPos > 0)?xPos:w;
+                        xr = (dz > 0)?w:t3;
+                        t4 = (dyPos > 0)?xPos:x1;
+                        xb = (dz > 0)?t4:x1;
+                        t5 = (dxPos > 0)?y1:yPos;
+                        yl = (dz > 0)?y1:t5;
+                        t6 = (dyPos > 0)?0:yPos;
+                        yt = (dz > 0)?t6:0;
+                        t7 = (dxPos > 0)?yPos:y1;
+                        yr = (dz > 0)?y1:t7;
+                        t8 = (dyPos > 0)?yPos:h;
+                        yb = (dz > 0)?t8:h;
+                        u1 = ss*adj3/cnstVal1;
+                        u2 = w-u1;
+                        v2 = h-u1;
+                        d_val = "M" + 0 + "," + u1 +
+                                shapeArc(u1,u1,u1,u1,180,270,false).replace("M","L") +
+                                " L" + x1 + "," + 0 +
+                                " L" + xt + "," + yt +
+                                " L" + x2 + "," + 0 +
+                                " L" + u2 + "," + 0 +
+                                shapeArc(u2,u1,u1,u1,270,360,false).replace("M","L") +
+                                " L" + w + "," + y1 +
+                                " L" + xr + "," + yr +
+                                " L" + w + "," + y2 +
+                                " L" + w + "," + v2 +
+                                shapeArc(u2,v2,u1,u1,0,90,false).replace("M","L") +
+                                " L" + x2 + "," + h +
+                                " L" + xb + "," + yb +
+                                " L" + x1 + "," + h +
+                                " L" + u1 + "," + h +
+                                shapeArc(u1,v2,u1,u1,90,180,false).replace("M","L") +
+                                " L" + 0 + "," + y2 +
+                                " L" + xl + "," + yl +
+                                " L" + 0 + "," + y1 +
+                                " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "accentBorderCallout1":
+                    case "accentBorderCallout2":
+                    case "accentBorderCallout3":
+                    case "borderCallout1":
+                    case "borderCallout2":
+                    case "borderCallout3":
+                    case "accentCallout1":
+                    case "accentCallout2":
+                    case "accentCallout3":
+                    case "callout1":
+                    case "callout2":
+                    case "callout3":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var refr = 96/914400;
+                        var sAdj1,adj1= 18750*refr;
+                        var sAdj2,adj2 = -8333*refr;
+                        var sAdj3,adj3 = 18750*refr;
+                        var sAdj4,adj4= -16667*refr;
+                        var sAdj5,adj5 = 100000*refr;
+                        var sAdj6,adj6 = -16667*refr;
+                        var sAdj7,adj7 = 112963*refr;
+                        var sAdj8,adj8 = -8333*refr;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*refr;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*refr;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*refr;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*refr;
+                                }else if(sAdj_name =="adj5"){
+                                    sAdj5 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj5 = parseInt(sAdj5.substr(4))*refr;
+                                }else if(sAdj_name =="adj6"){
+                                    sAdj6 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj6 = parseInt(sAdj6.substr(4))*refr;
+                                }else if(sAdj_name =="adj7"){
+                                    sAdj7 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj7 = parseInt(sAdj7.substr(4))*refr;
+                                }else if(sAdj_name =="adj8"){
+                                    sAdj8 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj8 = parseInt(sAdj8.substr(4))*refr;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 100000*96/914400;
+                        var isBorder = true;
+                        switch(shapType){
+                            case "borderCallout1":
+                            case "callout1":
+                                if(shapType == "borderCallout1"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 112500*refr;
+                                    adj4 = -38333*refr;
+                                }
+                                var y1, x1, y2, x2;
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2;
+                                break;
+                            case "borderCallout2":
+                            case "callout2":
+                                if(shapType == "borderCallout2"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 18750*refr;
+                                    adj4 = -16667*refr;
+
+                                    adj5 = 112500*refr;
+                                    adj6 = -46667*refr;
+                                }
+                                var y1, x1, y2, x2, y3, x3;
+                                
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+
+                                y3 = h*adj5/cnstVal1;
+                                x3 = w*adj6/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2 +
+
+                                        " L" + x3 + "," + y3+
+                                        " L" + x2 + "," + y2;
+
+                                break;
+                            case "borderCallout3":
+                            case "callout3":
+                                if(shapType == "borderCallout3"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 18750*refr;
+                                    adj4 = -16667*refr;
+
+                                    adj5 = 100000*refr;
+                                    adj6 = -16667*refr;
+
+                                    adj7 = 112963*refr;
+                                    adj8 = -8333*refr;
+                                }
+                                var y1, x1, y2, x2, y3, x3, y4, x4;
+                                
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+
+                                y3 = h*adj5/cnstVal1;
+                                x3 = w*adj6/cnstVal1;
+
+                                y4 = h*adj7/cnstVal1;
+                                x4 = w*adj8/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2 +
+
+                                        " L" + x3 + "," + y3 +
+
+                                        " L" + x4 + "," + y4 +
+                                        " L" + x3 + "," + y3 +
+                                        " L" + x2 + "," + y2;
+                                break;
+                            case "accentBorderCallout1":
+                            case "accentCallout1":
+                                if(shapType == "accentBorderCallout1"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 112500*refr;
+                                    adj4 = -38333*refr;
+                                }
+                                var y1, x1, y2, x2;
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2 +
+
+                                        " M" + x1 + "," + 0 +
+                                        " L" + x1 + "," + h;
+                                break;
+                            case "accentBorderCallout2":
+                            case "accentCallout2":
+                                if(shapType == "accentBorderCallout2"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 18750*refr;
+                                    adj4 = -16667*refr;
+                                    adj5 = 112500*refr;
+                                    adj6 = -46667*refr;
+                                }
+                                var y1, x1, y2, x2, y3, x3;
+                                
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+                                y3 = h*adj5/cnstVal1;
+                                x3 = w*adj6/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2 +
+                                        " L" + x3 + "," + y3 +
+                                        " L" + x2 + "," + y2 +
+
+                                        " M" + x1 + "," + 0 +
+                                        " L" + x1 + "," + h;
+
+                                break;
+                            case "accentBorderCallout3":
+                            case "accentCallout3":
+                                if(shapType == "accentBorderCallout3"){
+                                    isBorder = true;
+                                }else{
+                                    isBorder = false;
+                                }
+                                isBorder = true;
+                                if(shapAdjst_ary === undefined){
+                                    adj1 = 18750*refr;
+                                    adj2 = -8333*refr;
+                                    adj3 = 18750*refr;
+                                    adj4 = -16667*refr;
+                                    adj5 = 100000*refr;
+                                    adj6 = -16667*refr;
+                                    adj7 = 112963*refr;
+                                    adj8 = -8333*refr;
+                                }
+                                var y1, x1, y2, x2, y3, x3, y4, x4;
+                                
+                                y1 = h*adj1/cnstVal1;
+                                x1 = w*adj2/cnstVal1;
+                                y2 = h*adj3/cnstVal1;
+                                x2 = w*adj4/cnstVal1;
+                                y3 = h*adj5/cnstVal1;
+                                x3 = w*adj6/cnstVal1;
+                                y4 = h*adj7/cnstVal1;
+                                x4 = w*adj8/cnstVal1;
+                                d_val = "M" + 0 + "," + 0 +
+                                        " L" + w + "," + 0 +
+                                        " L" + w + "," + h +
+                                        " L" + 0 + "," + h +
+                                        " z" +
+
+                                        " M" + x1 + "," + y1 +
+                                        " L" + x2 + "," + y2 +
+                                        " L" + x3 + "," + y3 +
+                                        " L" + x4 + "," + y4 +
+                                        " L" + x3 + "," + y3 +
+                                        " L" + x2 + "," + y2 +
+
+                                        " M" + x1 + "," + 0 +
+                                        " L" + x1 + "," + h;
+                                break;
+                        }
+                        
+                        console.log("shapType: ",shapType,",isBorder:",isBorder)
+                        //if(isBorder){
+                            result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        //}else{
+                        //    result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        //        "' stroke='none' />";
+                        
+                        //}
+                        break;
+                    case "ribbon":
+                    case "ribbon2":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1= 16667*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 25000*96/914400;
+                        var cnstVal2 = 33333*96/914400;
+                        var cnstVal3 = 75000*96/914400;
+                        var cnstVal4 = 100000*96/914400;
+                        var cnstVal5 = 200000*96/914400;
+                        var cnstVal6 = 400000*96/914400;
+                        var hc=w/2,t=0,l=0,b=h,r=w,wd8=w/8,wd32=w/32;
+                        var a1, a2, x10, dx2, x2, x9, x3, x8, x5, x6, x4, x7, y1, y2, y4, y3, hR, y6;
+                        a1 = (adj1<0)?0:(adj1>cnstVal2)?cnstVal2:adj1;
+                        a2 = (adj2<cnstVal1)?cnstVal1:(adj2>cnstVal3)?cnstVal3:adj2;
+                        x10 = r-wd8;
+                        dx2 = w*a2/cnstVal5;
+                        x2 = hc-dx2;
+                        x9 = hc+dx2;
+                        x3 = x2+wd32;
+                        x8 = x9-wd32;
+                        x5 = x2+wd8;
+                        x6 = x9-wd8;
+                        x4 = x5-wd32;
+                        x7 = x6+wd32;
+                        hR = h*a1/cnstVal6;
+                        if(shapType == "ribbon2"){
+                            var  dy1, dy2, y7;
+                            dy1 = h*a1/cnstVal5;
+                            y1 = b-dy1;
+                            dy2 = h*a1/cnstVal4;
+                            y2 = b-dy2;
+                            y4 = t+dy2;
+                            y3 = (y4+b)/2;
+                            y6 = b-hR;///////////////////
+                            y7 = y1-hR;
+
+                            d_val = "M" + l + "," + b +
+                                    " L" + wd8 + "," + y3 +
+                                    " L" + l + "," + y4 +
+                                    " L" + x2 + "," + y4 +
+                                    " L" + x2 + "," + hR +
+                                    shapeArc(x3,hR,wd32,hR,180,270,false).replace("M","L") +
+                                    " L" + x8 + "," + t +
+                                    shapeArc(x8,hR,wd32,hR,270,360,false).replace("M","L") +
+                                    " L" + x9 + "," + y4 +
+                                    " L" + x9 + "," + y4 +
+                                    " L" + r + "," + y4 +
+                                    " L" + x10 + "," + y3 +
+                                    " L" + r + "," + b +
+                                    " L" + x7 + "," + b +
+                                    shapeArc(x7,y6,wd32,hR,90,270,false).replace("M","L") +
+                                    " L" + x8 + "," + y1 +
+                                    shapeArc(x8,y7,wd32,hR,90,-90,false).replace("M","L") + 
+                                    " L" + x3 + "," + y2 +
+                                    shapeArc(x3,y7,wd32,hR,270,90,false).replace("M","L") +
+                                    " L" + x4 + "," + y1 +
+                                    shapeArc(x4,y6,wd32,hR,270,450,false).replace("M","L") +
+                                    " z" +
+                                    " M" + x5 + "," + y2 +
+                                    " L" + x5 + "," + y6 +
+                                    "M" + x6 + "," + y6 +
+                                    " L" + x6 + "," + y2 +
+                                    "M" + x2 + "," + y7 +
+                                    " L" + x2 + "," + y4 +
+                                    "M" + x9 + "," + y4 +
+                                    " L" + x9 + "," + y7;
+                        }else if(shapType == "ribbon"){
+                            var  y5;
+                            y1 = h*a1/cnstVal5;
+                            y2 = h*a1/cnstVal4;
+                            y4 = b-y2;
+                            y3 = y4/2;
+                            y5 = b-hR; ///////////////////////
+                            y6 = y2-hR;
+                            d_val = "M" + l + "," + t +
+                                    " L" + x4 + "," + t +
+                                    shapeArc(x4,hR,wd32,hR,270,450,false).replace("M","L") +
+                                    " L" + x3 + "," + y1 +
+                                    shapeArc(x3,y6,wd32,hR,270,90,false).replace("M","L") +
+                                    " L" + x8 + "," + y2 +
+                                    shapeArc(x8,y6,wd32,hR,90,-90,false).replace("M","L") + 
+                                    " L" + x7 + "," + y1 +
+                                    shapeArc(x7,hR,wd32,hR,90,270,false).replace("M","L") +
+                                    " L" + r + "," + t +
+                                    " L" + x10 + "," + y3 +
+                                    " L" + r + "," + y4 +
+                                    " L" + x9 + "," + y4 +
+                                    " L" + x9 + "," + y5 +
+                                    shapeArc(x8,y5,wd32,hR,0,90,false).replace("M","L") +
+                                    " L" + x3 + "," + b +
+                                    shapeArc(x3,y5,wd32,hR,90,180,false).replace("M","L") +
+                                    " L" + x2 + "," + y4 +
+                                    " L" + l + "," + y4 +
+                                    " L" + wd8 + "," + y3 +
+                                    " z" +
+                                   " M" + x5 + "," + hR +
+                                    " L" + x5 + "," + y2 +
+                                   "M" + x6 + "," + y2 +
+                                    " L" + x6 + "," + hR +
+                                   "M" + x2 + "," + y4 +
+                                    " L" + x2 + "," + y6 +
+                                   "M" + x9 + "," + y6 +
+                                    " L" + x9 + "," + y4;
+                        }
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "doubleWave":
+                    case "wave":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1, adj1 = (shapType == "doubleWave")?6250*96/914400:12500*96/914400;
+                        var sAdj2,adj2 = 0;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal2 = -10000*96/914400;
+                        var cnstVal3 = 50000*96/914400;
+                        var cnstVal4 = 100000*96/914400;
+                        var hc=w/2,t=0,l=0,b=h,r=w,wd8=w/8,wd32=w/32;
+                        if(shapType == "doubleWave"){
+                            var cnstVal1 = 12500*96/914400;
+                            var a1, a2, y1, dy2, y2, y3, y4, y5, y6, of2, dx2, x2, dx8, x8, dx3, x3, dx4, x4, x5, x6, x7, x9, x15, x10, x11, x12, x13, x14;
+                            a1 = (adj1<0)?0:(adj1>cnstVal1)?cnstVal1:adj1;
+                            a2 = (adj2<cnstVal2)?cnstVal2:(adj2>cnstVal4)?cnstVal4:adj2;
+                            y1 = h*a1/cnstVal4;
+                            dy2 = y1*10/3;
+                            y2 = y1-dy2;
+                            y3 = y1+dy2;
+                            y4 = b-y1;
+                            y5 = y4-dy2;
+                            y6 = y4+dy2;
+                            of2 = w*a2/cnstVal3;
+                            dx2 = (of2 > 0)?0:of2;
+                            x2 = l-dx2;
+                            dx8 = (of2 > 0)?of2:0;
+                            x8 = r-dx8;
+                            dx3 = (dx2+x8)/6;
+                            x3 = x2+dx3;
+                            dx4 = (dx2+x8)/3;
+                            x4 = x2+dx4;
+                            x5 = (x2+x8)/2;
+                            x6 = x5+dx3;
+                            x7 = (x6+x8)/2;
+                            x9 = l+dx8;
+                            x15 = r+dx2;
+                            x10 = x9+dx3;
+                            x11 = x9+dx4;
+                            x12 = (x9+x15)/2;
+                            x13 = x12+dx3;
+                            x14 = (x13+x15)/2;
+
+                            d_val = "M" + x2 + "," + y1 +
+                                    " C" + x3 + "," + y2 + " "+ x4 + "," + y3 + " "+ x5 + "," + y1 +
+                                    " C" + x6 + "," + y2 + " "+ x7 + "," + y3 + " "+ x8 + "," + y1 +
+                                    " L" + x15 + "," + y4 +
+                                    " C" + x14 + "," + y6 + " "+x13 + "," + y5 + " "+x12 + "," + y4 +
+                                    " C" + x11 + "," + y6 + " "+x10 + "," + y5 + " "+x9 + "," + y4 +
+                                    " z";
+                        }else if(shapType == "wave"){
+                            var cnstVal5 = 20000*96/914400;
+                            var a1, a2, y1, dy2, y2, y3, y4, y5, y6, of2, dx2, x2, dx5, x5, dx3, x3, x4, x6, x10, x7, x8;
+                            a1 = (adj1<0)?0:(adj1>cnstVal5)?cnstVal5:adj1;
+                            a2 = (adj2<cnstVal2)?cnstVal2:(adj2>cnstVal4)?cnstVal4:adj2;
+                            y1 = h*a1/cnstVal4;
+                            dy2 = y1*10/3;
+                            y2 = y1-dy2;
+                            y3 = y1+dy2;
+                            y4 = b-y1;
+                            y5 = y4-dy2;
+                            y6 = y4+dy2;
+                            of2 = w*a2/cnstVal3;
+                            dx2 = (of2 > 0)?0:of2;
+                            x2 = l-dx2;
+                            dx5 = (of2 > 0)?of2:0;
+                            x5 = r-dx5;
+                            dx3 = (dx2+x5)/3;
+                            x3 = x2+dx3;
+                            x4 = (x3+x5)/2;
+                            x6 = l+dx5;
+                            x10 = r+dx2;
+                            x7 = x6+dx3;
+                            x8 = (x7+x10)/2;
+
+                            d_val = "M" + x2 + "," + y1 +
+                                    " C" + x3 + "," + y2 + " "+ x4 + "," + y3 + " "+ x5 + "," + y1 +
+                                    " L" + x10 + "," + y4 +
+                                    " C" + x8 + "," + y6 + " "+ x7 + "," + y5 + " "+ x6 + "," + y4 +
+                                    " z";
+                        }
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                    
+                        break;
+                    case "ellipseRibbon":
+                    case "ellipseRibbon2":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1= 25000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var sAdj3,adj3 = 12500*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))* 96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))* 96/914400;
+                                }
+                            }
+                        }
+                        var d_val;
+                        var cnstVal1 = 25000*96/914400;
+                        var cnstVal3 = 75000*96/914400;
+                        var cnstVal4 = 100000*96/914400;
+                        var cnstVal5 = 200000*96/914400;
+                        var hc=w/2,t=0,l=0,b=h,r=w,wd8=w/8;
+                        var a1, a2, q10, q11, q12, minAdj3, a3, dx2, x2, x3, x4, x5, x6, dy1, f1, q1, q2, 
+                            cx1, cx2, q1, dy3, q3, q4, q5, rh, q8, cx4, q9, cx5;
+                        a1 = (adj1<0)?0:(adj1>cnstVal4)?cnstVal4:adj1;
+                        a2 = (adj2<cnstVal1)?cnstVal1:(adj2>cnstVal3)?cnstVal3:adj2;
+                        q10 = cnstVal4-a1;
+                        q11 = q10/2;
+                        q12 = a1-q11;
+                        minAdj3 = (0>q12)?0:q12;
+                        a3 = (adj3<minAdj3)?minAdj3:(adj3>a1)?a1:adj3;
+                        dx2 = w*a2/cnstVal5;
+                        x2 = hc-dx2;
+                        x3 = x2+wd8;
+                        x4 = r-x3;
+                        x5 = r-x2;
+                        x6 = r-wd8;
+                        dy1 = h*a3/cnstVal4;
+                        f1 = 4*dy1/w;
+                        q1 = x3*x3/w;
+                        q2 = x3-q1;
+                        cx1 = x3/2;
+                        cx2 = r-cx1;
+                        q1 = h*a1/cnstVal4;
+                        dy3 = q1-dy1;
+                        q3 = x2*x2/w;
+                        q4 = x2-q3;
+                        q5 = f1*q4;
+                        rh = b-q1;
+                        q8 = dy1*14/16;
+                        cx4 = x2/2;
+                        q9 = f1*cx4;
+                        cx5 = r-cx4;
+                        if(shapType == "ellipseRibbon"){
+                            var y1, cy1, y3, q6, q7, cy3, y2, y5, y6, 
+                               cy4, cy6, y7, cy7, y8;
+                            y1 = f1*q2;
+                            cy1 = f1*cx1;
+                            y3 = q5+dy3;
+                            q6 = dy1+dy3-y3;
+                            q7 = q6+dy1;
+                            cy3 = q7+dy3;
+                            y2 = (q8+rh)/2;
+                            y5 = q5+rh;
+                            y6 = y3+rh;
+                            cy4 = q9+rh;
+                            cy6 = cy3+rh;
+                            y7 = y1+dy3;
+                            cy7 = q1+q1-y7;
+                            y8 = b-dy1;
+                            //
+                            d_val = "M" + l + "," + t +
+                                    " Q" + cx1 + "," + cy1 + " " + x3 + "," + y1 +
+                                    " L" + x2 + "," + y3 +
+                                    " Q" + hc + "," + cy3 + " " + x5 + "," + y3 +
+                                    " L" + x4 + "," + y1 +
+                                    " Q" + cx2 + "," + cy1 + " " + r + "," + t +
+                                    " L" + x6 + "," + y2 +
+                                    " L" + r + "," + rh +
+                                    " Q" + cx5 + "," + cy4 + " " + x5 + "," + y5 +
+                                    " L" + x5 + "," + y6 +
+                                    " Q" + hc + "," + cy6 + " " + x2 + "," + y6 +
+                                    " L" + x2 + "," + y5 +
+                                    " Q" + cx4 + "," + cy4 + " " + l + "," + rh +
+                                    " L" + wd8 + "," + y2 +
+                                    " z" +
+                                    "M" + x2 + "," + y5 +
+                                    " L" + x2 + "," + y3 +
+                                    "M" + x5 + "," + y3 +
+                                    " L" + x5 + "," + y5 +
+                                    "M" + x3 + "," + y1 +
+                                    " L" + x3 + "," + y7 +
+                                    "M" + x4 + "," + y7 +
+                                    " L" + x4 + "," + y1;
+                        }else if(shapType == "ellipseRibbon2"){
+                            var u1, y1, cu1, cy1, q3, q5, u3, y3, q6, q7, cu3, cy3, rh, q8, u2, y2, 
+                                u5, y5, u6, y6, cu4, cy4, cu6, cy6, u7, y7, cu7, cy7;
+                            u1 = f1*q2;
+                            y1 = b-u1;
+                            cu1 = f1*cx1;
+                            cy1 = b-cu1;
+                            u3 = q5+dy3;
+                            y3 = b-u3;
+                            q6 = dy1+dy3-u3;
+                            q7 = q6+dy1;
+                            cu3 = q7+dy3;
+                            cy3 = b-cu3;
+                            u2 = (q8+rh)/2;
+                            y2 = b-u2;
+                            u5 = q5+rh;
+                            y5 = b-u5;
+                            u6 = u3+rh;
+                            y6 = b-u6;
+                            cu4 = q9+rh;
+                            cy4 = b-cu4;
+                            cu6 = cu3+rh;
+                            cy6 = b-cu6;
+                            u7 = u1+dy3;
+                            y7 = b-u7;
+                            cu7 = q1+q1-u7;
+                            cy7 = b-cu7;
+                            //
+                            d_val = "M" + l + "," + b +
+                                    " L" + wd8 + "," + y2 +
+                                    " L" + l + "," + q1 +
+                                    " Q" + cx4 + "," + cy4 + " " + x2 + "," + y5 +
+                                    " L" + x2 + "," + y6 +
+                                    " Q" + hc + "," + cy6 + " " + x5 + "," + y6 +
+                                    " L" + x5 + "," + y5 +
+                                    " Q" + cx5 + "," + cy4 + " " + r + "," + q1 +
+                                    " L" + x6 + "," + y2 +
+                                    " L" + r + "," + b +
+                                    " Q" + cx2 + "," + cy1 + " " + x4 + "," + y1 +
+                                    " L" + x5 + "," + y3 +
+                                    " Q" + hc + "," + cy3 + " " + x2 + "," + y3 +
+                                    " L" + x3 + "," + y1 +
+                                    " Q" + cx1 + "," + cy1 + " " + l + "," + b +
+                                    " z" +
+                                    "M" + x2 + "," + y3 +
+                                    " L" + x2 + "," + y5 +
+                                    "M" + x5 + "," + y5 +
+                                    " L" + x5 + "," + y3 +
+                                    "M" + x3 + "," + y7 +
+                                    " L" + x3 + "," + y1 +
+                                    "M" + x4 + "," + y1 +
+                                    " L" + x4 + "," + y7;
+                        }
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
                         break;
                     case "line":
                     case "straightConnector1":
@@ -1186,6 +3916,7 @@
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "downArrow":
+                    case "flowChartOffpageConnector": 
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
                         var sAdj1,sAdj1_val = 0.25;//0.5;
                         var sAdj2,sAdj2_val = 0.5;
@@ -1203,8 +3934,11 @@
                                 }
                             }
                         }
-                    // console.log("w: "+w+"\nh: "+h+"\nsAdj1: "+sAdj1_val+"\nsAdj2: "+sAdj2_val);
                         
+                        if(shapType == "flowChartOffpageConnector"){
+                            sAdj1_val = 0.5;
+                            sAdj2_val = 0.212;
+                        }
                         result += " <polygon points='"+(0.5-sAdj1_val)*w+" 0,"+(0.5-sAdj1_val)*w+" "+(1-sAdj2_val)*h+",0 " +(1-sAdj2_val)*h+","+(w/2)+" "+h+
                                     ","+w+" "+(1-sAdj2_val)*h+","+(0.5+sAdj1_val)*w+" "+(1-sAdj2_val)*h+", "+(0.5+sAdj1_val)*w+" 0' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";               
@@ -1281,26 +4015,1786 @@
                                     (1-sAdj1_val)*w+" "+sAdj2_val*h+","+w+" "+sAdj2_val*h+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
-                    case "bentArrow":
-                    case "bentUpArrow":
-                    case "stripedRightArrow":
                     case "quadArrow":
-                    case "circularArrow":
-                    case "swooshArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 22500*96/914400;
+                        var sAdj2,adj2 = 22500*96/914400;
+                        var sAdj3,adj3 = 22500*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,hc=w/2,a1,a2,a3,q1,x1,x2,dx2,x3,dx3,x4,x5,x6,y2,y3,y4,y5,y6,maxAdj1,maxAdj3;
+                        var minWH = Math.min(w,h);
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        maxAdj1 = 2*a2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        q1 = cnstVal2 - maxAdj1;
+                        maxAdj3 = q1/2;
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > maxAdj3) a3 = maxAdj3
+                        else a3 = adj3
+                        x1 = minWH*a3/cnstVal2;
+                        dx2 = minWH*a2/cnstVal2;
+                        x2 = hc - dx2;
+                        x5 = hc + dx2;
+                        dx3 = minWH*a1/cnstVal3;
+                        x3 = hc - dx3;
+                        x4 = hc + dx3;
+                        x6 = w - x1;
+                        y2 = vc - dx2;
+                        y5 = vc + dx2;
+                        y3 = vc - dx3;
+                        y4 = vc + dx3;
+                        y6 = h - x1;
+                        var d_val = "M" + 0 + "," + vc +
+                                    " L" + x1 + "," + y2  +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + x1 +
+                                    " L" + x2 + "," + x1 +
+                                    " L" + hc + "," + 0 +
+                                    " L" + x5 + "," + x1 +
+                                    " L" + x4 + "," + x1 + 
+                                    " L" + x4 + "," +  y3 +
+                                    " L" + x6 + "," +  y3 +
+                                    " L" + x6 + "," +  y2 +
+                                    " L" + w + "," +  vc +
+                                    " L" + x6 + "," +  y5 +
+                                    " L" + x6 + "," +  y4 +
+                                    " L" + x4 + "," +  y4 +
+                                    " L" + x4 + "," +  y6 +
+                                    " L" + x5 + "," +  y6 +
+                                    " L" + hc + "," +  h +
+                                    " L" + x2 + "," +  y6 +
+                                    " L" + x3 + "," +  y6 +
+                                    " L" + x3 + "," +  y4 +
+                                    " L" + x1 + "," +  y4 +
+                                    " L" + x1 + "," + y5  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
                     case "leftRightUpArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,hc=w/2,a1,a2,a3,q1,x1,x2,dx2,x3,dx3,x4,x5,x6,y2,dy2,y3,y4,y5,maxAdj1,maxAdj3;
+                        var minWH = Math.min(w,h);
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        maxAdj1 = 2*a2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        q1 = cnstVal2 - maxAdj1;
+                        maxAdj3 = q1/2;
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > maxAdj3) a3 = maxAdj3
+                        else a3 = adj3
+                        x1 = minWH*a3/cnstVal2;
+                        dx2 = minWH*a2/cnstVal2;
+                        x2 = hc - dx2;
+                        x5 = hc + dx2;
+                        dx3 = minWH*a1/cnstVal3;
+                        x3 = hc - dx3;
+                        x4 = hc + dx3;
+                        x6 = w - x1;
+                        dy2 = minWH*a2/cnstVal1;
+                        y2 = h - dy2;
+                        y4 = h - dx2;
+                        y3 = y4 - dx3;
+                        y5 = y4 + dx3;
+                        var d_val = "M" + 0 + "," + y4 +
+                                    " L" + x1 + "," + y2  +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + x1 +
+                                    " L" + x2 + "," + x1 +
+                                    " L" + hc + "," + 0 +
+                                    " L" + x5 + "," + x1 +
+                                    " L" + x4 + "," + x1 + 
+                                    " L" + x4 + "," +  y3 +
+                                    " L" + x6 + "," +  y3 +
+                                    " L" + x6 + "," +  y2 +
+                                    " L" + w + "," +  y4 +
+                                    " L" + x6 + "," +  h +
+                                    " L" + x6 + "," +  y5 +
+                                    " L" + x1 + "," +  y5 +
+                                    " L" + x1 + "," + h  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
                     case "leftUpArrow":
-                    case "leftCircularArrow":
-                    case "notchedRightArrow":
-                    case "curvedDownArrow":
-                    case "curvedLeftArrow":
-                    case "curvedRightArrow":
-                    case "curvedUpArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,hc=w/2,a1,a2,a3,x1,x2,dx4,dx3,x3,x4,x5,y2,y3,y4,y5,maxAdj1,maxAdj3;
+                        var minWH = Math.min(w,h);
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        maxAdj1 = 2*a2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        maxAdj3 = cnstVal2 - maxAdj1;
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > maxAdj3) a3 = maxAdj3
+                        else a3 = adj3
+                        x1 = minWH*a3/cnstVal2;
+                        dx2 = minWH*a2/cnstVal1;
+                        x2 = w - dx2;
+                        y2 = h - dx2;
+                        dx4 = minWH*a2/cnstVal2;
+                        x4 = w - dx4;
+                        y4 = h - dx4;
+                        dx3 = minWH*a1/cnstVal3;
+                        x3 = x4 - dx3;
+                        x5 = x4 + dx3;
+                        y3 = y4 - dx3;
+                        y5 = y4 + dx3;
+                        var d_val = "M" + 0 + "," + y4 +
+                                    " L" + x1 + "," + y2  +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + x1 +
+                                    " L" + x2 + "," + x1 +
+                                    " L" + x4 + "," + 0 +
+                                    " L" + w + "," + x1 +
+                                    " L" + x5 + "," + x1 + 
+                                    " L" + x5 + "," +  y5 +
+                                    " L" + x1 + "," +  y5 +
+                                    " L" + x1 + "," + h  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "bentUpArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc=h/2,hc=w/2,a1,a2,a3,dx1,x1,dx2,x2,dx3,x3,x4,y1,y2,dy2;
+                        var minWH = Math.min(w,h);
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnstVal1) a1 = cnstVal1
+                        else a1 = adj1
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > maxAdj3) a3 = maxAdj3
+                        else a3 = adj3
+                        y1 = minWH*a3/cnstVal2;
+                        dx1 = minWH*a2/cnstVal1;
+                        x1 = w - dx1;
+                        dx3 = minWH*a2/cnstVal2;
+                        x3 = w - dx3;
+                        dx2 = minWH*a1/cnstVal3;
+                        x2 = x3 - dx2;
+                        x4 = x3 + dx2;
+                        dy2 = minWH*a1/cnstVal2;
+                        y2 = h - dy2;
+                        var d_val = "M" + 0 + "," + y2 +
+                                    " L" + x2 + "," + y2  +
+                                    " L" + x2 + "," + y1 +
+                                    " L" + x1 + "," + y1 +
+                                    " L" + x3 + "," + 0 +
+                                    " L" + w + "," + y1 +
+                                    " L" + x4 + "," + y1 + 
+                                    " L" + x4 + "," +  h +
+                                    " L" + 0 + "," + h  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "bentArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 43750*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var a1,a2,a3,a4,x3,x4,y3,y4,y5,y6,maxAdj1,maxAdj4;
+                        var minWH = Math.min(w,h);
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        maxAdj1 = 2*a2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > cnstVal1) a3 = cnstVal1
+                        else a3 = adj3
+                        var th,aw2,th2,dh2,ah,bw,bh,bs,bd,bd3,bd2,
+                        th =  minWH*a1/cnstVal2;
+                        aw2 = minWH*a2/cnstVal2;
+                        th2 = th/2;
+                        dh2 = aw2-th2;
+                        ah = minWH*a3/cnstVal2;
+                        bw = w-ah;
+                        bh = h-dh2;
+                        bs = (bw<bh)?bw:bh;
+                        maxAdj4 = cnstVal2*bs/minWH;
+                        if(adj4 < 0) a4 = 0
+                        else if (adj4 > maxAdj4) a4 = maxAdj4
+                        else a4 = adj4
+                        bd = minWH*a4/cnstVal2;
+                        bd3 = bd-th;
+                        bd2 = (bd3>0)?bd3:0;
+                        x3 = th+bd2;
+                        x4 = w-ah;
+                        y3 = dh2+th;
+                        y4 = y3+dh2;
+                        y5 = dh2+bd;
+                        y6 = y3+bd2;
+                        
+                        var d_val = "M" + 0 + "," + h +
+                                    " L" + 0 + "," + y5  +
+                                    shapeArc(bd,y5,bd,bd,180,270,false).replace("M","L") +
+                                    " L" + x4 + "," + dh2 +
+                                    " L" + x4 + "," + 0 +
+                                    " L" + w + "," + aw2 +
+                                    " L" + x4 + "," + y4 +
+                                    " L" + x4 + "," + y3 + 
+                                    " L" + x3 + "," +  y3 +
+                                    shapeArc(x3,y6,bd2,bd2,270,180,false).replace("M","L") +
+                                    " L" + th + "," + h  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
                     case "uturnArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 43750*96/914400;
+                        var sAdj5,adj5 = 75000*96/914400;
+                        var cnstVal1 = 25000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj5"){
+                                    sAdj5 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj5 = parseInt(sAdj5.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var a1,a2,a3,a4,a5,q1,q2,q3,x3,x4,x5,x6,x7,x8,x9,y4,y5,minAdj5,maxAdj1,maxAdj3,maxAdj4;
+                        var minWH = Math.min(w,h);
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > cnstVal1) a2 = cnstVal1
+                        else a2 = adj2
+                        maxAdj1 = 2*a2;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > maxAdj1) a1 = maxAdj1
+                        else a1 = adj1
+                        q2 = a1*minWH/h;
+                        q3 = cnstVal2 - q2;
+                        maxAdj3 = q3*h/minWH;
+                        if(adj3 < 0) a3 = 0
+                        else if (adj3 > maxAdj3) a3 = maxAdj3
+                        else a3 = adj3
+                        q1 = a3+a1;
+                        minAdj5 = q1*minWH/h;
+                        if(adj5 < minAdj5) a5 = minAdj5
+                        else if (adj5 > cnstVal2) a5 = cnstVal2
+                        else a5 = adj5
+
+                        var th,aw2,th2,dh2,ah,bw,bs,bd,bd3,bd2,
+                        th =  minWH*a1/cnstVal2;
+                        aw2 = minWH*a2/cnstVal2;
+                        th2 = th/2;
+                        dh2 = aw2-th2;
+                        y5 = h*a5/cnstVal2;
+                        ah = minWH*a3/cnstVal2;
+                        y4 = y5-ah;
+                        x9 = w-dh2;
+                        bw = x9/2;
+                        bs = (bw<y4)?bw:y4;
+                        maxAdj4 = cnstVal2*bs/minWH;
+                        if(adj4 < 0) a4 = 0
+                        else if (adj4 > maxAdj4) a4 = maxAdj4
+                        else a4 = adj4
+                        bd = minWH*a4/cnstVal2;
+                        bd3 = bd-th;
+                        bd2 = (bd3>0)?bd3:0;
+                        x3 = th+bd2;
+                        x8 = w - aw2;
+                        x6 = x8 - aw2;
+                        x7 = x6 + dh2;
+                        x4 = x9-bd;
+                        x5 = x7 - bd2;
+                        cx = (th + x7)/2
+                        var cy = (y4+th)/2
+                        var d_val = "M" + 0 + "," + h +
+                                    " L" + 0 + "," + bd  +
+                                    shapeArc(bd,bd,bd,bd,180,270,false).replace("M","L") +
+                                    " L" + x4 + "," + 0 +
+                                    shapeArc(x4,bd,bd,bd,270,360,false).replace("M","L") +
+                                    " L" + x9 + "," + y4 +
+                                    " L" + w + "," + y4 +
+                                    " L" + x8 + "," + y5 +
+                                    " L" + x6 + "," + y4 + 
+                                    " L" + x7 + "," +  y4 +
+                                    " L" + x7 + "," +  x3 +
+                                    shapeArc(x5,x3,bd2,bd2,0,-90,false).replace("M","L") +
+                                    " L" + x3 + "," +  th +
+                                    shapeArc(x3,x3,bd2,bd2,270,180,false).replace("M","L") +
+                                    " L" + th + "," + h  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "stripedRightArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 50000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var cnstVal1 = 100000*96/914400;
+                        var cnstVal2 = 200000*96/914400;
+                        var cnstVal3 = 84375*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var a1,a2,x4,x5,dx5,x6,dx6,y1,dy1,y2,maxAdj2,vc=h/2;
+                        var minWH = Math.min(w,h);
+                        maxAdj2 = cnstVal3*w/minWH;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnstVal1) a1 = cnstVal1
+                        else a1 = adj1
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > maxAdj2) a2 = maxAdj2
+                        else a2 = adj2
+                        x4 = minWH*5/32;
+                        dx5 = minWH*a2/cnstVal1;
+                        x5 = w-dx5;
+                        dy1 = h*a1/cnstVal2;
+                        y1 = vc-dy1;
+                        y2 = vc+dy1;
+                        //dx6 = dy1*dx5/hd2;
+                        //x6 = w-dx6;
+                        var ssd8 = minWH/8,
+                            ssd16 = minWH/16,
+                            ssd32 = minWH/32;
+                        var d_val = "M" + 0 + "," + y1 +
+                                    " L" + ssd32 + "," + y1  +
+                                    " L" + ssd32 + "," + y2 +
+                                    " L" + 0 + "," + y2 + " z" +
+                                    " M" + ssd16 + "," + y1 +
+                                    " L" + ssd8 + "," + y1 +
+                                    " L" + ssd8 + "," + y2 + 
+                                    " L" + ssd16 + "," +  y2 +" z" +
+                                    " M" + x4 + "," +  y1 +
+                                    " L" + x5 + "," +  y1 +
+                                    " L" + x5 + "," +  0 +
+                                    " L" + w + "," +  vc +
+                                    " L" + x5 + "," +  h +
+                                    " L" + x5 + "," +  y2 +
+                                    " L" + x4 + "," + y2  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "notchedRightArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 50000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var cnstVal1 = 100000*96/914400;
+                        var cnstVal2 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var a1,a2,x1,x2,dx2,y1,dy1,y2,maxAdj2,vc=h/2,hd2=vc;
+                        var minWH = Math.min(w,h);
+                        maxAdj2 = cnstVal1*w/minWH;
+                        if(adj1 < 0) a1 = 0
+                        else if (adj1 > cnstVal1) a1 = cnstVal1
+                        else a1 = adj1
+                        if(adj2 < 0) a2 = 0
+                        else if (adj2 > maxAdj2) a2 = maxAdj2
+                        else a2 = adj2
+                        dx2 = minWH*a2/cnstVal1;
+                        x2 = w-dx2;
+                        dy1 = h*a1/cnstVal2;
+                        y1 = vc-dy1;
+                        y2 = vc+dy1;
+                        x1 = dy1*dx2/hd2;
+                        var d_val = "M" + 0 + "," + y1 +
+                                    " L" + x2 + "," + y1  +
+                                    " L" + x2 + "," + 0 +
+                                    " L" + w + "," + vc +
+                                    " L" + x2 + "," + h +
+                                    " L" + x2 + "," + y2 + 
+                                    " L" + 0 + "," +  y2 +
+                                    " L" + x1 + "," + vc  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "homePlate":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 50000*96/914400;
+                        var cnstVal1 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a,x1,dx1,maxAdj,vc=h/2;
+                        var minWH = Math.min(w,h);
+                        maxAdj = cnstVal1*w/minWH;
+                        if(adj < 0) a = 0
+                        else if (adj > maxAdj) a = maxAdj
+                        else a = adj
+                        dx1 = minWH*a/cnstVal1;
+                        x1 = w-dx1;
+                        var d_val = "M" + 0 + "," + 0 +
+                                    " L" + x1 + "," + 0  +
+                                    " L" + w + "," + vc +
+                                    " L" + x1 + "," + h +
+                                    " L" + 0 + "," + h  + " z";
+                                                
+                        result += "<path  d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "chevron":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 50000*96/914400;
+                        var cnstVal1 = 100000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var a,x1,dx1,x2,maxAdj,vc=h/2;
+                        var minWH = Math.min(w,h);
+                        maxAdj = cnstVal1*w/minWH;
+                        if(adj < 0) a = 0
+                        else if (adj > maxAdj) a = maxAdj
+                        else a = adj
+                        x1 = minWH*a/cnstVal1;
+                        x2 = w-x1;
+                        var d_val = "M" + 0 + "," + 0 +
+                                    " L" + x2 + "," + 0  +
+                                    " L" + w + "," + vc +
+                                    " L" + x2 + "," + h +
+                                    " L" + 0 + "," + h +
+                                    " L" + x1 + "," + vc  + " z";
+                                                
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                            
+                        break;
+                    case "rightArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 64977*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var maxAdj2, a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dy1, dy2, y1, y2, y3, y4, dx3, x3, x2, x1;
+                        var vc = h/2,r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+                        maxAdj2 = cnstVal1*h/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal2*w/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*ss/w;
+                        maxAdj4 = cnstVal-q2;
+                        a4 = (adj4<0)?0:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dy1 = ss*a2/cnstVal2;
+                        dy2 = ss*a1/cnstVal3;
+                        y1 = vc-dy1;
+                        y2 = vc-dy2;
+                        y3 = vc+dy2;
+                        y4 = vc+dy1;
+                        dx3 = ss*a3/cnstVal2;
+                        x3 = r-dx3;
+                        x2 = w*a4/cnstVal2;
+                        x1 = x2/2;
+                        var d_val = "M" + l + "," + t + 
+                                    " L" + x2 + "," + t +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x3 + "," + y2 +
+                                    " L" + x3 + "," + y1 +
+                                    " L" + r + "," + vc +
+                                    " L" + x3 + "," + y4 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x2 + "," + b +
+                                    " L" + l + "," + b +
+                                    " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "downArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 64977*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var maxAdj2, a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dx1, dx2, x1, x2, x3, x4, dy3, y3, y2, y1;
+                        var hc = w/2,r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+
+                        maxAdj2 = cnstVal1*w/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal2*h/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*ss/h;
+                        maxAdj4 = cnstVal2-q2;
+                        a4 = (adj4<0)?0:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dx1 = ss*a2/cnstVal2;
+                        dx2 = ss*a1/cnstVal3;
+                        x1 = hc-dx1;
+                        x2 = hc-dx2;
+                        x3 = hc+dx2;
+                        x4 = hc+dx1;
+                        dy3 = ss*a3/cnstVal2;
+                        y3 = b-dy3;
+                        y2 = h*a4/cnstVal2;
+                        y1 = y2/2;
+                        var d_val =  "M" + l + "," + t +
+                                    " L" + r + "," + t +
+                                    " L" + r + "," + y2 +
+                                    " L" + x3 + "," + y2 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x4 + "," + y3 +
+                                    " L" + hc + "," + b +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + l + "," + y2 +
+                                    " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "leftArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 64977*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var maxAdj2, a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dy1, dy2, y1, y2, y3, y4, x1, dx2, x2, x3;
+                        var vc = h/2,r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+                        
+                        maxAdj2 = cnstVal1*h/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal2*w/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*ss/w;
+                        maxAdj4 = cnstVal2-q2;
+                        a4 = (adj4<0)?0:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dy1 = ss*a2/cnstVal2;
+                        dy2 = ss*a1/cnstVal3;
+                        y1 = vc-dy1;
+                        y2 = vc-dy2;
+                        y3 = vc+dy2;
+                        y4 = vc+dy1;
+                        x1 = ss*a3/cnstVal2;
+                        dx2 = w*a4/cnstVal2;
+                        x2 = r-dx2;
+                        x3 = (x2+r)/2;
+                        var d_val = "M" + l + "," + vc +
+                                    " L" + x1 + "," + y1 +
+                                    " L" + x1 + "," + y2 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x2 + "," + t +
+                                    " L" + r + "," + t +
+                                    " L" + r + "," + b +
+                                    " L" + x2 + "," + b +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x1 + "," + y4 +
+                                    " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "upArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 64977*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var maxAdj2, a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dx1, dx2, x1, x2, x3, x4, y1, dy2, y2, y3;
+                        var hc = w/2,r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+                        maxAdj2 = cnstVal1*w/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal2*h/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*ss/h;
+                        maxAdj4 = cnstVal2-q2;
+                        a4 = (adj4<0)?0:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dx1 = ss*a2/cnstVal2;
+                        dx2 = ss*a1/cnstVal3;
+                        x1 = hc-dx1;
+                        x2 = hc-dx2;
+                        x3 = hc+dx2;
+                        x4 = hc+dx1;
+                        y1 = ss*a3/cnstVal2;
+                        dy2 = h*a4/cnstVal2;
+                        y2 = b-dy2;
+                        y3 = (y2+b)/2;
+                        
+                        var d_val = "M" + l + "," + y2 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x2 + "," + y1 +
+                                    " L" + x1 + "," + y1 +
+                                    " L" + hc + "," + t +
+                                    " L" + x4 + "," + y1 +
+                                    " L" + x3 + "," + y1 +
+                                    " L" + x3 + "," + y2 +
+                                    " L" + r + "," + y2 +
+                                    " L" + r + "," + b +
+                                    " L" + l + "," + b +
+                                    " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "leftRightArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 25000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var sAdj4,adj4 = 48123*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var maxAdj2, a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dy1, dy2, y1, y2, y3, y4, x1, x4, dx2, x2, x3;
+                        var vc = h/2, hc = w/2, r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+                        maxAdj2 = cnstVal1*h/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal1*w/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*ss/wd2;
+                        maxAdj4 = cnstVal2-q2;
+                        a4 = (adj4<0)?0:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dy1 = ss*a2/cnstVal2;
+                        dy2 = ss*a1/cnstVal3;
+                        y1 = vc-dy1;
+                        y2 = vc-dy2;
+                        y3 = vc+dy2;
+                        y4 = vc+dy1;
+                        x1 = ss*a3/cnstVal2;
+                        x4 = r-x1;
+                        dx2 = w*a4/cnstVal3;
+                        x2 = hc-dx2;
+                        x3 = hc+dx2;
+                        var d_val = "M" + l + "," + vc +
+                                    " L" + x1 + "," + y1 +
+                                    " L" + x1 + "," + y2 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x2 + "," + t +
+                                    " L" + x3 + "," + t +
+                                    " L" + x3 + "," + y2 +
+                                    " L" + x4 + "," + y2 +
+                                    " L" + x4 + "," + y1 +
+                                    " L" + r + "," + vc +
+                                    " L" + x4 + "," + y4 +
+                                    " L" + x4 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + b +
+                                    " L" + x2 + "," + b +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x1 + "," + y3 +
+                                    " L" + x1 + "," + y4 +
+                                    " z";
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "quadArrowCallout":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 18515*96/914400;
+                        var sAdj2,adj2 = 18515*96/914400;
+                        var sAdj3,adj3 = 18515*96/914400;
+                        var sAdj4,adj4 = 48123*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj4"){
+                                    sAdj4 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj4 = parseInt(sAdj4.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc = h/2, hc = w/2, r = w,b=h , l=0 , t=0 ; 
+                        var ss = Math.min(w,h);
+                        var a2, maxAdj1, a1, maxAdj3, a3, q2, maxAdj4, a4, dx2, dx3, ah, dx1, dy1, x8, x2, x7, x3, x6, x4, x5, y8, y2, y7, y3, y6, y4, y5;
+                        a2 = (adj2<0)?0:(adj2>cnstVal1)?cnstVal1:adj2;
+                        maxAdj1 = a2*2;
+                        a1 = (adj1<0)?0:(adj1>maxAdj1)?maxAdj1:adj1;
+                        maxAdj3 = cnstVal1-a2;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        q2 = a3*2;
+                        maxAdj4 = cnstVal2-q2;
+                        a4 = (adj4<a1)?a1:(adj4>maxAdj4)?maxAdj4:adj4;
+                        dx2 = ss*a2/cnstVal2;
+                        dx3 = ss*a1/cnstVal3;
+                        ah = ss*a3/cnstVal2;
+                        dx1 = w*a4/cnstVal3;
+                        dy1 = h*a4/cnstVal3;
+                        x8 = r-ah;
+                        x2 = hc-dx1;
+                        x7 = hc+dx1;
+                        x3 = hc-dx2;
+                        x6 = hc+dx2;
+                        x4 = hc-dx3;
+                        x5 = hc+dx3;
+                        y8 = b-ah;
+                        y2 = vc-dy1;
+                        y7 = vc+dy1;
+                        y3 = vc-dx2;
+                        y6 = vc+dx2;
+                        y4 = vc-dx3;
+                        y5 = vc+dx3;
+                        var d_val = "M" + l + "," + vc +
+                                    " L" + ah + "," + y3 +
+                                    " L" + ah + "," + y4 +
+                                    " L" + x2 + "," + y4 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x4 + "," + y2 +
+                                    " L" + x4 + "," + ah +
+                                    " L" + x3 + "," + ah +
+                                    " L" + hc + "," + t +
+                                    " L" + x6 + "," + ah +
+                                    " L" + x5 + "," + ah +
+                                    " L" + x5 + "," + y2 +
+                                    " L" + x7 + "," + y2 +
+                                    " L" + x7 + "," + y4 +
+                                    " L" + x8 + "," + y4 +
+                                    " L" + x8 + "," + y3 +
+                                    " L" + r + "," + vc +
+                                    " L" + x8 + "," + y6 +
+                                    " L" + x8 + "," + y5 +
+                                    " L" + x7 + "," + y5 +
+                                    " L" + x7 + "," + y7 +
+                                    " L" + x5 + "," + y7 +
+                                    " L" + x5 + "," + y8 +
+                                    " L" + x6 + "," + y8 +
+                                    " L" + hc + "," + b +
+                                    " L" + x3 + "," + y8 +
+                                    " L" + x4 + "," + y8 +
+                                    " L" + x4 + "," + y7 +
+                                    " L" + x2 + "," + y7 +
+                                    " L" + x2 + "," + y5 +
+                                    " L" + ah + "," + y5 +
+                                    " L" + ah + "," + y6 +
+                                    " z";
+
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "curvedDownArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc = h/2, hc = w/2 , wd2=w/2, r = w,b=h , l=0 , t=0 ,c3d4=270 ,cd2=180,cd4=90; 
+                        var ss = Math.min(w,h);
+                        var maxAdj2, a2, a1, th, aw, q1, wR, q7, q8, q9, q10, q11, idy, maxAdj3, a3, ah, x3, q2, q3, q4, q5, dx, x5, x7, q6, dh, x4, x8, aw2, x6, y1, swAng, mswAng, iy, ix, q12, dang2, stAng, stAng2, swAng2, swAng3;
+                        
+                        maxAdj2 = cnstVal1*w/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        a1 = (adj1<0)?0:(adj1>cnstVal2)?cnstVal2:adj1;
+                        th = ss*a1/cnstVal2;
+                        aw = ss*a2/cnstVal2;
+                        q1 = (th+aw)/4;
+                        wR = wd2-q1;
+                        q7 = wR*2;
+                        q8 = q7*q7;
+                        q9 = th*th;
+                        q10 = q8-q9;
+                        q11 = Math.sqrt(q10);
+                        idy = q11*h/q7;
+                        maxAdj3 = cnstVal2*idy/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        ah = ss*adj3/cnstVal2;
+                        x3 = wR+th;
+                        q2 = h*h;
+                        q3 = ah*ah;
+                        q4 = q2-q3;
+                        q5 = Math.sqrt(q4);
+                        dx = q5*wR/h;
+                        x5 = wR+dx;
+                        x7 = x3+dx;
+                        q6 = aw-th;
+                        dh = q6/2;
+                        x4 = x5-dh;
+                        x8 = x7+dh;
+                        aw2 = aw/2;
+                        x6 = r-aw2;
+                        y1 = b-ah;
+                        swAng = Math.atan(dx/ah);
+                        var swAngDeg = swAng*180/Math.PI;
+                        mswAng = -swAngDeg;
+                        iy = b-idy;
+                        ix = (wR+x3)/2;
+                        q12 = th/2;
+                        dang2 = Math.atan(q12/idy);
+                        var dang2Deg = dang2*180/Math.PI;
+                        stAng = c3d4+swAngDeg;
+                        stAng2 = c3d4-dang2Deg;
+                        swAng2 = dang2Deg-cd4;
+                        swAng3 = cd4+dang2Deg;
+                        //var cX = x5 - Math.cos(stAng*Math.PI/180) * wR;
+                        //var cY = y1 - Math.sin(stAng*Math.PI/180) * h;
+
+                        var d_val = "M" + x6 + "," + b +
+                                    " L" + x4 + "," + y1 +
+                                    " L" + x5 + "," + y1 +
+                                    shapeArc(wR,h,wR,h,stAng,(stAng+mswAng),false).replace("M","L") +
+                                    " L" + x3 + "," + t +
+                                    shapeArc(x3,h,wR,h,c3d4,(c3d4+swAngDeg),false).replace("M","L") +
+                                    " L" + (x5+th)+ "," + y1 +
+                                    " L" + x8 + "," + y1 +
+                                    " z" +
+                                    "M" + x3 + "," + t +
+                                    shapeArc(x3,h,wR,h,stAng2,(stAng2+swAng2),false).replace("M","L") +
+                                    shapeArc(wR,h,wR,h,cd2,(cd2+swAng3),false).replace("M","L");
+                                    
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "curvedLeftArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc = h/2, hc = w/2 , hd2=h/2, r = w,b=h , l=0 , t=0 ,c3d4=270 ,cd2=180,cd4=90; 
+                        var ss = Math.min(w,h);
+                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, idx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy, y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
+                        
+                        maxAdj2 = cnstVal1*h/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        a1 = (adj1<0)?0:(adj1>a2)?a2:adj1;
+                        th = ss*a1/cnstVal2;
+                        aw = ss*a2/cnstVal2;
+                        q1 = (th+aw)/4;
+                        hR = hd2-q1;
+                        q7 = hR*2;
+                        q8 = q7*q7;
+                        q9 = th*th;
+                        q10 = q8-q9;
+                        q11 = Math.sqrt(q10);
+                        idx = q11*w/q7;
+                        maxAdj3 = cnstVal2*idx/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        ah = ss*a3/cnstVal2;
+                        y3 = hR+th;
+                        q2 = w*w;
+                        q3 = ah*ah;
+                        q4 = q2-q3;
+                        q5 = Math.sqrt(q4);
+                        dy = q5*hR/w;
+                        y5 = hR+dy;
+                        y7 = y3+dy;
+                        q6 = aw-th;
+                        dh = q6/2;
+                        y4 = y5-dh;
+                        y8 = y7+dh;
+                        aw2 = aw/2;
+                        y6 = b-aw2;
+                        x1 = l+ah;
+                        swAng = Math.atan(dy/ah);
+                        mswAng = -swAng;
+                        ix = l+idx;
+                        iy = (hR+y3)/2;
+                        q12 = th/2;
+                        dang2 = Math.atan(q12/idx);
+                        swAng2 = dang2-swAng;
+                        swAng3 = swAng+dang2;
+                        stAng3 = -dang2;
+                        var swAngDg,swAng2Dg,swAng3Dg,stAng3dg;
+                        swAngDg = swAng*180/Math.PI;
+                        swAng2Dg = swAng2*180/Math.PI;
+                        swAng3Dg = swAng3*180/Math.PI;
+                        stAng3dg = stAng3*180/Math.PI;
+
+                        var d_val = "M" + r+ "," + y3 +   
+                                    shapeArc(l,hR,w,hR,0,-cd4,false).replace("M","L") + 
+                                    " L" + l+ "," + t + 
+                                    shapeArc(l,y3,w,hR,c3d4,(c3d4+cd4),false).replace("M","L") +  
+                                    " L" + r+ "," + y3 + 
+                                    shapeArc(l,y3,w,hR,0,swAngDg,false).replace("M","L") +
+                                    " L" + x1+ "," + y7 +
+                                    " L" + x1+ "," + y8 +  
+                                    " L" + l+ "," + y6 +  
+                                    " L" + x1+ "," + y4 +  
+                                    " L" + x1+ "," + y5 +  
+                                    shapeArc(l,hR,w,hR,swAngDg,(swAngDg+swAng2Dg),false).replace("M","L")+
+                                    shapeArc(l,hR,w,hR,0,-cd4,false).replace("M","L")+
+                                    shapeArc(l,y3,w,hR,c3d4,(c3d4+cd4),false).replace("M","L");
+                                    
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        
+                        break;
+                    case "curvedRightArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc = h/2, hc = w/2 , hd2=h/2, r = w,b=h , l=0 , t=0 ,c3d4=270 ,cd2=180,cd4=90; 
+                        var ss = Math.min(w,h);
+                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, idx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy, y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, stAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
+
+                        maxAdj2 = cnstVal1*h/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        a1 = (adj1<0)?0:(adj1>a2)?a2:adj1;
+                        th = ss*a1/cnstVal2;
+                        aw = ss*a2/cnstVal2;
+                        q1 = (th+aw)/4;
+                        hR = hd2-q1;
+                        q7 = hR*2;
+                        q8 = q7*q7;
+                        q9 = th*th;
+                        q10 = q8-q9;
+                        q11 = Math.sqrt(q10);
+                        idx = q11*w/q7;
+                        maxAdj3 = cnstVal2*idx/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        ah = ss*a3/cnstVal2;
+                        y3 = hR+th;
+                        q2 = w*w;
+                        q3 = ah*ah;
+                        q4 = q2-q3;
+                        q5 = Math.sqrt(q4);
+                        dy = q5*hR/w;
+                        y5 = hR+dy;
+                        y7 = y3+dy;
+                        q6 = aw-th;
+                        dh = q6/2;
+                        y4 = y5-dh;
+                        y8 = y7+dh;
+                        aw2 = aw/2;
+                        y6 = b-aw2;
+                        x1 = r-ah;
+                        swAng = Math.atan(dy/ah);
+                        stAng = Math.PI+0-swAng;
+                        mswAng = -swAng;
+                        ix = r-idx;
+                        iy = (hR+y3)/2;
+                        q12 = th/2;
+                        dang2 = Math.atan(q12/idx);
+                        swAng2 = dang2-Math.PI/2;
+                        swAng3 = Math.PI/2+dang2;
+                        stAng3 = Math.PI-dang2;
+
+                        var stAngDg,mswAngDg,swAngDg,swAng2dg;
+                        stAngDg = stAng*180/Math.PI;
+                        mswAngDg = mswAng*180/Math.PI;
+                        swAngDg = swAng*180/Math.PI;
+                        swAng2dg = swAng2*180/Math.PI;
+
+                        var d_val = "M" + l + "," + hR + 
+                                    shapeArc(w,hR,w,hR,cd2,cd2+mswAngDg,false).replace("M","L") + 
+                                    " L" + x1 + "," + y5 + 
+                                    " L" + x1 + "," + y4 + 
+                                    " L" + r + "," + y6 + 
+                                    " L" + x1 + "," + y8 + 
+                                    " L" + x1 + "," + y7 + 
+                                    shapeArc(w,y3,w,hR,stAngDg,stAngDg+swAngDg,false).replace("M","L") + 
+                                    " L" + l + "," + hR + 
+                                    shapeArc(w,hR,w,hR,cd2,cd2+cd4,false).replace("M","L") + 
+                                    " L" + r + "," + th + 
+                                    shapeArc(w,y3,w,hR,c3d4,c3d4+swAng2dg,false).replace("M","L")
+                                    "";        
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "curvedUpArrow":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1 = 25000*96/914400;
+                        var sAdj2,adj2 = 50000*96/914400;
+                        var sAdj3,adj3 = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        if(shapAdjst_ary !== undefined){
+                            for(var i=0; i<shapAdjst_ary.length; i++){
+                                var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                if(sAdj_name =="adj1"){
+                                    sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj1 = parseInt(sAdj1.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj2"){
+                                    sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj2 = parseInt(sAdj2.substr(4))*96/914400;
+                                }else if(sAdj_name =="adj3"){
+                                    sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                    adj3 = parseInt(sAdj3.substr(4))*96/914400;
+                                }
+                            }
+                        }
+                        var vc = h/2, hc = w/2 , wd2=w/2, r = w,b=h , l=0 , t=0 ,c3d4=270 ,cd2=180,cd4=90; 
+                        var ss = Math.min(w,h);
+                        var maxAdj2, a2, a1, th, aw, q1, wR, q7, q8, q9, q10, q11, idy, maxAdj3, a3, ah, x3, q2, q3, q4, q5, dx, x5, x7, q6, dh, x4, x8, aw2, x6, y1, swAng, mswAng, iy, ix, q12, dang2, swAng2, mswAng2, stAng3, swAng3, stAng2;
+                        
+                        maxAdj2 = cnstVal1*w/ss;
+                        a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                        a1 = (adj1<0)?0:(adj1>cnstVal2)?cnstVal2:adj1;
+                        th = ss*a1/cnstVal2;
+                        aw = ss*a2/cnstVal2;
+                        q1 = (th+aw)/4;
+                        wR = wd2-q1;
+                        q7 = wR*2;
+                        q8 = q7*q7;
+                        q9 = th*th;
+                        q10 = q8-q9;
+                        q11 = Math.sqrt(q10);
+                        idy = q11*h/q7;
+                        maxAdj3 = cnstVal2*idy/ss;
+                        a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                        ah = ss*adj3/cnstVal2;
+                        x3 = wR+th;
+                        q2 = h*h;
+                        q3 = ah*ah;
+                        q4 = q2-q3;
+                        q5 = Math.sqrt(q4);
+                        dx = q5*wR/h;
+                        x5 = wR+dx;
+                        x7 = x3+dx;
+                        q6 = aw-th;
+                        dh = q6/2;
+                        x4 = x5-dh;
+                        x8 = x7+dh;
+                        aw2 = aw/2;
+                        x6 = r-aw2;
+                        y1 = t+ah;
+                        swAng = Math.atan(dx/ah);
+                        mswAng = -swAng;
+                        iy = t+idy;
+                        ix = (wR+x3)/2;
+                        q12 = th/2;
+                        dang2 = Math.atan(q12/idy);
+                        swAng2 = dang2-swAng;
+                        mswAng2 = -swAng2;
+                        stAng3 = Math.PI/2-swAng;
+                        swAng3 = swAng+dang2;
+                        stAng2 = Math.PI/2-dang2;
+                        
+                        var stAng2dg,swAng2dg,swAngDg,swAng2dg;
+                        stAng2dg = stAng2*180/Math.PI;
+                        swAng2dg = swAng2*180/Math.PI;
+                        stAng3dg = stAng3*180/Math.PI;
+                        swAngDg = swAng*180/Math.PI;
+
+                        var d_val = //"M" + ix + "," +iy + 
+                                    shapeArc(wR,0,wR,h,stAng2dg,stAng2dg+swAng2dg,false) + //.replace("M","L") +
+                                    " L" + x5 + "," + y1 +
+                                    " L" + x4 + "," + y1 + 
+                                    " L" + x6 + "," + t + 
+                                    " L" + x8 + "," + y1 + 
+                                    " L" + x7 + "," + y1 + 
+                                    shapeArc(x3,0,wR,h,stAng3dg,stAng3dg+swAngDg,false).replace("M","L") +
+                                    " L" + wR + "," + b + 
+                                    shapeArc(wR,0,wR,h,cd4,cd2,false).replace("M","L") +
+                                    " L" + th + "," + t + 
+                                    shapeArc(x3,0,wR,h,cd2,cd4,false).replace("M","L") +
+                                    "";         
+                        result += "<path d='"+d_val+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "mathDivide":
+                    case "mathEqual":
+                    case "mathMinus":
+                    case "mathMultiply":
+                    case "mathNotEqual":
+                    case "mathPlus":
+                        var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd"]);
+                        var sAdj1,adj1;
+                        var sAdj2,adj2;
+                        var sAdj3,adj3;
+                        if(shapAdjst_ary !== undefined){
+                            if(shapAdjst_ary.constructor === Array){
+                                for(var i=0; i<shapAdjst_ary.length; i++){
+                                    var sAdj_name = getTextByPathList(shapAdjst_ary[i],["attrs","name"]);
+                                    if(sAdj_name =="adj1"){
+                                        sAdj1 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                        adj1 = parseInt(sAdj1.substr(4));
+                                    }else if(sAdj_name =="adj2"){
+                                        sAdj2 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                        adj2 = parseInt(sAdj2.substr(4));
+                                    }else if(sAdj_name =="adj3"){
+                                        sAdj3 = getTextByPathList(shapAdjst_ary[i],["attrs","fmla"]);
+                                        adj3 = parseInt(sAdj3.substr(4));
+                                    }
+                                }
+                            }else{
+                                sAdj1 = getTextByPathList(shapAdjst_ary,["attrs","fmla"]);
+                                adj1 = parseInt(sAdj1.substr(4));
+                            }
+                        }
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 100000*96/914400;
+                        var cnstVal3 = 200000*96/914400;
+                        var dVal;
+                        var hc = w/2 , vc=h/2 , hd2 = h/2;
+                        if(shapType == "mathNotEqual"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                                adj2 = 110*Math.PI/180;
+                                adj3 = 11760*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                                adj2 = (adj2/60000)*Math.PI/180;
+                                adj3 = adj3*96/914400;
+                            }
+                            var a1, crAng, a2a1, maxAdj3, a3, dy1, dy2, dx1, x1, x8, y2, y3, y1, y4, 
+                                cadj2, xadj2, len, bhw, bhw2, x7, dx67, x6, dx57, x5, dx47, x4, dx37, 
+                                x3, dx27, x2, rx7, rx6, rx5, rx4, rx3, rx2, dx7, rxt, lxt, rx, lx, 
+                                dy3, dy4, ry, ly, dlx, drx, dly, dry, xC1, xC2, yC1, yC2, yC3, yC4;
+                            var angVal1 = 70*Math.PI/180,angVal2 = 110*Math.PI/180;
+                            var cnstVal4 = 73490*96/914400;
+                            //var cd4 = 90;
+                            a1 = (adj1<0)?0:(adj1>cnstVal1)?cnstVal1:adj1;
+                            crAng = (adj2<angVal1)?angVal1:(adj2>angVal2)?angVal2:adj2;
+                            a2a1 = a1*2;
+                            maxAdj3 = cnstVal2-a2a1;
+                            a3 = (adj3<0)?0:(adj3>maxAdj3)?maxAdj3:adj3;
+                            dy1 = h*a1/cnstVal2;
+                            dy2 = h*a3/cnstVal3;
+                            dx1 = w*cnstVal4/cnstVal3;
+                            x1 = hc-dx1;
+                            x8 = hc+dx1;
+                            y2 = vc-dy2;
+                            y3 = vc+dy2;
+                            y1 = y2-dy1;
+                            y4 = y3+dy1;
+                            cadj2 = crAng-Math.PI/2;
+                            xadj2 = hd2*Math.tan(cadj2);
+                            len = Math.sqrt(xadj2*xadj2 + hd2*hd2);
+                            bhw = len*dy1/hd2;
+                            bhw2 = bhw/2;
+                            x7 = hc+xadj2-bhw2;
+                            dx67 = xadj2*y1/hd2;
+                            x6 = x7-dx67;
+                            dx57 = xadj2*y2/hd2;
+                            x5 = x7-dx57;
+                            dx47 = xadj2*y3/hd2;
+                            x4 = x7-dx47;
+                            dx37 = xadj2*y4/hd2;
+                            x3 = x7-dx37;
+                            dx27 = xadj2*2;
+                            x2 = x7-dx27;
+                            rx7 = x7+bhw;
+                            rx6 = x6+bhw;
+                            rx5 = x5+bhw;
+                            rx4 = x4+bhw;
+                            rx3 = x3+bhw;
+                            rx2 = x2+bhw;
+                            dx7 = dy1*hd2/len;
+                            rxt = x7+dx7;
+                            lxt = rx7-dx7;
+                            rx = (cadj2 > 0)?rxt:rx7;
+                            lx = (cadj2 > 0)?x7:lxt;
+                            dy3 = dy1*xadj2/len;
+                            dy4 = -dy3;
+                            ry = (cadj2 > 0)?dy3:0;
+                            ly = (cadj2 > 0)?0:dy4;
+                            dlx = w-rx;
+                            drx = w-lx;
+                            dly = h-ry;
+                            dry = h-ly;
+                            xC1 = (rx+lx)/2;
+                            xC2 = (drx+dlx)/2;
+                            yC1 = (ry+ly)/2;
+                            yC2 = (y1+y2)/2;
+                            yC3 = (y3+y4)/2;
+                            yC4 = (dry+dly)/2;
+
+                            dVal =  "M" + x1 + "," + y1 + 
+                                    " L" + x6 + "," + y1 + 
+                                    " L" + lx + "," + ly + 
+                                    " L" + rx + "," + ry + 
+                                    " L" + rx6 + "," + y1 + 
+                                    " L" + x8 + "," + y1 + 
+                                    " L" + x8 + "," + y2 + 
+                                    " L" + rx5 + "," + y2 + 
+                                    " L" + rx4 + "," + y3 + 
+                                    " L" + x8 + "," + y3 + 
+                                    " L" + x8 + "," + y4 + 
+                                    " L" + rx3 + "," + y4 + 
+                                    " L" + drx + "," + dry + 
+                                    " L" + dlx + "," + dly + 
+                                    " L" + x3 + "," + y4 + 
+                                    " L" + x1 + "," + y4 + 
+                                    " L" + x1 + "," + y3 + 
+                                    " L" + x4 + "," + y3 + 
+                                    " L" + x5 + "," + y2 + 
+                                    " L" + x1 + "," + y2 + 
+                                    " z";
+                        }else if(shapType == "mathDivide"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                                adj2 = 5880*96/914400;
+                                adj3 = 11760*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                                adj2 = adj2*96/914400;
+                                adj3 = adj3*96/914400;
+                            }
+                            var a1, ma1, ma3h, ma3w, maxAdj3, a3, m4a3, maxAdj2, a2, dy1, yg, rad, dx1, 
+                                y3, y4, a, y2, y1, y5, x1, x3, x2;
+                            var cnstVal4 = 1000*96/914400;
+                            var cnstVal5 = 36745*96/914400;
+                            var cnstVal6 = 73490*96/914400;
+                            a1 = (adj1<cnstVal4)?cnstVal4:(adj1>cnstVal5)?cnstVal5:adj1;
+                            ma1 = -a1;
+                            ma3h = (cnstVal6+ma1)/4;
+                            ma3w = cnstVal5*w/h;
+                            maxAdj3 = (ma3h<ma3w)?ma3h:ma3w;
+                            a3 = (adj3<cnstVal4)?cnstVal4:(adj3>maxAdj3)?maxAdj3:adj3;
+                            m4a3 = -4*a3;
+                            maxAdj2 = cnstVal6+m4a3-a1;
+                            a2 = (adj2<0)?0:(adj2>maxAdj2)?maxAdj2:adj2;
+                            dy1 = h*a1/cnstVal3;
+                            yg = h*a2/cnstVal2;
+                            rad = h*a3/cnstVal2;
+                            dx1 = w*cnstVal6/cnstVal3;
+                            y3 = vc-dy1;
+                            y4 = vc+dy1;
+                            a = yg+rad;
+                            y2 = y3-a;
+                            y1 = y2-rad;
+                            y5 = h-y1;
+                            x1 = hc-dx1;
+                            x3 = hc+dx1;
+                            x2 = hc-rad;
+                            var cd4=90,c3d4=270;
+                            var cX1 = hc - Math.cos(c3d4*Math.PI/180) * rad;
+                            var cY1 = y1 - Math.sin(c3d4*Math.PI/180) * rad;
+                            var cX2 = hc - Math.cos(Math.PI/2) * rad;
+                            var cY2 = y5 - Math.sin(Math.PI/2) * rad;
+                            dVal =  "M" + hc + "," + y1 +
+                                    shapeArc(cX1,cY1,rad,rad,c3d4,c3d4+360,false).replace("M","L") + 
+                                    " z" +
+                                    " M" + hc + "," + y5 +
+                                    shapeArc(cX2,cY2,rad,rad,cd4,cd4+360,false).replace("M","L") + 
+                                    " z" +
+                                    " M" + x1 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + y4 +
+                                    " L" + x1 + "," + y4 +
+                                    " z";
+                        }else if(shapType == "mathEqual"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                                adj2 = 11760*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                                adj2 = adj2*96/914400;
+                            }
+                            var cnstVal5 = 36745*96/914400;
+                            var cnstVal6 = 73490*96/914400;
+                            var a1, a2a1, mAdj2, a2, dy1, dy2, dx1, y2, y3, y1, y4, x1, x2, yC1, yC2;
+                            
+                            a1 = (adj1<0)?0:(adj1>cnstVal5)?cnstVal5:adj1;
+                            a2a1 = a1*2;
+                            mAdj2 = cnstVal2-a2a1;
+                            a2 = (adj2<0)?0:(adj2>mAdj2)?mAdj2:adj2;
+                            dy1 = h*a1/cnstVal2;
+                            dy2 = h*a2/cnstVal3;
+                            dx1 = w*cnstVal6/cnstVal3;
+                            y2 = vc-dy2;
+                            y3 = vc+dy2;
+                            y1 = y2-dy1;
+                            y4 = y3+dy1;
+                            x1 = hc-dx1;
+                            x2 = hc+dx1;
+                            yC1 = (y1+y2)/2;
+                            yC2 = (y3+y4)/2;
+                            dVal =  "M" + x1 + "," + y1 +
+                                    " L" + x2 + "," + y1 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x1 + "," + y2 +
+                                    " z" +
+                                    "M" + x1 + "," + y3 +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x2 + "," + y4 +
+                                    " L" + x1 + "," + y4 +
+                                    " z";
+                        }else if(shapType == "mathMinus"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                            }
+                            var cnstVal6 = 73490*96/914400;
+                            var a1, dy1, dx1, y1, y2, x1, x2;
+                            a1 = (adj1<0)?0:(adj1>cnstVal2)?cnstVal2:adj1;
+                            dy1 = h*a1/cnstVal3;
+                            dx1 = w*cnstVal6/cnstVal3;
+                            y1 = vc-dy1;
+                            y2 = vc+dy1;
+                            x1 = hc-dx1;
+                            x2 = hc+dx1;
+
+                            dVal =  "M" + x1 + "," + y1 +
+                                    " L" + x2 + "," + y1 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x1 + "," + y2 +
+                                    " z";
+                        }else if(shapType == "mathMultiply"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                            }
+                            var cnstVal6 = 51965*96/914400;
+                            var a1, th, a, sa, ca, ta, dl, rw, lM, xM, yM, dxAM, dyAM, 
+                                xA, yA, xB, yB, xBC, yBC, yC, xD, xE, yFE, xFE, xF, xL, yG, yH, yI, xC2, yC3;
+                            var ss = Math.min(w,h);
+                            a1 = (adj1<0)?0:(adj1>cnstVal6)?cnstVal6:adj1;
+                            th = ss*a1/cnstVal2;
+                            a = Math.atan(h/w);
+                            sa = 1*Math.sin(a);
+                            ca = 1*Math.cos(a);
+                            ta = 1*Math.tan(a);
+                            dl = Math.sqrt(w*w + h*h);
+                            rw = dl*cnstVal6/cnstVal2;
+                            lM = dl-rw;
+                            xM = ca*lM/2;
+                            yM = sa*lM/2;
+                            dxAM = sa*th/2;
+                            dyAM = ca*th/2;
+                            xA = xM-dxAM;
+                            yA = yM+dyAM;
+                            xB = xM+dxAM;
+                            yB = yM-dyAM;
+                            xBC = hc-xB;
+                            yBC = xBC*ta;
+                            yC = yBC+yB;
+                            xD = w-xB;
+                            xE = w-xA;
+                            yFE = vc-yA;
+                            xFE = yFE/ta;
+                            xF = xE-xFE;
+                            xL = xA+xFE;
+                            yG = h-yA;
+                            yH = h-yB;
+                            yI = h-yC;
+                            xC2 = w-xM;
+                            yC3 = h-yM;
+
+                            dVal =  "M" + xA + "," + yA +
+                                    " L" + xB + "," + yB +
+                                    " L" + hc + "," + yC +
+                                    " L" + xD + "," + yB +
+                                    " L" + xE + "," + yA +
+                                    " L" + xF + "," + vc +
+                                    " L" + xE + "," + yG +
+                                    " L" + xD + "," + yH +
+                                    " L" + hc + "," + yI +
+                                    " L" + xB + "," + yH +
+                                    " L" + xA + "," + yG +
+                                    " L" + xL + "," + vc +
+                                    " z";
+                        }else if(shapType == "mathPlus"){
+                            if(shapAdjst_ary === undefined){
+                                adj1 = 23520*96/914400;
+                            }else{
+                                adj1 = adj1*96/914400;
+                            }
+                            var cnstVal6 = 73490*96/914400;
+                            var ss = Math.min(w,h);
+                            var a1, dx1, dy1, dx2, x1, x2, x3, x4, y1, y2, y3, y4;
+                            
+                            a1 = (adj1<0)?0:(adj1>cnstVal6)?cnstVal6:adj1;
+                            dx1 = w*cnstVal6/cnstVal3;
+                            dy1 = h*cnstVal6/cnstVal3;
+                            dx2 = ss*a1/cnstVal3;
+                            x1 = hc-dx1;
+                            x2 = hc-dx2;
+                            x3 = hc+dx2;
+                            x4 = hc+dx1;
+                            y1 = vc-dy1;
+                            y2 = vc-dx2;
+                            y3 = vc+dx2;
+                            y4 = vc+dy1;
+
+                            dVal =  "M" + x1 + "," + y2 +
+                                    " L" + x2 + "," + y2 +
+                                    " L" + x2 + "," + y1 +
+                                    " L" + x3 + "," + y1 +
+                                    " L" + x3 + "," + y2 +
+                                    " L" + x4 + "," + y2 +
+                                    " L" + x4 + "," + y3 +
+                                    " L" + x3 + "," + y3 +
+                                    " L" + x3 + "," + y4 +
+                                    " L" + x2 + "," + y4 +
+                                    " L" + x2 + "," + y3 +
+                                    " L" + x1 + "," + y3 +
+                                    " z";
+                        }
+                        result += "<path d='"+dVal+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        //console.log(shapType);
+                        break;
+                    case "can":
+                    case "flowChartMagneticDisk":
+                    case "flowChartMagneticDrum":
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom","a:avLst","a:gd","attrs","fmla"]);
+                        var adj = 25000*96/914400;
+                        var cnstVal1 = 50000*96/914400;
+                        var cnstVal2 = 200000*96/914400;
+                        if(shapAdjst !== undefined){
+                            adj = parseInt(shapAdjst.substr(4))*96/914400;
+                        }
+                        var ss = Math.min(w,h);
+                        var maxAdj, a, y1, y2, y3,dVal;
+                        if(shapType == "flowChartMagneticDisk" || shapType == "flowChartMagneticDrum"){
+                            adj = 50000*96/914400;
+                        }
+                        maxAdj = cnstVal1*h/ss;
+                        a = (adj<0)?0:(adj>maxAdj)?maxAdj:adj;
+                        y1 = ss*a/cnstVal2;
+                        y2 = y1+y1;
+                        y3 = h-y1;
+                        var cd2=180 , wd2 = w/2;
+                        
+                        var tranglRott = "";
+                        if(shapType == "flowChartMagneticDrum"){
+                            tranglRott = "transform='rotate(90 " + w/2 +"," + h/2 +  ")'";
+                        }
+                        dVal = shapeArc(wd2,y1,wd2,y1,0,cd2,false) +
+                                shapeArc(wd2,y1,wd2,y1,cd2,cd2+cd2,false).replace("M","L") +
+                                " L" + w + "," + y3 +
+                                shapeArc(wd2,y3,wd2,y1,0,cd2,false).replace("M","L") +
+                                " L" + 0 + "," + y1;
+
+                        result += "<path " + tranglRott + " d='"+dVal+"' fill='" + (!imgFillFlg?(grndFillFlg?"url(#linGrd_"+shpId+")":fillColor):"url(#imgPtrn_"+shpId+")") + 
+                        "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+
+                        break;
+                    case "swooshArrow":
+                    case "leftCircularArrow":
                     case "leftRightCircularArrow":
+                        console.log(shapType);
                         break;
                     case undefined:
                     default:
-                        console.warn("Undefine shape type.");
+                        console.warn("Undefine shape type.("+shapType+")");
                 }
                 
                 result += "</svg>";
@@ -1386,8 +5880,6 @@
                     });
                 }
                 if(arcToNodes !== undefined){
-                    //TODO
-                    
                     var arcToNodesAttrs = arcToNodes["attrs"];
                     var arcOrder = arcToNodesAttrs["order"];
                     var hR = arcToNodesAttrs["hR"];
@@ -1445,7 +5937,7 @@
                         //var shftY = parseInt(sortByOrder[k].shftY) * 96 / 914400;
                         var endAng = stAng + swAng;
                         
-                        d += shapeArc(hR,wR,hR,wR,stAng,endAng);
+                        d += shapeArc(wR,hR,wR,hR,stAng,endAng,false);
                         k++;
                     }
                 }
@@ -1597,20 +6089,75 @@
             d += " ";
             return d;
         }
-        function shapeArc(cX,cY,rX,rY,stAng,endAng){
+        function shapeArc(cX,cY,rX,rY,stAng,endAng , isClose){
             var dData;
             var angle = stAng;
-            while(angle <= endAng){
-                var radians = angle * (Math.PI / 180);  // convert degree to radians
-                var x = cX + Math.cos(radians) * rX;  
-                var y = cY + Math.sin(radians) * rY;
-                if(angle == stAng){
-                    dData = " M "+ x + " " + y;
+            if(endAng >= stAng){
+                while(angle <= endAng){
+                    var radians = angle * (Math.PI / 180);  // convert degree to radians
+                    var x = cX + Math.cos(radians) * rX;  
+                    var y = cY + Math.sin(radians) * rY;
+                    if(angle == stAng){
+                        dData = " M"+ x + " " + y;
+                    }
+                    dData += " L"+ x + " " + y ;
+                    angle++;
                 }
-                dData += " L "+ x + " " + y;
-                angle++;
+            }else{
+                while(angle > endAng){
+                    var radians = angle * (Math.PI / 180);  // convert degree to radians
+                    var x = cX + Math.cos(radians) * rX;  
+                    var y = cY + Math.sin(radians) * rY;
+                    if(angle == stAng){
+                        dData = " M "+ x + " " + y;
+                    }
+                    dData += " L "+ x + " " + y ;
+                    angle--;
+                }                
             }
+            dData += (isClose?" z":"");
             return dData;
+        }
+        function shapeSnipRoundRect(w,h,adj1,adj2,shapeType,adjType){
+            /* 
+            shapeType: snip,round
+            adjType: cornr1,cornr2,cornrAll,diag
+            */
+            var adjA,adjB,adjC,adjD;
+            if(adjType == "cornr1"){
+                adjA = 0;
+                adjB = 0;
+                adjC = 0;
+                adjD = adj1;
+            }else if(adjType == "cornr2"){
+                adjA = adj1;
+                adjB = adj2;
+                adjC = adj2;
+                adjD = adj1;
+            }else if(adjType == "cornrAll"){
+                adjA = adj1;
+                adjB = adj1;
+                adjC = adj1;
+                adjD = adj1;                
+            }else if(adjType == "diag"){
+                adjA = adj1;
+                adjB = adj2;
+                adjC = adj1;
+                adjD = adj2;
+            }
+            //d is a string that describes the path of the slice.
+            var d;
+            if(shapeType == "round"){
+                d = "M0" + "," + (h/2 + (1-adjB)*(h/2)) + " Q" +0+ "," + h +" " + adjB*(w/2) +"," + h + " L" + (w/2 + (1-adjC)*(w/2)) + "," + h + 
+                    " Q" + w + "," + h + " "+ w + "," +(h/2 + (h/2)*(1-adjC)) + "L" + w + "," +  (h/2)*adjD + 
+                    " Q" + w + "," + 0 + " " + (w/2 + (w/2)*(1-adjD)) + ",0 L" + (w/2)*adjA + ",0" +  
+                    " Q" + 0 + "," + 0 + " 0," +  (h/2)*(adjA) + " z";
+            }else if(shapeType == "snip"){
+                d = "M0" + "," + adjA*(h/2) + " L0" + "," + (h/2 + (h/2)*(1-adjB)) + "L" + adjB*(w/2) + "," + h + 
+                    " L" + (w/2 + (w/2)*(1-adjC)) + "," + h + "L" + w + "," + (h/2 + (h/2)*(1-adjC)) + 
+                    " L" + w + "," + adjD*(h/2) + "L" + (w/2 + (w/2)*(1-adjD)) + ",0 L" + ((w/2)*adjA) + ",0 z";
+            }
+            return d;
         }
         /*
         function shapePolygon(sidesNum) {
@@ -4254,175 +8801,10 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
         /////////////////////////////////////tXml///////////////////////////
-        function tXml(S) {
-            
-            "use strict";
-            var openBracket = "<";
-            var openBracketCC = "<".charCodeAt(0);
-            var closeBracket = ">";
-            var closeBracketCC = ">".charCodeAt(0);
-            var minus = "-";
-            var minusCC = "-".charCodeAt(0);
-            var slash = "/";
-            var slashCC = "/".charCodeAt(0);
-            var exclamation = '!';
-            var exclamationCC = '!'.charCodeAt(0);
-            var singleQuote = "'";
-            var singleQuoteCC = "'".charCodeAt(0);
-            var doubleQuote = '"';
-            var doubleQuoteCC = '"'.charCodeAt(0);
-            var questionMark = '?';
-            var questionMarkCC = '?'.charCodeAt(0);
-            
-            /**
-             *    returns text until the first nonAlphebetic letter
-             */
-            var nameSpacer = "\r\n\t>/= ";
-            
-            var pos = 0;
-            
-            /**
-             * Parsing a list of entries
-             */
-            function parseChildren() {
-                var children = [];
-                while (S[pos]) {
-                    if (S.charCodeAt(pos) == openBracketCC) {
-                        if (S.charCodeAt(pos+1) === slashCC) { // </
-                            //while (S[pos]!=='>') { pos++; }
-                            pos = S.indexOf(closeBracket, pos);
-                            return children;
-                        } else if (S.charCodeAt(pos+1) === exclamationCC) { // <! or <!--
-                            if (S.charCodeAt(pos+2) == minusCC) {
-                                // comment support
-                                while (!(S.charCodeAt(pos) === closeBracketCC && S.charCodeAt(pos-1) == minusCC && 
-                                        S.charCodeAt(pos-2) == minusCC && pos != -1)) {
-                                    pos = S.indexOf(closeBracket, pos+1);
-                                }
-                                if (pos === -1) {
-                                    pos = S.length;
-                                }
-                            } else {
-                                // doctype support
-                                pos += 2;
-                                for (; S.charCodeAt(pos) !== closeBracketCC; pos++) {}
-                            }
-                            pos++;
-                            continue;
-                        } else if (S.charCodeAt(pos+1) === questionMarkCC) { // <?
-                            // XML header support
-                            pos = S.indexOf(closeBracket, pos);
-                            pos++;
-                            continue;
-                        }
-                        pos++;
-                        var startNamePos = pos;
-                        for (; nameSpacer.indexOf(S[pos]) === -1; pos++) {}
-                        var node_tagName = S.slice(startNamePos, pos);
-        
-                        // Parsing attributes
-                        var attrFound = false;
-                        var node_attributes = {};
-                        for (; S.charCodeAt(pos) !== closeBracketCC; pos++) {
-                            var c = S.charCodeAt(pos);
-                            if ((c > 64 && c < 91) || (c > 96 && c < 123)) {
-                                startNamePos = pos;
-                                for (; nameSpacer.indexOf(S[pos]) === -1; pos++) {}
-                                var name = S.slice(startNamePos, pos);
-                                // search beginning of the string
-                                var code = S.charCodeAt(pos);
-                                while (code !== singleQuoteCC && code !== doubleQuoteCC) {
-                                    pos++;
-                                    code = S.charCodeAt(pos);
-                                }
-                                
-                                var startChar = S[pos];
-                                var startStringPos= ++pos;
-                                pos = S.indexOf(startChar, startStringPos);
-                                var value = S.slice(startStringPos, pos);
-                                if (!attrFound) {
-                                    node_attributes = {};
-                                    attrFound = true;
-                                }
-                                node_attributes[name] = value;
-                            }
-                        }
-                        
-                        // Optional parsing of children
-                        if (S.charCodeAt(pos-1) !== slashCC) {
-                            pos++;
-                            var node_children = parseChildren();
-                        }
-                        
-                        children.push({
-                            "children": node_children,
-                            "tagName": node_tagName,
-                            "attrs": node_attributes
-                        });
-                        
-                    } else {
-                        var startTextPos = pos;
-                        pos = S.indexOf(openBracket, pos) - 1; // Skip characters until '<'
-                        if (pos === -2) {
-                            pos = S.length;
-                        }
-                        var text = S.slice(startTextPos, pos + 1);
-                        if (text.trim().length > 0) {
-                            children.push(text);
-                        }
-                    }
-                    pos++;
-                }
-                return children;
-            }
-            
-            _order = 1;
-            return simplefy(parseChildren());
-        }
-        
-        function simplefy(children) {
-            var node = {};
-            
-            if (children === undefined) {
-                return {};
-            }
-            
-            // Text node (e.g. <t>This is text.</t>)
-            if (children.length === 1 && typeof children[0] == 'string') {
-                return children[0];
-            }
-        
-            // map each object
-            children.forEach(function (child) {
-        
-                if (!node[child.tagName]) {
-                    node[child.tagName] = [];
-                }
-        
-                if (typeof child === 'object') {
-                    var kids = simplefy(child.children);
-                    if (child.attrs) {
-                        kids.attrs = child.attrs;
-                    }
-                    
-                    if (kids["attrs"] === undefined) {
-                        kids["attrs"] = {"order": _order};
-                    } else {
-                        kids["attrs"]["order"] = _order;
-                    }
-                    _order++;
-                    node[child.tagName].push(kids);
-                }
-            });
-            
-            for (var i in node) {
-                if (node[i].length == 1) {
-                    node[i] = node[i][0];
-                }
-            }
-            
-            return node;
-        };
+        /*
+        This is my custom tXml.js file
+        */
+        function tXml(t,r){"use strict";function e(){for(var r=[];t[l];)if(t.charCodeAt(l)==s){if(t.charCodeAt(l+1)===h)return l=t.indexOf(u,l),l+1&&(l+=1),r;if(t.charCodeAt(l+1)===v){if(t.charCodeAt(l+2)==m){for(;-1!==l&&(t.charCodeAt(l)!==d||t.charCodeAt(l-1)!=m||t.charCodeAt(l-2)!=m||-1==l);)l=t.indexOf(u,l+1);-1===l&&(l=t.length)}else for(l+=2;t.charCodeAt(l)!==d&&t[l];)l++;l++;continue}var e=a();r.push(e)}else{var i=n();i.trim().length>0&&r.push(i),l++}return r}function n(){var r=l;return l=t.indexOf(c,l)-1,-2===l&&(l=t.length),t.slice(r,l+1)}function i(){for(var r=l;-1===A.indexOf(t[l])&&t[l];)l++;return t.slice(r,l)}function a(){var r={};l++,r.tagName=i();for(var n=!1;t.charCodeAt(l)!==d&&t[l];){var a=t.charCodeAt(l);if(a>64&&91>a||a>96&&123>a){for(var f=i(),c=t.charCodeAt(l);c&&c!==p&&c!==g&&!(c>64&&91>c||c>96&&123>c)&&c!==d;)l++,c=t.charCodeAt(l);if(n||(r.attributes={},n=!0),c===p||c===g){var s=o();if(-1===l)return r}else s=null,l--;r.attributes[f]=s}l++}if(t.charCodeAt(l-1)!==h)if("script"==r.tagName){var u=l+1;l=t.indexOf("</script>",l),r.children=[t.slice(u,l-1)],l+=8}else if("style"==r.tagName){var u=l+1;l=t.indexOf("</style>",l),r.children=[t.slice(u,l-1)],l+=7}else-1==C.indexOf(r.tagName)&&(l++,r.children=e(f));else l++;return r}function o(){var r=t[l],e=++l;return l=t.indexOf(r,e),t.slice(e,l)}function f(){var e=new RegExp("\\s"+r.attrName+"\\s*=['\"]"+r.attrValue+"['\"]").exec(t);return e?e.index:-1}r=r||{};var l=r.pos||0,c="<",s="<".charCodeAt(0),u=">",d=">".charCodeAt(0),m="-".charCodeAt(0),h="/".charCodeAt(0),v="!".charCodeAt(0),p="'".charCodeAt(0),g='"'.charCodeAt(0),A="\n	>/= ",C=["img","br","input","meta","link"],y=null;if(void 0!==r.attrValue){r.attrName=r.attrName||"id";for(var y=[];-1!==(l=f());)l=t.lastIndexOf("<",l),-1!==l&&y.push(a()),t=t.substr(l),l=0}else y=r.parseNode?a():e();return r.filter&&(y=tXml.filter(y,r.filter)),r.simplify&&(y=tXml.simplify(y)),y.pos=l,y}var _order=1;tXml.simplify=function(t){var r={};if(void 0===t)return{};if(1===t.length&&"string"==typeof t[0])return t[0];t.forEach(function(t){if("object"==typeof t){r[t.tagName]||(r[t.tagName]=[]);var e=tXml.simplify(t.children||[]);r[t.tagName].push(e),t.attributes&&(e.attrs=t.attributes),void 0===e.attrs?e.attrs={order:_order}:e.attrs.order=_order,_order++}});for(var e in r)1==r[e].length&&(r[e]=r[e][0]);return r},tXml.filter=function(t,r){var e=[];return t.forEach(function(t){if("object"==typeof t&&r(t)&&e.push(t),t.children){var n=tXml.filter(t.children,r);e=e.concat(n)}}),e},tXml.stringify=function(t){function r(t){if(t)for(var r=0;r<t.length;r++)"string"==typeof t[r]?n+=t[r].trim():e(t[r])}function e(t){n+="<"+t.tagName;for(var e in t.attributes)n+=null===t.attributes[e]?" "+e:-1===t.attributes[e].indexOf('"')?" "+e+'="'+t.attributes[e].trim()+'"':" "+e+"='"+t.attributes[e].trim()+"'";n+=">",r(t.children),n+="</"+t.tagName+">"}var n="";return r(t),n},tXml.toContentString=function(t){if(Array.isArray(t)){var r="";return t.forEach(function(t){r+=" "+tXml.toContentString(t),r=r.trim()}),r}return"object"==typeof t?tXml.toContentString(t.children):" "+t},tXml.getElementById=function(t,r,e){var n=tXml(t,{attrValue:r,simplify:e});return e?n:n[0]},tXml.getElementsByClassName=function(t,r,e){return tXml(t,{attrName:"class",attrValue:"[a-zA-Z0-9-s ]*"+r+"[a-zA-Z0-9-s ]*",simplify:e})},tXml.parseStream=function(t,r){if("function"==typeof r&&(cb=r,r=0),"string"==typeof r&&(r=r.length+2),"string"==typeof t){var e=require("fs");t=e.createReadStream(t,{start:r}),r=0}var n=r,i="",a=0;return t.on("data",function(r){a++,i+=r;for(var e=0;;){n=i.indexOf("<",n)+1;var o=tXml(i,{pos:n,parseNode:!0});if(n=o.pos,n>i.length-1||e>n)return void(e&&(i=i.slice(e),n=0,e=0));t.emit("xml",o),e=n}i=i.slice(n),n=0}),t.on("end",function(){console.log("end")}),t},"object"==typeof module&&(module.exports=tXml);
     };
 
     /*!
