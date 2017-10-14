@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.0.6
+### 1.9.0
 # environment
 ### browsers:
 - IE > 10
@@ -29,7 +29,7 @@ PPTXjs
   * Align (Horizontal and Vertical)
   * Background color (single color)
   * Border (borderColor, borderWidth, borderType, strokeDasharray)
-* Shapes (not all types, yet)
+* Shapes (support most of shapes)
   * Background color (single color, gradient colors)
   * Background image
   * Rotations
