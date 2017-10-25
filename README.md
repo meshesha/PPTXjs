@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.9.0
+### 1.9.1
 # environment
 ### browsers:
 - IE > 10
