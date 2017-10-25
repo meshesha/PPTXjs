@@ -6,7 +6,6 @@
  * LICENSE: MIT
  * url:https://github.com/meshesha/PPTXjs
  */
-
 (function ( $ ) {
     $.fn.pptxToHtml = function( options ) {
  		//var worker;
