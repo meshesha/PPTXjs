@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.9.1
+### 1.9.3
 # environment
 ### browsers:
 - IE > 10
@@ -57,7 +57,9 @@ PPTXjs
 * Theme
   * Background color
   * Background image
-* and more ... see demo
+* Equations and formulas
+  * display Equations and formulas as image
+* and more ...
 
 ###  usage:
 ----
@@ -90,6 +92,7 @@ PPTXjs
  $("#your_div_id_result").pptxToHtml({
    pptxFileUrl: "path/to/yore_pptx_file.pptx", 
    fileInputId: "upload_pptx_fiile",
+   slidesScale: "", //Change Slides scale by percent
    slideMode: false,
    keyBoardShortCut: false,
    mediaProcess: true, /** true,false: if true then process video and audio files */
@@ -113,6 +116,11 @@ PPTXjs
  });
 </script>
  ``` 
+# Changelog
+* V.1.9.3
+  * support Equations and formulas as Image
+  * Added an ability to scale Slides in percent
+  * and fixed background color issue.
 # License
 - Copyright © 2017 Meshesha
 - MIT
