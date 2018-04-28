@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.9.3
+### 1.10.0
 # environment
 ### browsers:
 - IE > 10
@@ -96,6 +96,7 @@ PPTXjs
    slideMode: false,
    keyBoardShortCut: false,
    mediaProcess: true, /** true,false: if true then process video and audio files */
+		 jsZipV2: "./js/jszip.min.js", /*flase or 'path/to/jsZip.V2.js' */
    slideModeConfig: {  //on slide mode (slideMode: true)
      first: 1,
      nav: false, /** true,false : show or not nav buttons*/
@@ -117,6 +118,10 @@ PPTXjs
 </script>
  ``` 
 # Changelog
+* V.1.10.0
+  * added the ability to load jsZip v.2  in case jsZip v.3 is loaded for another use.
+  *  (note: using this method will reload the page)
+  *  and fixed some errors issue.
 * V.1.9.3
   * support Equations and formulas as Image
   * Added an ability to scale Slides in percent
