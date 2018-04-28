@@ -1,14 +1,14 @@
 /**
  * pptxjs.js
- * Ver. : 1.9.3 
- * last update: 21/11/2017
+ * Ver. : 1.10.0 
+ * last update: 28/04/2018
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://meshesha.github.io/pptxjs
  * New: 
- *  - support Equations and formulas as Image
- *  - Added an ability to scale Slides in percent
- *  - and fixed background color issue.
+ *  - added the ability to load jsZip v.2  in case jsZip v.3 is loaded for another use.
+ *      (note: using this method will reload the page)
+ *  - and fixed some errors issue.
  */
 
 (function ( $ ) {
@@ -31,9 +31,7 @@
         var bodyFontSize = 20;
         var otherFontSize = 16;
         var isSlideMode = false;
-        var styleTable = {};        
-        // This is the easiest way to have default options.
-        //settings.keyBoardShortCut
+        var styleTable = {};
         var settings = $.extend({
             // These are the defaults.
             pptxFileUrl: "",
@@ -42,6 +40,7 @@
             slideMode: false, /** true,false*/
             keyBoardShortCut: false,  /** true,false ,condition: slideMode: true XXXXX - need to remove - this is doublcated*/
             mediaProcess: true, /** true,false: if true then process video and audio files */
+            jsZipV2: false,
             slideModeConfig: {
                 first: 1,
                 nav: true, /** true,false : show or not nav buttons*/
@@ -77,12 +76,15 @@
             });
         }
         if(settings.slideMode){
-            //check if divs2slides.js was included, include if not
             if(!jQuery().divs2slides) {
-                // the plugin is not loaded => load it:
-                jQuery.getScript('./js/divs2slides.js', function() {
-                    // the plugin is now loaded => use divs2slides.min.js
-                });
+                jQuery.getScript('./js/divs2slides.js');
+            }
+        }
+        if(settings.jsZipV2 !== false){
+            jQuery.getScript(settings.jsZipV2);
+            if(localStorage.getItem('isPPTXjsReLoaded') !== 'yes') {
+               localStorage.setItem('isPPTXjsReLoaded', 'yes');
+               location.reload();
             }
         }
         if(settings.keyBoardShortCut && settings.slideMode){
@@ -7578,10 +7580,15 @@
                         //get Style from tableStyles.xml by {var tbleStyleId}
                         //table style object : tableStyles
                         var tbleStylList = tableStyles["a:tblStyleLst"]["a:tblStyle"];
-                        
-                        for(var k=0;k<tbleStylList.length;k++){
-                            if(tbleStylList[k]["attrs"]["styleId"] == tbleStyleId){
-                                thisTblStyle = tbleStylList[k];
+                        if(tbleStylList.constructor === Array){
+                            for(var k=0;k<tbleStylList.length;k++){
+                                if(tbleStylList[k]["attrs"]["styleId"] == tbleStyleId){
+                                    thisTblStyle = tbleStylList[k];
+                                }
+                            }
+                        }else{
+                            if(tbleStylList["attrs"]["styleId"] == tbleStyleId){
+                                thisTblStyle = tbleStylList;
                             }
                         }
                     }
@@ -8640,55 +8647,60 @@
             return bgcolor;
         }
         function getBgGradientFill(bgPr, phClr, slideMasterContent){
-            var bgcolor;
-            var grdFill = bgPr["a:gradFill"];
-            var gsLst = grdFill["a:gsLst"]["a:gs"]; 
-            var startColorNode , endColorNode;
-            var color_ary = [];
-            var tint_ary = [];
-            for(var i=0;i<gsLst.length;i++){
-                var lo_tint;
-                var lo_color = "";
-                if (gsLst[i]["a:srgbClr"] !== undefined) {
-                    if(phClr === undefined){
-                        lo_color = getTextByPathList(gsLst[i],["a:srgbClr","attrs", "val"]); //#...
+            var bgcolor = "";
+            if(bgPr !== undefined){
+                var grdFill = bgPr["a:gradFill"];
+                var gsLst = grdFill["a:gsLst"]["a:gs"]; 
+                var startColorNode , endColorNode;
+                var color_ary = [];
+                var tint_ary = [];
+                for(var i=0;i<gsLst.length;i++){
+                    var lo_tint;
+                    var lo_color = "";
+                    if (gsLst[i]["a:srgbClr"] !== undefined) {
+                        if(phClr === undefined){
+                            lo_color = getTextByPathList(gsLst[i],["a:srgbClr","attrs", "val"]); //#...
+                        }
+                        lo_tint = getTextByPathList(gsLst[i],["a:srgbClr","a:tint","attrs","val"]);
+                    }else if(gsLst[i]["a:schemeClr"] !== undefined) { //a:schemeClr
+                        if(phClr === undefined){
+                            var schemeClr = getTextByPathList(gsLst[i],["a:schemeClr","attrs", "val"]);
+                            lo_color = getSchemeColorFromTheme("a:" + schemeClr,slideMasterContent); //#...
+                        }
+                        lo_tint = getTextByPathList(gsLst[i],["a:schemeClr","a:tint","attrs","val"]);
+                        //console.log("schemeClr",schemeClr,slideMasterContent)
                     }
-                    lo_tint = getTextByPathList(gsLst[i],["a:srgbClr","a:tint","attrs","val"]);
-                }else if(gsLst[i]["a:schemeClr"] !== undefined) { //a:schemeClr
-                    if(phClr === undefined){
-                        var schemeClr = getTextByPathList(gsLst[i],["a:schemeClr","attrs", "val"]);
-                        lo_color = getSchemeColorFromTheme("a:" + schemeClr,slideMasterContent); //#...
-                    }
-                    lo_tint = getTextByPathList(gsLst[i],["a:schemeClr","a:tint","attrs","val"]);
-                    //console.log("schemeClr",schemeClr,slideMasterContent)
-                }
-                //console.log("lo_color",lo_color)
-                color_ary[i] =  lo_color;
-                tint_ary[i] = (lo_tint !==undefined)?parseInt(lo_tint) / 100000:1;
-            } 
-            //get rot
-            var lin = grdFill["a:lin"];
-            var rot = 90;
-            if(lin !== undefined){
-                rot = angleToDegrees(lin["attrs"]["ang"]) + 90;
-            } 
-            bgcolor =  "background: linear-gradient("+rot+"deg,";
-            for(var i=0;i<gsLst.length;i++){
-                if(i==gsLst.length-1){
-                    if(phClr === undefined){
-                        bgcolor += "rgba("+ hexToRgbNew(color_ary[i])+","+ tint_ary[i]+")"+");";
+                    //console.log("lo_color",lo_color)
+                    color_ary[i] =  lo_color;
+                    tint_ary[i] = (lo_tint !==undefined)?parseInt(lo_tint) / 100000:1;
+                } 
+                //get rot
+                var lin = grdFill["a:lin"];
+                var rot = 90;
+                if(lin !== undefined){
+                    rot = angleToDegrees(lin["attrs"]["ang"]) + 90;
+                } 
+                bgcolor =  "background: linear-gradient("+rot+"deg,";
+                for(var i=0;i<gsLst.length;i++){
+                    if(i==gsLst.length-1){
+                        if(phClr === undefined){
+                            bgcolor += "rgba("+ hexToRgbNew(color_ary[i])+","+ tint_ary[i]+")"+");";
+                        }else{
+                            bgcolor += "rgba("+ hexToRgbNew(phClr)+","+ tint_ary[i]+")"+");";
+                        }
                     }else{
-                        bgcolor += "rgba("+ hexToRgbNew(phClr)+","+ tint_ary[i]+")"+");";
-                    }
-                }else{
-                    if(phClr === undefined){
-                        bgcolor += "rgba("+ hexToRgbNew(color_ary[i])+","+ tint_ary[i]+")"+", ";
-                    }else{
-                        bgcolor += "rgba("+ hexToRgbNew(phClr)+","+ tint_ary[i]+")"+", ";
-                    }
+                        if(phClr === undefined){
+                            bgcolor += "rgba("+ hexToRgbNew(color_ary[i])+","+ tint_ary[i]+")"+", ";
+                        }else{
+                            bgcolor += "rgba("+ hexToRgbNew(phClr)+","+ tint_ary[i]+")"+", ";
+                        }
+                    } 
                 }
-                    
-            }   
+            }else{
+                if(phClr === undefined){
+                    bgcolor = "rgba("+ hexToRgbNew(phClr)+",0);";
+                }
+            }
             return bgcolor;
         }
         function getBgPicFill(bgPr, sorce, warpObj){
