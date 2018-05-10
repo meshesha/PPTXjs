@@ -1,14 +1,12 @@
 /**
  * pptxjs.js
- * Ver. : 1.10.0 
- * last update: 28/04/2018
+ * Ver. : 1.10.1 
+ * last update: 10/05/2018
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://meshesha.github.io/pptxjs
  * New: 
- *  - added the ability to load jsZip v.2  in case jsZip v.3 is loaded for another use.
- *      (note: using this method will reload the page)
- *  - and fixed some errors issue.
+ *  - new divs2slides
  */
 
 (function ( $ ) {
@@ -32,7 +30,7 @@
         var otherFontSize = 16;
         var isSlideMode = false;
         var styleTable = {};
-        var settings = $.extend({
+        var settings = $.extend(true, {
             // These are the defaults.
             pptxFileUrl: "",
             fileInputId: "",
@@ -45,8 +43,6 @@
                 first: 1,
                 nav: true, /** true,false : show or not nav buttons*/
                 navTxtColor: "black", /** color */
-                navNextTxt:"&#8250;",
-                navPrevTxt: "&#8249;",
                 keyBoardShortCut: true, /** true,false ,condition: */
                 showSlideNum: true, /** true,false */
                 showTotalSlideNum: true, /** true,false */
@@ -65,16 +61,6 @@
                 "style":"display:block; color:blue; font-size:20px; width:50%; margin:0 auto;"
             }).html("Loading...")
         );
-        //
-        var sScale = settings.slidesScale;
-        if(sScale != ""){
-            var numsScale = parseInt(sScale);
-            var scaleVal = numsScale/100;
-            $("#"+divId ).css({
-                'transform': 'scale('+scaleVal+')',
-                'transform-origin': 'top'
-            });
-        }
         if(settings.slideMode){
             if(!jQuery().divs2slides) {
                 jQuery.getScript('./js/divs2slides.js');
@@ -104,8 +90,6 @@
                             nav: slideConf.nav,
                             showPlayPauseBtn: settings.showPlayPauseBtn,
                             navTxtColor: slideConf.navTxtColor,
-                            navNextTxt: slideConf.navNextTxt,
-                            navPrevTxt: slideConf.navPrevTxt,
                             keyBoardShortCut: slideConf.keyBoardShortCut,
                             showSlideNum: slideConf.showSlideNum,
                             showTotalSlideNum: slideConf.showTotalSlideNum,
@@ -179,8 +163,12 @@
                             //$("#pptx-thumb").attr("src", "data:image/jpeg;base64," +rslt_ary[i]["data"]);
                             break;
                         case "slideSize":
-                                //var slideWidth = rslt_ary[i]["data"].width;
-                                //var slideHeight = rslt_ary[i]["data"].height;
+                                var slideWidth = rslt_ary[i]["data"].width;
+                                var slideHeight = rslt_ary[i]["data"].height;
+                                $("#"+divId).css({
+                                    'width': slideWidth + 80,
+                                    'height': slideHeight + 60
+                                });
                             break;
                         case "globalCSS":
                             $result.append("<style>" +rslt_ary[i]["data"] + "</style>");
@@ -202,8 +190,6 @@
                                         nav: slideConf.nav,
                                         showPlayPauseBtn: settings.showPlayPauseBtn,
                                         navTxtColor: slideConf.navTxtColor,
-                                        navNextTxt: slideConf.navNextTxt,
-                                        navPrevTxt: slideConf.navPrevTxt,
                                         keyBoardShortCut: slideConf.keyBoardShortCut,
                                         showSlideNum: slideConf.showSlideNum,
                                         showTotalSlideNum: slideConf.showTotalSlideNum,
@@ -479,8 +465,14 @@
             };
             
             var bgColor = getSlideBackgroundFill(slideContent, slideLayoutContent, slideMasterContent,warpObj);
-            
-            var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
+            var sScale = settings.slidesScale;
+            var trnsfrmScl = "";
+            if(sScale != ""){
+                var numsScale = parseInt(sScale);
+                var scaleVal = numsScale/100;
+                trnsfrmScl =  'transform:scale(' + scaleVal + '); transform-origin:top';
+            }
+            var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "; " + trnsfrmScl + "'>"
             //result += "<div>"+getBackgroundShapes(slideContent, slideLayoutContent, slideMasterContent,warpObj) + "</div>" - TODO
             for (var nodeKey in nodes) {
                 if (nodes[nodeKey].constructor === Array) {
