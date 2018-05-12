@@ -1,12 +1,13 @@
 /**
  * pptxjs.js
- * Ver. : 1.10.1 
- * last update: 10/05/2018
+ * Ver. : 1.10.2
+ * last update: 12/05/2018
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://meshesha.github.io/pptxjs
  * New: 
  *  - new divs2slides
+ *  - fixed some issues
  */
 
 (function ( $ ) {
@@ -73,17 +74,19 @@
                location.reload();
             }
         }
-        if(settings.keyBoardShortCut && settings.slideMode){
+        
+        if(settings.keyBoardShortCut){
             $(document).bind("keydown",function(event){
                 event.preventDefault();
                 var key = event.keyCode;
+                console.log(key,isDone)
                 if(key==116 && !isSlideMode){ //F5
-                    //console.log(key)
                     isSlideMode = true;
                     $("#"+divId+" .slide").hide();
-                    //setTimeout(function() {
-                    if(isDone){
+                    setTimeout(function() {
+                    //if(isDone){
                         var slideConf = settings.slideModeConfig;
+                        //console.log(key,isDone,slideConf)
                         $(".slides-loadnig-msg").remove()
                         $("#"+divId).divs2slides({
                             first: slideConf.first,
@@ -100,8 +103,27 @@
                             transition: slideConf.transition, 
                             transitionTime: slideConf.transitionTime 
                         });
-                    }
-                    //}, 1500);
+                    //}
+                            
+                        var sScale = settings.slidesScale;
+                        var trnsfrmScl = "";
+                        if(sScale != ""){
+                            var numsScale = parseInt(sScale);
+                            var scaleVal = numsScale/100;
+                            trnsfrmScl =  'transform:scale(' + scaleVal + '); transform-origin:top';
+                        }
+
+                        var numOfSlides = 1;
+                        var sScaleVal = (sScale != "")?scaleVal:1;
+                        var slidesHeight = $("#"+divId+" .slide").height();
+                        //console.log(slidesHeight);
+                        $("#all_slides_warpper").attr({
+                            style: trnsfrmScl  /*+ ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"*/
+                        })
+                    }, 1500);
+                }else if(key==116 && isSlideMode){
+                    //exit slide mode - TODO
+                    
                 }
             });
         }
@@ -115,10 +137,10 @@
                 FileReaderJS.setupBlob(blob, {
                     readAsDefault: "ArrayBuffer",
                     on: {
-                    load: function(e, file) {
-                        //console.log(e.target.result);
-                        convertToHtml(e.target.result);
-                    }
+                        load: function(e, file) {
+                            //console.log(e.target.result);
+                            convertToHtml(e.target.result);
+                        }
                     }
                 });
             });
@@ -154,6 +176,9 @@
                 zip = zip.load(file);  //zip.load(file, { base64: true });
                 var rslt_ary = processPPTX(zip);
                 //s = readXmlFile(zip, 'ppt/tableStyles.xml');
+                
+                var slidesHeight = $("#"+divId+" .slide").height();
+
                 for(var i=0;i<rslt_ary.length;i++){
                     switch(rslt_ary[i]["type"]){
                         case "slide":
@@ -174,11 +199,13 @@
                             $result.append("<style>" +rslt_ary[i]["data"] + "</style>");
                             break;
                         case "ExecutionTime":
-                            //isDone = true;
                             // $result.prepend("<div id='presentation_toolbar'></div>");
                             processMsgQueue(MsgQueue);
                             setNumericBullets($(".block"));
                             setNumericBullets($("table td"));
+                            
+                            isDone = true;
+
                             if(settings.slideMode && !isSlideMode){
                                 isSlideMode = true;
                                 $("#"+divId+" .slide").hide();
@@ -199,7 +226,23 @@
                                         background : slideConf.background,
                                         transition: slideConf.transition, 
                                         transitionTime: slideConf.transitionTime 
-                                    });   
+                                    });
+                                    
+                                    var sScale = settings.slidesScale;
+                                    var trnsfrmScl = "";
+                                    if(sScale != ""){
+                                        var numsScale = parseInt(sScale);
+                                        var scaleVal = numsScale/100;
+                                        trnsfrmScl =  'transform:scale(' + scaleVal + '); transform-origin:top';
+                                    }
+
+                                    var numOfSlides = 1;
+                                    var sScaleVal = (sScale != "")?scaleVal:1;
+                                    //console.log(slidesHeight);
+                                    $("#all_slides_warpper").attr({
+                                        style: trnsfrmScl  + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
+                                    })
+
                                 }, 1500);
                             }else if(!settings.slideMode){
                                 $(".slides-loadnig-msg").remove();
@@ -208,6 +251,28 @@
                         default:                        
                     }
                 }
+                if(!settings.slideMode){
+                    if(document.getElementById("all_slides_warpper") === null){
+                        $("#"  + divId + " .slide").wrapAll("<div id='all_slides_warpper'></div>");
+                    }
+                }
+                var sScale = settings.slidesScale;
+                var trnsfrmScl = "";
+                if(sScale != ""){
+                    var numsScale = parseInt(sScale);
+                    var scaleVal = numsScale/100;
+                    trnsfrmScl =  'transform:scale(' + scaleVal + '); transform-origin:top';
+                }
+                
+                var slidesHeight = $("#"+divId+" .slide").height();
+                var numOfSlides = $("#"+divId+" .slide").length;
+                var sScaleVal = (sScale != "")?scaleVal:1;
+                //console.log("slidesHeight: " + slidesHeight + "\nnumOfSlides: " + numOfSlides + "\nScale: " + sScaleVal)
+
+                $("#all_slides_warpper").attr({
+                    style: trnsfrmScl + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
+                })
+                
             //}
         }
         function processPPTX(zip) {
@@ -465,14 +530,7 @@
             };
             
             var bgColor = getSlideBackgroundFill(slideContent, slideLayoutContent, slideMasterContent,warpObj);
-            var sScale = settings.slidesScale;
-            var trnsfrmScl = "";
-            if(sScale != ""){
-                var numsScale = parseInt(sScale);
-                var scaleVal = numsScale/100;
-                trnsfrmScl =  'transform:scale(' + scaleVal + '); transform-origin:top';
-            }
-            var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "; " + trnsfrmScl + "'>"
+            var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
             //result += "<div>"+getBackgroundShapes(slideContent, slideLayoutContent, slideMasterContent,warpObj) + "</div>" - TODO
             for (var nodeKey in nodes) {
                 if (nodes[nodeKey].constructor === Array) {
