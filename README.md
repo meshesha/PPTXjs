@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.10.0
+### 1.10.2
 # environment
 ### browsers:
 - IE > 10
@@ -96,13 +96,11 @@ PPTXjs
    slideMode: false,
    keyBoardShortCut: false,
    mediaProcess: true, /** true,false: if true then process video and audio files */
-		 jsZipV2: "./js/jszip.min.js", /*flase or 'path/to/jsZip.V2.js' */
+   jsZipV2: "./js/jszip.min.js", /*flase or 'path/to/jsZip.V2.js' */
    slideModeConfig: {  //on slide mode (slideMode: true)
      first: 1,
      nav: false, /** true,false : show or not nav buttons*/
      navTxtColor: "white", /** color */
-     navNextTxt:"&#8250;", //">"
-     navPrevTxt: "&#8249;", //"<"
      showPlayPauseBtn: false,/** true,false */
      keyBoardShortCut: false, /** true,false */
      showSlideNum: false, /** true,false */
@@ -118,6 +116,10 @@ PPTXjs
 </script>
  ``` 
 # Changelog
+
+* V.1.10.2
+  * new divs2slides v.1.3.1
+  * fixed some issues
 * V.1.10.0
   * added the ability to load jsZip v.2  in case jsZip v.3 is loaded for another use.
   *  (note: using this method will reload the page)
