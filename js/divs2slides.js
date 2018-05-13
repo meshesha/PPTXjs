@@ -1,10 +1,13 @@
 /**
  * divs2slides.js
- * Ver : 1.3.1
- * update: 12/05/2018
+ * Ver : 1.3.2
+ * update: 14/05/2018
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://github.com/meshesha/divs2slides
+ * 
+ * New: 
+ *  - fixed fullscreen (fullscreen on div only insted all page)
  */
 (function( $ ){
     
@@ -341,17 +344,17 @@
         fullscreen: function(){
             if (!document.fullscreenElement &&    
                 !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement ) {  // current working methods
-                if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen();
-                } else if (document.documentElement.msRequestFullscreen) {
-                    document.documentElement.msRequestFullscreen();
-                } else if (document.documentElement.mozRequestFullScreen) {
-                    document.documentElement.mozRequestFullScreen();
-                } else if (document.documentElement.webkitRequestFullscreen) {
-                    document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-                }
                 var data = pptxjslideObj.data;
                 var div_Id = data.divId;
+                if (document.documentElement.requestFullscreen) {
+                    document.getElementById(div_Id).requestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.getElementById(div_Id).msRequestFullscreen();
+                } else if (document.documentElement.mozRequestFullScreen) {
+                    document.getElementById(div_Id).mozRequestFullScreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.getElementById(div_Id).webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+                }
                 var winWidth = $(window).width();
                 var winHeight = $(window).height();
                 //Need to save:
@@ -385,20 +388,17 @@
                         "top": "20px"
                     });
                 }
+                //change fullscreen icon to other icon (red color)
+                $("#"+div_Id + " #slides-full-screen").attr("src","data:image/png;base64,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")
             } else {
-                var exitFullscreenMode = false;
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
-                    exitFullscreenMode = true;
                 } else if (document.msExitFullscreen) {
                     document.msExitFullscreen();
-                    exitFullscreenMode = true;
                 } else if (document.mozCancelFullScreen) {
                     document.mozCancelFullScreen();
-                    exitFullscreenMode = true;
                 } else if (document.webkitExitFullscreen) {
                     document.webkitExitFullscreen();
-                    exitFullscreenMode = true;
                 }
 
                 pptxjslideObj.exitFullscreenMod();
@@ -437,6 +437,9 @@
                     "top": orginalSlidesToolbarTop + "px"
                 });
             }
+
+             //change fullscreen icon to orginal icon - TODO
+             $("#"+div_Id + " #slides-full-screen").attr("src","data:image/png;base64,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");
         }
 
     };
