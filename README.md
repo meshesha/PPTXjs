@@ -9,7 +9,7 @@ PPTXjs
 ### Demo: https://meshesha.github.io/pptxjs/
 
 # Version: 
-### 1.10.2
+### 1.10.3
 # environment
 ### browsers:
 - IE > 10
@@ -117,6 +117,9 @@ PPTXjs
  ``` 
 # Changelog
 
+* V.1.10.3
+  * new divs2slides (v.1.3.2)
+  * fixed div width issue
 * V.1.10.2
   * new divs2slides v.1.3.1
   * fixed some issues
