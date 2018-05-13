@@ -1,13 +1,13 @@
 /**
  * pptxjs.js
- * Ver. : 1.10.2
- * last update: 12/05/2018
+ * Ver. : 1.10.3
+ * last update: 14/05/2018
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://meshesha.github.io/pptxjs
  * New: 
- *  - new divs2slides
- *  - fixed some issues
+ *  - new divs2slides (v.1.3.2)
+ *  - fixed div width issue
  */
 
 (function ( $ ) {
@@ -188,12 +188,14 @@
                             //$("#pptx-thumb").attr("src", "data:image/jpeg;base64," +rslt_ary[i]["data"]);
                             break;
                         case "slideSize":
+                                /*
                                 var slideWidth = rslt_ary[i]["data"].width;
                                 var slideHeight = rslt_ary[i]["data"].height;
                                 $("#"+divId).css({
                                     'width': slideWidth + 80,
                                     'height': slideHeight + 60
                                 });
+                                */
                             break;
                         case "globalCSS":
                             $result.append("<style>" +rslt_ary[i]["data"] + "</style>");
