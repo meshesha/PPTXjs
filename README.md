@@ -6,7 +6,7 @@ PPTXjs
 [license-url]: LICENSE
  
 ### jQuery plugin for convertation pptx to html using pure javascript.
-### Demo: https://meshesha.github.io/pptxjs/
+### Demo: https://pptx.js.org/pages/demos.html
 
 # Version: 
 ### 1.10.3
