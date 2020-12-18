@@ -118,7 +118,7 @@ PPTXjs
 # Changelog
 
 * V.1.10.4
-  *fixed security issue : #3
+  * fixed security issue : [#3](https://github.com/meshesha/PPTXjs/issues/3)
   
 * V.1.10.3
   * new divs2slides (v.1.3.2)
