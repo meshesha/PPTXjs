@@ -8,11 +8,9 @@ PPTXjs
 ### jQuery plugin for convertation pptx to html using pure javascript.
 ### Demo: https://pptx.js.org/pages/demos.html
 
-# Version: 
-### 1.10.4
 # environment
 ### browsers:
-- IE > 10
+- IE11
 - Edge
 - FireFox
 - chrome
@@ -42,6 +40,8 @@ PPTXjs
     * IE:MP4.
     * Chrome:MP4,	WebM,Ogg.
     * Firefox:MP4,WebM,Ogg.
+    * YouTube (v1.11.0)
+    * vimeo (v1.11.0)
   * Audio (html5 audio player:mp3,ogg,Wav)
     * IE:mp3.
     * Chrome:mp3,Wav,Ogg.
@@ -97,7 +97,8 @@ PPTXjs
    keyBoardShortCut: false,
    mediaProcess: true, /** true,false: if true then process video and audio files */
    jsZipV2: "./js/jszip.min.js", /*flase or 'path/to/jsZip.V2.js' */
-   slideModeConfig: {  //on slide mode (slideMode: true)
+   slideType: "divs2slidesjs", /*'divs2slidesjs' (default) , 'revealjs'(https://revealjs.com)
+   slideModeConfig: {  //divs2slidesjs - on slide mode (slideMode: true)
      first: 1,
      nav: false, /** true,false : show or not nav buttons*/
      navTxtColor: "white", /** color */
@@ -111,11 +112,26 @@ PPTXjs
      background: "black", /** false or color*/
      transition: "default", /** transition type: "slid","fade","default","random" , to show transition efects :transitionTime > 0.5 */
      transitionTime: 1 /** transition time in seconds */           
-   }
+   },
+			revealjsConfig: { /* for 'revealjs' settings (https://revealjs.com) */
+				transition: 'zoom',
+				// backgroundTransition: 'zoom', 
+				// autoSlide: 5000,
+				// loop: true
+				slideNumber: true
+			}
  });
 </script>
  ``` 
 # Changelog
+
+* v1.11.0
+  * Support for embedding video from a link (tested youtube and vimeo links)
+  * support 'revealjs'(https://revealjs.com) (It is not recommended to add a theme because it distorts some of the elements like tables )
+  * I think i fix issue [officetohtml/issues/7](https://github.com/meshesha/officetohtml/issues/7) (not tested) 
+  * Change loading view 
+  * Fix center slides in fullscreen mode - (https://github.com/meshesha/divs2slides v1.3.3)
+  * Support emf and wmf files - microsoft files, supported only in Internet Explorer (test in IE11)
 
 * V.1.10.4
   * fixed security issue : [#3](https://github.com/meshesha/PPTXjs/issues/3)
