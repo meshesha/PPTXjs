@@ -6,10 +6,10 @@
 	height: 690px;
 	position: relative;
 	border: 1px solid #333;
-	background-color: #EFEFEF;
+	/* background-color: #EFEFEF; */
 	text-align: center;
 	border-radius: 10px;
-	box-shadow: 1px 1px 3px #AAA;
+	/* box-shadow: 1px 1px 3px #AAA; */
 	overflow: hidden;
 	/*transform: scale(0.85);*/
 }
@@ -94,14 +94,14 @@
 }
 
 
-li.slide {
+.slide li.slide {
 	margin: 10px 0px;
 	font-size: 18px;
 }
 
-div.footer {
+/* div.footer {
 	text-align: center;
-}
+} */
 
 .slide table {
 	position: absolute;
