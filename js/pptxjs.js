@@ -1,14 +1,17 @@
 /**
  * pptxjs.js
- * Ver. : 1.10.4
- * last update: 14/05/2020
+ * Ver. : 1.11.0
+ * last update: 09/01/2021
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://meshesha.github.io/pptxjs
  * New: 
- *  - fixed security issue
- *  - new divs2slides (v.1.3.2)
- *  - fixed div width issue
+ *  - Support for embedding video from a link (tested youtube and vimeo links)
+ *  - support 'revealjs'(https://revealjs.com) (It is not recommended to add a theme because it distorts some of the elements like tables )
+ *  - i think i fix issue [officetohtml/issues/7] (https://github.com/meshesha/officetohtml/issues/7)(not tested) 
+ *  - change loading view 
+ *  - fix center slides in fullscreen mode - (https://github.com/meshesha/divs2slides v1.3.3)
+ *  - support emf and wmf files - microsoft files, supported only in Internet Explorer (test in IE11)
  */
 
 (function ($) {
@@ -27,9 +30,11 @@
 
         var chartID = 0;
         var _order = 1;
-        var titleFontSize = 42;
-        var bodyFontSize = 20;
-        var otherFontSize = 16;
+
+
+        ////////////////////// 
+        var slideWidth = 0;
+        var slideHeight = 0;
         var isSlideMode = false;
         var styleTable = {};
         var settings = $.extend(true, {
@@ -38,6 +43,8 @@
             fileInputId: "",
             slidesScale: "", //Change Slides scale by percent
             slideMode: false, /** true,false*/
+            slideType: "divs2slidesjs",  /*'divs2slidesjs' (default) , 'revealjs'(https://revealjs.com)  -TODO*/
+            revealjsPath: "", /*path to js file of revealjs - TODO*/
             keyBoardShortCut: false,  /** true,false ,condition: slideMode: true XXXXX - need to remove - this is doublcated*/
             mediaProcess: true, /** true,false: if true then process video and audio files */
             jsZipV2: false,
@@ -54,14 +61,19 @@
                 background: false, /** false or color*/
                 transition: "default", /** transition type: "slid","fade","default","random" , to show transition efects :transitionTime > 0.5 */
                 transitionTime: 1 /** transition time between slides in seconds */
-            }
+            },
+            revealjsConfig: {}
         }, options);
         //
         $("#" + divId).prepend(
-            $("<span></span>").attr({
+            $("<div></div>").attr({
                 "class": "slides-loadnig-msg",
-                "style": "display:block; color:blue; font-size:20px; width:50%; margin:0 auto;"
-            }).html("Loading...")
+                "style": "display:block; width:100%; color:white; background-color: #ddd;"
+            })/*.html("Loading...")*/
+                .html($("<div></div>").attr({
+                    "class": "slides-loading-progress-bar",
+                    "style": "width: 1%; background-color: #4775d1;"
+                }).html("<span style='text-align: center;'>Loading... (1%)</span>"))
         );
         if (settings.slideMode) {
             if (!jQuery().divs2slides) {
@@ -83,51 +95,50 @@
                 console.log(key, isDone)
                 if (key == 116 && !isSlideMode) { //F5
                     isSlideMode = true;
-                    $("#" + divId + " .slide").hide();
-                    setTimeout(function () {
-                        //if(isDone){
-                        var slideConf = settings.slideModeConfig;
-                        //console.log(key,isDone,slideConf)
-                        $(".slides-loadnig-msg").remove()
-                        $("#" + divId).divs2slides({
-                            first: slideConf.first,
-                            nav: slideConf.nav,
-                            showPlayPauseBtn: settings.showPlayPauseBtn,
-                            navTxtColor: slideConf.navTxtColor,
-                            keyBoardShortCut: slideConf.keyBoardShortCut,
-                            showSlideNum: slideConf.showSlideNum,
-                            showTotalSlideNum: slideConf.showTotalSlideNum,
-                            autoSlide: slideConf.autoSlide,
-                            randomAutoSlide: slideConf.randomAutoSlide,
-                            loop: slideConf.loop,
-                            background: slideConf.background,
-                            transition: slideConf.transition,
-                            transitionTime: slideConf.transitionTime
-                        });
-                        //}
+                    initSlideMode(divId, settings);
+                    // $("#" + divId + " .slide").hide();
+                    // setTimeout(function () {
+                    //     var slideConf = settings.slideModeConfig;
+                    //     $(".slides-loadnig-msg").remove()
+                    //     $("#" + divId).divs2slides({
+                    //         first: slideConf.first,
+                    //         nav: slideConf.nav,
+                    //         showPlayPauseBtn: settings.showPlayPauseBtn,
+                    //         navTxtColor: slideConf.navTxtColor,
+                    //         keyBoardShortCut: slideConf.keyBoardShortCut,
+                    //         showSlideNum: slideConf.showSlideNum,
+                    //         showTotalSlideNum: slideConf.showTotalSlideNum,
+                    //         autoSlide: slideConf.autoSlide,
+                    //         randomAutoSlide: slideConf.randomAutoSlide,
+                    //         loop: slideConf.loop,
+                    //         background: slideConf.background,
+                    //         transition: slideConf.transition,
+                    //         transitionTime: slideConf.transitionTime
+                    //     });
 
-                        var sScale = settings.slidesScale;
-                        var trnsfrmScl = "";
-                        if (sScale != "") {
-                            var numsScale = parseInt(sScale);
-                            var scaleVal = numsScale / 100;
-                            trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
-                        }
+                    //     var sScale = settings.slidesScale;
+                    //     var trnsfrmScl = "";
+                    //     if (sScale != "") {
+                    //         var numsScale = parseInt(sScale);
+                    //         var scaleVal = numsScale / 100;
+                    //         trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
+                    //     }
 
-                        var numOfSlides = 1;
-                        var sScaleVal = (sScale != "") ? scaleVal : 1;
-                        var slidesHeight = $("#" + divId + " .slide").height();
-                        //console.log(slidesHeight);
-                        $("#all_slides_warpper").attr({
-                            style: trnsfrmScl  /*+ ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"*/
-                        })
-                    }, 1500);
+                    //     var numOfSlides = 1;
+                    //     var sScaleVal = (sScale != "") ? scaleVal : 1;
+                    //     var slidesHeight = $("#" + divId + " .slide").height();
+                    //     //console.log(slidesHeight);
+                    //     $("#all_slides_warpper").attr({
+                    //         style: trnsfrmScl  /*+ ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"*/
+                    //     })
+                    // }, 1500);
                 } else if (key == 116 && isSlideMode) {
                     //exit slide mode - TODO
 
                 }
             });
         }
+        FileReaderJS.setSync(false);
         if (settings.pptxFileUrl != "") {
             JSZipUtils.getBinaryContent(settings.pptxFileUrl, function (err, content) {
                 var blob = new Blob([content]);
@@ -170,6 +181,14 @@
                 }
             });
         }
+
+        function updateProgressBar(percent) {
+            //console.log("percent: ", percent)
+            var progressBarElemtnt = $(".slides-loading-progress-bar")
+            progressBarElemtnt.width(percent + "%")
+            progressBarElemtnt.html("<span style='text-align: center;'>Loading...(" + percent + "%)</span>");
+        }
+
         function convertToHtml(file) {
             //'use strict';
             var zip = new JSZip(), s;
@@ -177,9 +196,7 @@
             zip = zip.load(file);  //zip.load(file, { base64: true });
             var rslt_ary = processPPTX(zip);
             //s = readXmlFile(zip, 'ppt/tableStyles.xml');
-
-            var slidesHeight = $("#" + divId + " .slide").height();
-
+            //var slidesHeight = $("#" + divId + " .slide").height();
             for (var i = 0; i < rslt_ary.length; i++) {
                 switch (rslt_ary[i]["type"]) {
                     case "slide":
@@ -189,9 +206,9 @@
                         //$("#pptx-thumb").attr("src", "data:image/jpeg;base64," +rslt_ary[i]["data"]);
                         break;
                     case "slideSize":
+                        slideWidth = rslt_ary[i]["data"].width;
+                        slideHeight = rslt_ary[i]["data"].height;
                         /*
-                        var slideWidth = rslt_ary[i]["data"].width;
-                        var slideHeight = rslt_ary[i]["data"].height;
                         $("#"+divId).css({
                             'width': slideWidth + 80,
                             'height': slideHeight + 60
@@ -202,7 +219,6 @@
                         $result.append("<style>" + rslt_ary[i]["data"] + "</style>");
                         break;
                     case "ExecutionTime":
-                        // $result.prepend("<div id='presentation_toolbar'></div>");
                         processMsgQueue(MsgQueue);
                         setNumericBullets($(".block"));
                         setNumericBullets($("table td"));
@@ -211,60 +227,74 @@
 
                         if (settings.slideMode && !isSlideMode) {
                             isSlideMode = true;
-                            $("#" + divId + " .slide").hide();
-                            setTimeout(function () {
-                                var slideConf = settings.slideModeConfig;
-                                $(".slides-loadnig-msg").remove();
-                                $("#" + divId).divs2slides({
-                                    first: slideConf.first,
-                                    nav: slideConf.nav,
-                                    showPlayPauseBtn: settings.showPlayPauseBtn,
-                                    navTxtColor: slideConf.navTxtColor,
-                                    keyBoardShortCut: slideConf.keyBoardShortCut,
-                                    showSlideNum: slideConf.showSlideNum,
-                                    showTotalSlideNum: slideConf.showTotalSlideNum,
-                                    autoSlide: slideConf.autoSlide,
-                                    randomAutoSlide: slideConf.randomAutoSlide,
-                                    loop: slideConf.loop,
-                                    background: slideConf.background,
-                                    transition: slideConf.transition,
-                                    transitionTime: slideConf.transitionTime
-                                });
+                            initSlideMode(divId, settings);
+                            // $("#" + divId + " .slide").hide();
+                            // setTimeout(function () {
+                            //     var slideConf = settings.slideModeConfig;
+                            //     $(".slides-loadnig-msg").remove();
+                            //     $("#" + divId).divs2slides({
+                            //         first: slideConf.first,
+                            //         nav: slideConf.nav,
+                            //         showPlayPauseBtn: settings.showPlayPauseBtn,
+                            //         navTxtColor: slideConf.navTxtColor,
+                            //         keyBoardShortCut: slideConf.keyBoardShortCut,
+                            //         showSlideNum: slideConf.showSlideNum,
+                            //         showTotalSlideNum: slideConf.showTotalSlideNum,
+                            //         autoSlide: slideConf.autoSlide,
+                            //         randomAutoSlide: slideConf.randomAutoSlide,
+                            //         loop: slideConf.loop,
+                            //         background: slideConf.background,
+                            //         transition: slideConf.transition,
+                            //         transitionTime: slideConf.transitionTime
+                            //     });
 
-                                var sScale = settings.slidesScale;
-                                var trnsfrmScl = "";
-                                if (sScale != "") {
-                                    var numsScale = parseInt(sScale);
-                                    var scaleVal = numsScale / 100;
-                                    trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
-                                }
+                            //     var sScale = settings.slidesScale;
+                            //     var trnsfrmScl = "";
+                            //     if (sScale != "") {
+                            //         var numsScale = parseInt(sScale);
+                            //         var scaleVal = numsScale / 100;
+                            //         trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
+                            //     }
 
-                                var numOfSlides = 1;
-                                var sScaleVal = (sScale != "") ? scaleVal : 1;
-                                //console.log(slidesHeight);
-                                $("#all_slides_warpper").attr({
-                                    style: trnsfrmScl + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
-                                })
+                            //     var numOfSlides = 1;
+                            //     var sScaleVal = (sScale != "") ? scaleVal : 1;
+                            //     //console.log(slidesHeight);
+                            //     $("#all_slides_warpper").attr({
+                            //         style: trnsfrmScl + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
+                            //     })
 
-                            }, 1500);
+                            // }, 1500);
                         } else if (!settings.slideMode) {
                             $(".slides-loadnig-msg").remove();
                         }
                         break;
+                    case "progress-update":
+                        //console.log(rslt_ary[i]["data"]); //update progress bar - TODO
+                        updateProgressBar(rslt_ary[i]["data"])
+                        break;
                     default:
                 }
             }
-            if (!settings.slideMode) {
+            if (!settings.slideMode || (settings.slideMode && settings.slideType == "revealjs")) {
+
                 if (document.getElementById("all_slides_warpper") === null) {
-                    $("#" + divId + " .slide").wrapAll("<div id='all_slides_warpper'></div>");
+                    $("#" + divId + " .slide").wrapAll("<div id='all_slides_warpper' class='slides'></div>");
+                    //$("#" + divId + " .slides").wrap("<div class='reveal'></div>");
+                }
+
+                if (settings.slideMode && settings.slideType == "revealjs") {
+                    $("#" + divId).addClass("reveal")
                 }
             }
+
             var sScale = settings.slidesScale;
             var trnsfrmScl = "";
             if (sScale != "") {
                 var numsScale = parseInt(sScale);
                 var scaleVal = numsScale / 100;
-                trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
+                if (settings.slideMode && settings.slideType != "revealjs") {
+                    trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
+                }
             }
 
             var slidesHeight = $("#" + divId + " .slide").height();
@@ -278,6 +308,67 @@
 
             //}
         }
+
+        function initSlideMode(divId, settings) {
+            //console.log(settings.slideType)
+            if (settings.slideType == "" || settings.slideType == "divs2slidesjs") {
+                var slidesHeight = $("#" + divId + " .slide").height();
+                $("#" + divId + " .slide").hide();
+                setTimeout(function () {
+                    var slideConf = settings.slideModeConfig;
+                    $(".slides-loadnig-msg").remove();
+                    $("#" + divId).divs2slides({
+                        first: slideConf.first,
+                        nav: slideConf.nav,
+                        showPlayPauseBtn: settings.showPlayPauseBtn,
+                        navTxtColor: slideConf.navTxtColor,
+                        keyBoardShortCut: slideConf.keyBoardShortCut,
+                        showSlideNum: slideConf.showSlideNum,
+                        showTotalSlideNum: slideConf.showTotalSlideNum,
+                        autoSlide: slideConf.autoSlide,
+                        randomAutoSlide: slideConf.randomAutoSlide,
+                        loop: slideConf.loop,
+                        background: slideConf.background,
+                        transition: slideConf.transition,
+                        transitionTime: slideConf.transitionTime
+                    });
+
+                    var sScale = settings.slidesScale;
+                    var trnsfrmScl = "";
+                    if (sScale != "") {
+                        var numsScale = parseInt(sScale);
+                        var scaleVal = numsScale / 100;
+                        trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
+                    }
+
+                    var numOfSlides = 1;
+                    var sScaleVal = (sScale != "") ? scaleVal : 1;
+                    //console.log(slidesHeight);
+                    $("#all_slides_warpper").attr({
+                        style: trnsfrmScl + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
+                    })
+
+                }, 1500);
+            } else if (settings.slideType == "revealjs") {
+                $(".slides-loadnig-msg").remove();
+                var revealjsPath = "";
+                if (settings.revealjsPath != "") {
+                    revealjsPath = settings.revealjsPath;
+                } else {
+                    revealjsPath = "./revealjs/reveal.js";
+                }
+                $.getScript(revealjsPath, function (response, status) {
+                    if (status == "success") {
+                        // $("section").removeClass("slide");
+                        Reveal.initialize(settings.revealjsConfig); //revealjsConfig - TODO
+                    }
+                });
+            }
+
+
+
+        }
+
         function processPPTX(zip) {
             var post_ary = [];
             var dateBefore = new Date();
@@ -295,7 +386,7 @@
             themeContent = loadTheme(zip);
 
             tableStyles = readXmlFile(zip, "ppt/tableStyles.xml");
-
+            //console.log("slideSize: ", slideSize)
             post_ary.push({
                 "type": "slideSize",
                 "data": slideSize
@@ -365,31 +456,12 @@
             var rtenObj = {};
             var content = readXmlFile(zip, "ppt/presentation.xml");
             var sldSzAttrs = content["p:presentation"]["p:sldSz"]["attrs"];
-            //var cWidth = settings.width,
-            //    cHeight = settings.height;
-            //if(cWidth === false && cHeight === false){
+            slideWidth = parseInt(sldSzAttrs["cx"]) * 96 / 914400;
+            slideHeight = parseInt(sldSzAttrs["cy"]) * 96 / 914400;
             rtenObj = {
-                "width": parseInt(sldSzAttrs["cx"]) * 96 / 914400,
-                "height": parseInt(sldSzAttrs["cy"]) * 96 / 914400
+                "width": slideWidth,
+                "height": slideHeight
             };
-            /*    
-            }else if(cWidth !== false && cHeight === false){
-                rtenObj =  {
-                    "width": cWidth,
-                    "height": parseInt(sldSzAttrs["cy"]) * 96 / 914400
-                };
-            }else if(cWidth === false && cHeight !== false){
-                rtenObj =  {
-                    "width":  parseInt(sldSzAttrs["cx"]) * 96 / 914400,
-                    "height": cHeight
-                };
-            }else{
-                rtenObj =  {
-                    "width":  cWidth,
-                    "height": cHeight
-                };
-
-            }*/
             return rtenObj;
         }
 
@@ -533,7 +605,12 @@
             };
 
             var bgColor = getSlideBackgroundFill(slideContent, slideLayoutContent, slideMasterContent, warpObj);
-            var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
+            if (settings.slideMode && settings.slideType == "revealjs") {
+                var result = "<section class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
+            } else {
+                var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
+            }
+
             //result += "<div>"+getBackgroundShapes(slideContent, slideLayoutContent, slideMasterContent,warpObj) + "</div>" - TODO
             for (var nodeKey in nodes) {
                 if (nodes[nodeKey].constructor === Array) {
@@ -544,8 +621,12 @@
                     result += processNodesInSlide(nodeKey, nodes[nodeKey], warpObj);
                 }
             }
+            if (settings.slideMode && settings.slideType == "revealjs") {
+                return result + "</section>";
+            } else {
+                return result + "</div>";
+            }
 
-            return result + "</div>";
         }
 
         function indexNodes(content) {
@@ -7123,21 +7204,30 @@
             }
             //video
             var vdoNode = getTextByPathList(node, ["p:nvPicPr", "p:nvPr", "a:videoFile"]);
-            var vdoRid, vdoFile, vdoFileExt, vdoMimeType, uInt8Array, blob, vdoBlob, mediaSupportFlag = false;
+            var vdoRid, vdoFile, vdoFileExt, vdoMimeType, uInt8Array, blob, vdoBlob, mediaSupportFlag = false, isVdeoLink = false;
             var mediaProcess = settings.mediaProcess;
             if (vdoNode !== undefined & mediaProcess) {
                 vdoRid = vdoNode["attrs"]["r:link"];
                 vdoFile = warpObj["slideResObj"][vdoRid]["target"];
-                uInt8Array = zip.file(vdoFile).asArrayBuffer();
-                vdoFileExt = extractFileExtension(vdoFile).toLowerCase();
-                if (vdoFileExt == "mp4" || vdoFileExt == "webm" || vdoFileExt == "ogg") {
-                    vdoMimeType = getMimeType(vdoFileExt);
-                    blob = new Blob([uInt8Array], {
-                        type: vdoMimeType
-                    });
-                    vdoBlob = URL.createObjectURL(blob);
+                var checkIfLink = IsVideoLink(vdoFile);
+                if (checkIfLink) {
+                    vdoFile = escapeHtml(vdoFile);
+                    //vdoBlob = vdoFile;
+                    isVdeoLink = true;
                     mediaSupportFlag = true;
                     mediaPicFlag = true;
+                } else {
+                    vdoFileExt = extractFileExtension(vdoFile).toLowerCase();
+                    if (vdoFileExt == "mp4" || vdoFileExt == "webm" || vdoFileExt == "ogg") {
+                        uInt8Array = zip.file(vdoFile).asArrayBuffer();
+                        vdoMimeType = getMimeType(vdoFileExt);
+                        blob = new Blob([uInt8Array], {
+                            type: vdoMimeType
+                        });
+                        vdoBlob = URL.createObjectURL(blob);
+                        mediaSupportFlag = true;
+                        mediaPicFlag = true;
+                    }
                 }
             }
             //Audio
@@ -7188,8 +7278,10 @@
             if ((vdoNode === undefined && audioNode === undefined) || !mediaProcess || !mediaSupportFlag) {
                 rtrnData += "<img src='data:" + mimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%; height: 100%'/>";
             } else if ((vdoNode !== undefined || audioNode !== undefined) && mediaProcess && mediaSupportFlag) {
-                if (vdoNode !== undefined) {
+                if (vdoNode !== undefined && !isVdeoLink) {
                     rtrnData += "<video  src='" + vdoBlob + "' controls style='width: 100%; height: 100%'>Your browser does not support the video tag.</video>";
+                } else if (vdoNode !== undefined && isVdeoLink) {
+                    rtrnData += "<iframe   src='" + vdoFile + "' controls style='width: 100%; height: 100%'></iframe >";
                 }
                 if (audioNode !== undefined) {
                     rtrnData += '<audio id="audio_player" controls ><source src="' + audioBlob + '"></audio>';
@@ -7251,8 +7343,6 @@
         }
 
         function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
-
-
             var text = "";
             var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
 
@@ -7586,7 +7676,20 @@
         function genGlobalCSS() {
             var cssText = "";
             for (var key in styleTable) {
-                cssText += "div ." + styleTable[key]["name"] + "{" + styleTable[key]["text"] + "}\n"; //section > div
+                var tagname = "";
+                if (settings.slideMode && settings.slideType == "revealjs") {
+                    tagname = "section";
+                } else {
+                    tagname = "div";
+                }
+                cssText += tagname + " ." + styleTable[key]["name"] + "{" + styleTable[key]["text"] + "}\n"; //section > div
+            }
+            //cssText += " .slide{margin-bottom: 5px;}\n"; // TODO
+
+            if (settings.slideMode && settings.slideType == "divs2slidesjs") {
+                //divId
+                //console.log("slideWidth: ", slideWidth)
+                cssText += "#all_slides_warpper{margin-right: auto;margin-left: auto;padding-top:10px;width: " + slideWidth + "px;}\n"; // TODO
             }
             return cssText;
         }
@@ -7825,7 +7928,7 @@
                             }
                         }
                     } else {
-                        var text = genTextBody(tcNodes["a:txBody"]);
+                        var text = genTextBody(tcNodes["a:txBody"], node, undefined, undefined, undefined, warpObj);
                         //Cells Style : TODO /////////////Amir
                         var colWidthParam = getColsGrid[0]["attrs"]["w"];
                         var colStyl = "";
@@ -7866,7 +7969,7 @@
                 var tcNodes = trNodes["a:tc"];
                 if (tcNodes.constructor === Array) {
                     for (var j = 0; j < tcNodes.length; j++) {
-                        var text = genTextBody(tcNodes[j]["a:txBody"]);
+                        var text = genTextBody(tcNodes[j]["a:txBody"], node, undefined, undefined, undefined, warpObj);
                         //Cells Style : TODO /////////////Amir
                         var colWidthParam = getColsGrid[j]["attrs"]["w"];
                         var colStyl = "";
@@ -7893,7 +7996,7 @@
                         tableHtml += "<td style='" + colStyl + "'>" + text + "</td>";
                     }
                 } else {
-                    var text = genTextBody(tcNodes["a:txBody"]);
+                    var text = genTextBody(tcNodes["a:txBody"], node, undefined, undefined, undefined, warpObj);
                     //Cells Style : TODO /////////////Amir
                     var colWidthParam = getColsGrid[0]["attrs"]["w"];
                     var colStyl = "";
@@ -8148,7 +8251,7 @@
                     }
                 }
             }
-            // TODO:
+
             if (algn === undefined) {
                 if (type == "title" || type == "subTitle" || type == "ctrTitle") {
                     return "h-mid";
@@ -9341,6 +9444,12 @@
                 case "wav":
                     mimeType = "audio/wav";
                     break;
+                case "emf":
+                    mimeType = "image/emf";
+                    break;
+                case "wmf":
+                    mimeType = "image/wmf";
+                    break;
             }
             return mimeType;
         }
@@ -9728,6 +9837,19 @@
             }
 
             return base64;
+        }
+
+        function IsVideoLink(vdoFile) {
+            /*
+            var ext = extractFileExtension(vdoFile);
+            if (ext.length == 3){
+                return false;
+            }else{
+                return true;
+            }
+            */
+            var urlregex = /^(https?|ftp):\/\/([a-zA-Z0-9.-]+(:[a-zA-Z0-9.&%$-]+)*@)*((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.(com|edu|gov|int|mil|net|org|biz|arpa|info|name|pro|aero|coop|museum|[a-zA-Z]{2}))(:[0-9]+)*(\/($|[a-zA-Z0-9.,?'\\+&%$#=~_-]+))*$/;
+            return urlregex.test(vdoFile);
         }
 
         function extractFileExtension(filename) {
