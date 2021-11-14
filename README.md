@@ -132,6 +132,7 @@ PPTXjs
   * improved bullets (add ./js/dingbat.js)
   * fixed issues:
     - [#5](https://github.com/meshesha/PPTXjs/issues/5)
+    - [#7](https://github.com/meshesha/PPTXjs/issues/7)
     - [#8](https://github.com/meshesha/PPTXjs/issues/8)
     - [#9](https://github.com/meshesha/PPTXjs/issues/9)
     - [#10](https://github.com/meshesha/PPTXjs/issues/10)
