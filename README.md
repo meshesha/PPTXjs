@@ -19,7 +19,7 @@ PPTXjs
 * Text
   * Font size
   * Font family
-  * Font style: blod, italic, underline, stok
+  * Font style: bold, italic, underline, stoke
   * Color
   * hyperlink
   * bullets (include numeric)
@@ -52,11 +52,10 @@ PPTXjs
   * Pie chart
   * Scatter chart
 * SmartArt diagrams
-* Custom table
-* Theme table
+* Tables
+  * Custom table
+  * Theme table
 * Theme
-  * Background color
-  * Background image
 * Equations and formulas
   * display Equations and formulas as image
 * and more ...
@@ -75,6 +74,7 @@ PPTXjs
 <script type="text/javascript" src="./js/filereader.js"></script> <!--https://github.com/meshesha/filereader.js -->
 <script type="text/javascript" src="./js/d3.min.js"></script> <!-- for charts graphs -->
 <script type="text/javascript" src="./js/nv.d3.min.js"></script> <!-- for charts graphs -->
+<script type="text/javascript" src="./js/dingbat.js"></script> <!--for bullets -->
 <script type="text/javascript" src="./js/pptxjs.js"></script>
 <script type="text/javascript" src="./js/divs2slides.js"></script> <!-- for slide show -->
  ```
@@ -97,6 +97,8 @@ PPTXjs
    keyBoardShortCut: false,
    mediaProcess: true, /** true,false: if true then process video and audio files */
    jsZipV2: "./js/jszip.min.js", /*flase or 'path/to/jsZip.V2.js' */
+   themeProcess: true, /*true (default) , false, "colorsAndImageOnly"*/
+   incSlide:{height: 2,width:2 }, /*increase height or/and width by 2 px*/
    slideType: "divs2slidesjs", /*'divs2slidesjs' (default) , 'revealjs'(https://revealjs.com)
    slideModeConfig: {  //divs2slidesjs - on slide mode (slideMode: true)
      first: 1,
@@ -124,6 +126,19 @@ PPTXjs
 </script>
  ``` 
 # Changelog
+* 1.21.00
+  * add theme (background) support
+  * improved tables
+  * improved bullets (add ./js/dingbat.js)
+  * fixed issues:
+    - [#5](https://github.com/meshesha/PPTXjs/issues/5)
+    - [#8](https://github.com/meshesha/PPTXjs/issues/8)
+    - [#9](https://github.com/meshesha/PPTXjs/issues/9)
+    - [#10](https://github.com/meshesha/PPTXjs/issues/10)
+    - [#11](https://github.com/meshesha/PPTXjs/issues/11)
+    - [#13](https://github.com/meshesha/PPTXjs/issues/13)
+    - [#15](https://github.com/meshesha/PPTXjs/issues/15)
+  * more documentation coming soon ...
 
 * v1.11.0
   * Support for embedding video from a link (tested youtube and vimeo links)

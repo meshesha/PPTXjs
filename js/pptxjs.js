@@ -1,17 +1,10 @@
 /**
  * pptxjs.js
- * Ver. : 1.11.0
- * last update: 09/01/2021
+ * Ver. : 1.21.00
+ * last update: 14/11/2021
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
- * url:https://meshesha.github.io/pptxjs
- * New: 
- *  - Support for embedding video from a link (tested youtube and vimeo links)
- *  - support 'revealjs'(https://revealjs.com) (It is not recommended to add a theme because it distorts some of the elements like tables )
- *  - i think i fix issue [officetohtml/issues/7] (https://github.com/meshesha/officetohtml/issues/7)(not tested) 
- *  - change loading view 
- *  - fix center slides in fullscreen mode - (https://github.com/meshesha/divs2slides v1.3.3)
- *  - support emf and wmf files - microsoft files, supported only in Internet Explorer (test in IE11)
+ * url:https://pptx.js.org/
  */
 
 (function ($) {
@@ -24,18 +17,25 @@
 
         var MsgQueue = new Array();
 
-        var themeContent = null;
+        //var slideLayoutClrOvride = "";
 
-        var slideLayoutClrOvride = "";
+        var defaultTextStyle = null;
 
         var chartID = 0;
+
         var _order = 1;
 
+        var app_verssion ;
 
+        var rtl_langs_array = ["he-IL", "ar-AE", "ar-SA", "dv-MV", "fa-IR","ur-PK"]
+
+        var slideFactor = 96 / 914400;
+        var fontSizeFactor = 4 / 3.2;
         ////////////////////// 
         var slideWidth = 0;
         var slideHeight = 0;
         var isSlideMode = false;
+        var processFullTheme = true;
         var styleTable = {};
         var settings = $.extend(true, {
             // These are the defaults.
@@ -48,6 +48,11 @@
             keyBoardShortCut: false,  /** true,false ,condition: slideMode: true XXXXX - need to remove - this is doublcated*/
             mediaProcess: true, /** true,false: if true then process video and audio files */
             jsZipV2: false,
+            themeProcess: true, /*true (default) , false, "colorsAndImageOnly"*/
+            incSlide:{
+                width: 0,
+                height: 0
+            },
             slideModeConfig: {
                 first: 1,
                 nav: true, /** true,false : show or not nav buttons*/
@@ -64,7 +69,9 @@
             },
             revealjsConfig: {}
         }, options);
-        //
+
+        processFullTheme = settings.themeProcess;
+
         $("#" + divId).prepend(
             $("<div></div>").attr({
                 "class": "slides-loadnig-msg",
@@ -96,42 +103,6 @@
                 if (key == 116 && !isSlideMode) { //F5
                     isSlideMode = true;
                     initSlideMode(divId, settings);
-                    // $("#" + divId + " .slide").hide();
-                    // setTimeout(function () {
-                    //     var slideConf = settings.slideModeConfig;
-                    //     $(".slides-loadnig-msg").remove()
-                    //     $("#" + divId).divs2slides({
-                    //         first: slideConf.first,
-                    //         nav: slideConf.nav,
-                    //         showPlayPauseBtn: settings.showPlayPauseBtn,
-                    //         navTxtColor: slideConf.navTxtColor,
-                    //         keyBoardShortCut: slideConf.keyBoardShortCut,
-                    //         showSlideNum: slideConf.showSlideNum,
-                    //         showTotalSlideNum: slideConf.showTotalSlideNum,
-                    //         autoSlide: slideConf.autoSlide,
-                    //         randomAutoSlide: slideConf.randomAutoSlide,
-                    //         loop: slideConf.loop,
-                    //         background: slideConf.background,
-                    //         transition: slideConf.transition,
-                    //         transitionTime: slideConf.transitionTime
-                    //     });
-
-                    //     var sScale = settings.slidesScale;
-                    //     var trnsfrmScl = "";
-                    //     if (sScale != "") {
-                    //         var numsScale = parseInt(sScale);
-                    //         var scaleVal = numsScale / 100;
-                    //         trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
-                    //     }
-
-                    //     var numOfSlides = 1;
-                    //     var sScaleVal = (sScale != "") ? scaleVal : 1;
-                    //     var slidesHeight = $("#" + divId + " .slide").height();
-                    //     //console.log(slidesHeight);
-                    //     $("#all_slides_warpper").attr({
-                    //         style: trnsfrmScl  /*+ ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"*/
-                    //     })
-                    // }, 1500);
                 } else if (key == 116 && isSlideMode) {
                     //exit slide mode - TODO
 
@@ -140,22 +111,27 @@
         }
         FileReaderJS.setSync(false);
         if (settings.pptxFileUrl != "") {
-            JSZipUtils.getBinaryContent(settings.pptxFileUrl, function (err, content) {
-                var blob = new Blob([content]);
-                var file_name = settings.pptxFileUrl;
-                var fArry = file_name.split(".");
-                fArry.pop();
-                blob.name = fArry[0];
-                FileReaderJS.setupBlob(blob, {
-                    readAsDefault: "ArrayBuffer",
-                    on: {
-                        load: function (e, file) {
-                            //console.log(e.target.result);
-                            convertToHtml(e.target.result);
+            try{
+                JSZipUtils.getBinaryContent(settings.pptxFileUrl, function (err, content) {
+                    var blob = new Blob([content]);
+                    var file_name = settings.pptxFileUrl;
+                    var fArry = file_name.split(".");
+                    fArry.pop();
+                    blob.name = fArry[0];
+                    FileReaderJS.setupBlob(blob, {
+                        readAsDefault: "ArrayBuffer",
+                        on: {
+                            load: function (e, file) {
+                                //console.log(e.target.result);
+                                convertToHtml(e.target.result);
+                            }
                         }
-                    }
+                    });
                 });
-            });
+            }catch(e){ 
+                console.error("file url error (" + settings.pptxFileUrl+ "0)")
+                $(".slides-loadnig-msg").remove();
+            }
         } else {
             $(".slides-loadnig-msg").remove()
         }
@@ -191,6 +167,12 @@
 
         function convertToHtml(file) {
             //'use strict';
+            //console.log("file", file, "size:", file.byteLength);
+            if (file.byteLength < 10){
+                console.error("file url error (" + settings.pptxFileUrl + "0)")
+                $(".slides-loadnig-msg").remove();
+                return;
+            }
             var zip = new JSZip(), s;
             //if (typeof file === 'string') { // Load
             zip = zip.load(file);  //zip.load(file, { base64: true });
@@ -216,6 +198,7 @@
                         */
                         break;
                     case "globalCSS":
+                        //console.log(rslt_ary[i]["data"])
                         $result.append("<style>" + rslt_ary[i]["data"] + "</style>");
                         break;
                     case "ExecutionTime":
@@ -228,42 +211,6 @@
                         if (settings.slideMode && !isSlideMode) {
                             isSlideMode = true;
                             initSlideMode(divId, settings);
-                            // $("#" + divId + " .slide").hide();
-                            // setTimeout(function () {
-                            //     var slideConf = settings.slideModeConfig;
-                            //     $(".slides-loadnig-msg").remove();
-                            //     $("#" + divId).divs2slides({
-                            //         first: slideConf.first,
-                            //         nav: slideConf.nav,
-                            //         showPlayPauseBtn: settings.showPlayPauseBtn,
-                            //         navTxtColor: slideConf.navTxtColor,
-                            //         keyBoardShortCut: slideConf.keyBoardShortCut,
-                            //         showSlideNum: slideConf.showSlideNum,
-                            //         showTotalSlideNum: slideConf.showTotalSlideNum,
-                            //         autoSlide: slideConf.autoSlide,
-                            //         randomAutoSlide: slideConf.randomAutoSlide,
-                            //         loop: slideConf.loop,
-                            //         background: slideConf.background,
-                            //         transition: slideConf.transition,
-                            //         transitionTime: slideConf.transitionTime
-                            //     });
-
-                            //     var sScale = settings.slidesScale;
-                            //     var trnsfrmScl = "";
-                            //     if (sScale != "") {
-                            //         var numsScale = parseInt(sScale);
-                            //         var scaleVal = numsScale / 100;
-                            //         trnsfrmScl = 'transform:scale(' + scaleVal + '); transform-origin:top';
-                            //     }
-
-                            //     var numOfSlides = 1;
-                            //     var sScaleVal = (sScale != "") ? scaleVal : 1;
-                            //     //console.log(slidesHeight);
-                            //     $("#all_slides_warpper").attr({
-                            //         style: trnsfrmScl + ";height: " + (numOfSlides * slidesHeight * sScaleVal) + "px"
-                            //     })
-
-                            // }, 1500);
                         } else if (!settings.slideMode) {
                             $(".slides-loadnig-msg").remove();
                         }
@@ -377,34 +324,59 @@
                 var pptxThumbImg = base64ArrayBuffer(zip.file("docProps/thumbnail.jpeg").asArrayBuffer());
                 post_ary.push({
                     "type": "pptx-thumb",
-                    "data": pptxThumbImg
+                    "data": pptxThumbImg,
+                    "slide_num": -1
                 });
             }
 
             var filesInfo = getContentTypes(zip);
-            var slideSize = getSlideSize(zip);
-            themeContent = loadTheme(zip);
-
+            var slideSize = getSlideSizeAndSetDefaultTextStyle(zip);
             tableStyles = readXmlFile(zip, "ppt/tableStyles.xml");
             //console.log("slideSize: ", slideSize)
             post_ary.push({
                 "type": "slideSize",
-                "data": slideSize
+                "data": slideSize,
+                "slide_num": 0
             });
 
             var numOfSlides = filesInfo["slides"].length;
             for (var i = 0; i < numOfSlides; i++) {
                 var filename = filesInfo["slides"][i];
+                var filename_no_path = "";
+                var filename_no_path_ary = [];
+                if (filename.indexOf("/") != -1) {
+                    filename_no_path_ary = filename.split("/");
+                    filename_no_path = filename_no_path_ary.pop();
+                } else {
+                    filename_no_path = filename;
+                }
+                var filename_no_path_no_ext = "";
+                if (filename_no_path.indexOf(".") != -1) {
+                    var filename_no_path_no_ext_ary = filename_no_path.split(".");
+                    var slide_ext = filename_no_path_no_ext_ary.pop();
+                    filename_no_path_no_ext = filename_no_path_no_ext_ary.join(".");
+                }
+                var slide_number = 1;
+                if (filename_no_path_no_ext != "" && filename_no_path.indexOf("slide") != -1) {
+                    slide_number = Number(filename_no_path_no_ext.substr(5));
+                }
                 var slideHtml = processSingleSlide(zip, filename, i, slideSize);
                 post_ary.push({
                     "type": "slide",
-                    "data": slideHtml
+                    "data": slideHtml,
+                    "slide_num": slide_number,
+                    "file_name": filename_no_path_no_ext
                 });
                 post_ary.push({
                     "type": "progress-update",
+                    "slide_num": (numOfSlides + i + 1),
                     "data": (i + 1) * 100 / numOfSlides
                 });
             }
+
+            post_ary.sort(function (a, b) {
+                return a.slide_num - b.slide_num;
+            });
 
             post_ary.push({
                 "type": "globalCSS",
@@ -419,12 +391,23 @@
             return post_ary;
         }
 
-        function readXmlFile(zip, filename) {
-            var xmlData = tXml(zip.file(filename).asText(), { simplify: 1 });
-            if (xmlData["?xml"] !== undefined) {
-                return xmlData["?xml"];
-            } else {
-                return xmlData;
+        function readXmlFile(zip, filename, isSlideContent) {
+            try {
+                var fileContent = zip.file(filename).asText();
+                if (isSlideContent && app_verssion <= 12) {
+                    //< office2007
+                    //remove "<![CDATA[ ... ]]>" tag
+                    fileContent = fileContent.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1');
+                }
+                var xmlData = tXml(fileContent, { simplify: 1 });
+                if (xmlData["?xml"] !== undefined) {
+                    return xmlData["?xml"];
+                } else {
+                    return xmlData;
+                }
+            } catch (e) {
+                //console.log("error readXmlFile: the file '", filename, "' not exit")
+                return null;
             }
 
         }
@@ -451,42 +434,66 @@
             };
         }
 
-        function getSlideSize(zip) {
-            // Pixel = EMUs * Resolution / 914400;  (Resolution = 96)
+        function getSlideSizeAndSetDefaultTextStyle(zip) {
+            //get app version
+            var app = readXmlFile(zip, "docProps/app.xml");
+            var app_verssion_str = app["Properties"]["AppVersion"]
+            app_verssion = parseInt(app_verssion_str);
+            console.log("create by Office PowerPoint app verssion: ", app_verssion_str)
+
+            //get slide dimensions
             var rtenObj = {};
             var content = readXmlFile(zip, "ppt/presentation.xml");
             var sldSzAttrs = content["p:presentation"]["p:sldSz"]["attrs"];
-            slideWidth = parseInt(sldSzAttrs["cx"]) * 96 / 914400;
-            slideHeight = parseInt(sldSzAttrs["cy"]) * 96 / 914400;
+            var sldSzWidth = parseInt(sldSzAttrs["cx"]);
+            var sldSzHeight = parseInt(sldSzAttrs["cy"]);
+            var sldSzType = sldSzAttrs["type"];
+            console.log("Presentation size type: ", sldSzType)
+
+            //1 inches  = 96px = 2.54cm
+            // 1 EMU = 1 / 914400 inch
+            // Pixel = EMUs * Resolution / 914400;  (Resolution = 96)
+            //var standardHeight = 6858000;
+            //console.log("slideFactor: ", slideFactor, "standardHeight:", standardHeight, (standardHeight - sldSzHeight) / standardHeight)
+            
+            //slideFactor = (96 * (1 + ((standardHeight - sldSzHeight) / standardHeight))) / 914400 ;
+
+            //slideFactor = slideFactor + sldSzHeight*((standardHeight - sldSzHeight) / standardHeight) ;
+
+            //var ration = sldSzWidth / sldSzHeight;
+            
+            //Scale
+            // var viewProps = readXmlFile(zip, "ppt/viewProps.xml");
+            // var scaleLoc = getTextByPathList(viewProps, ["p:viewPr", "p:slideViewPr", "p:cSldViewPr", "p:cViewPr","p:scale"]);
+            // var scaleXnodes, scaleX = 1, scaleYnode, scaleY = 1;
+            // if (scaleLoc !== undefined){
+            //     scaleXnodes = scaleLoc["a:sx"]["attrs"];
+            //     var scaleXnodesN = scaleXnodes["n"];
+            //     var scaleXnodesD = scaleXnodes["d"];
+            //     if (scaleXnodesN !== undefined && scaleXnodesD !== undefined && scaleXnodesN != 0){
+            //         scaleX = parseInt(scaleXnodesD)/parseInt(scaleXnodesN);
+            //     }
+            //     scaleYnode = scaleLoc["a:sy"]["attrs"];
+            //     var scaleYnodeN = scaleYnode["n"];
+            //     var scaleYnodeD = scaleYnode["d"];
+            //     if (scaleYnodeN !== undefined && scaleYnodeD !== undefined && scaleYnodeN != 0) {
+            //         scaleY = parseInt(scaleYnodeD) / parseInt(scaleYnodeN) ;
+            //     }
+
+            // }
+            //console.log("scaleX: ", scaleX, "scaleY:", scaleY)
+            //slideFactor = slideFactor * scaleX;
+
+            defaultTextStyle = content["p:presentation"]["p:defaultTextStyle"];
+
+            slideWidth = sldSzWidth * slideFactor + settings.incSlide.width|0;// * scaleX;//parseInt(sldSzAttrs["cx"]) * 96 / 914400;
+            slideHeight = sldSzHeight * slideFactor + settings.incSlide.height|0;// * scaleY;//parseInt(sldSzAttrs["cy"]) * 96 / 914400;
             rtenObj = {
                 "width": slideWidth,
                 "height": slideHeight
             };
             return rtenObj;
         }
-
-        function loadTheme(zip) {
-            var preResContent = readXmlFile(zip, "ppt/_rels/presentation.xml.rels");
-            var relationshipArray = preResContent["Relationships"]["Relationship"];
-            var themeURI = undefined;
-            if (relationshipArray.constructor === Array) {
-                for (var i = 0; i < relationshipArray.length; i++) {
-                    if (relationshipArray[i]["attrs"]["Type"] === "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme") {
-                        themeURI = relationshipArray[i]["attrs"]["Target"];
-                        break;
-                    }
-                }
-            } else if (relationshipArray["attrs"]["Type"] === "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme") {
-                themeURI = relationshipArray["attrs"]["Target"];
-            }
-
-            if (themeURI === undefined) {
-                throw Error("Can't open theme file.");
-            }
-
-            return readXmlFile(zip, "ppt/" + themeURI);
-        }
-
         function processSingleSlide(zip, sldFileName, index, slideSize) {
             /*
             self.postMessage({
@@ -501,13 +508,22 @@
             var resName = sldFileName.replace("slides/slide", "slides/_rels/slide") + ".rels";
             var resContent = readXmlFile(zip, resName);
             var RelationshipArray = resContent["Relationships"]["Relationship"];
+            //console.log("RelationshipArray: " , RelationshipArray)
             var layoutFilename = "";
+            var diagramFilename = "";
             var slideResObj = {};
             if (RelationshipArray.constructor === Array) {
                 for (var i = 0; i < RelationshipArray.length; i++) {
                     switch (RelationshipArray[i]["attrs"]["Type"]) {
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout":
                             layoutFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            break;
+                        case "http://schemas.microsoft.com/office/2007/relationships/diagramDrawing":
+                            diagramFilename = RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/");
+                            slideResObj[RelationshipArray[i]["attrs"]["Id"]] = {
+                                "type": RelationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                                "target": RelationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                            };
                             break;
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide":
                         case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image":
@@ -527,7 +543,7 @@
             // Open slideLayoutXX.xml
             var slideLayoutContent = readXmlFile(zip, layoutFilename);
             var slideLayoutTables = indexNodes(slideLayoutContent);
-            var sldLayoutClrOvr = slideLayoutContent["p:sldLayout"]["p:clrMapOvr"]["a:overrideClrMapping"];
+            var sldLayoutClrOvr = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:clrMapOvr", "a:overrideClrMapping"]);
 
             //console.log(slideLayoutClrOvride);
             if (sldLayoutClrOvr !== undefined) {
@@ -588,43 +604,118 @@
             }
             //console.log(themeFilename)
             //Load Theme file
+            var themeResObj = {};
             if (themeFilename !== undefined) {
-                themeContent = readXmlFile(zip, themeFilename);
+                var themeName = themeFilename.split("/").pop();
+                var themeResFileName = themeFilename.replace(themeName, "_rels/" + themeName) + ".rels";
+                //console.log("themeFilename: ", themeFilename, ", themeName: ", themeName, ", themeResFileName: ", themeResFileName)
+                var themeContent = readXmlFile(zip, themeFilename);
+                var themeResContent = readXmlFile(zip, themeResFileName);
+                if (themeResContent !== null) {
+                    var relationshipArray = themeResContent["Relationships"]["Relationship"];
+                    if (relationshipArray !== undefined){
+                        var themeFilename = "";
+                        if (relationshipArray.constructor === Array) {
+                            for (var i = 0; i < relationshipArray.length; i++) {
+                                themeResObj[relationshipArray[i]["attrs"]["Id"]] = {
+                                    "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                                    "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                                };
+                            }
+                        } else {
+                            //console.log("theme relationshipArray : ", relationshipArray)
+                            themeResObj[relationshipArray["attrs"]["Id"]] = {
+                                "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                                "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                            };
+                        }
+                    }
+                }
             }
+            //Load diagram file
+            var diagramResObj = {};
+            var digramFileContent = {};
+            if (diagramFilename !== undefined) {
+                var diagName = diagramFilename.split("/").pop();
+                var diagramResFileName = diagramFilename.replace(diagName, "_rels/" + diagName) + ".rels";
+                //console.log("diagramFilename: ", diagramFilename, ", themeName: ", themeName, ", diagramResFileName: ", diagramResFileName)
+                digramFileContent = readXmlFile(zip, diagramFilename);
+                if (digramFileContent !== null && digramFileContent !== undefined && digramFileContent != "") {
+                    var digramFileContentObjToStr = JSON.stringify(digramFileContent);
+                    digramFileContentObjToStr = digramFileContentObjToStr.replace(/dsp:/g, "p:");
+                    digramFileContent = JSON.parse(digramFileContentObjToStr);
+                }
+
+                var digramResContent = readXmlFile(zip, diagramResFileName);
+                if (digramResContent !== null) {
+                    var relationshipArray = digramResContent["Relationships"]["Relationship"];
+                    var themeFilename = "";
+                    if (relationshipArray.constructor === Array) {
+                        for (var i = 0; i < relationshipArray.length; i++) {
+                            diagramResObj[relationshipArray[i]["attrs"]["Id"]] = {
+                                "type": relationshipArray[i]["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                                "target": relationshipArray[i]["attrs"]["Target"].replace("../", "ppt/")
+                            };
+                        }
+                    } else {
+                        //console.log("theme relationshipArray : ", relationshipArray)
+                        diagramResObj[relationshipArray["attrs"]["Id"]] = {
+                            "type": relationshipArray["attrs"]["Type"].replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/", ""),
+                            "target": relationshipArray["attrs"]["Target"].replace("../", "ppt/")
+                        };
+                    }
+                }
+            }
+            //console.log("diagramResObj: " , diagramResObj)
             // =====< Step 3 >=====
-            var slideContent = readXmlFile(zip, sldFileName);
+            var slideContent = readXmlFile(zip, sldFileName , true);
             var nodes = slideContent["p:sld"]["p:cSld"]["p:spTree"];
             var warpObj = {
                 "zip": zip,
+                "slideLayoutContent": slideLayoutContent,
                 "slideLayoutTables": slideLayoutTables,
+                "slideMasterContent": slideMasterContent,
                 "slideMasterTables": slideMasterTables,
+                "slideContent": slideContent,
                 "slideResObj": slideResObj,
                 "slideMasterTextStyles": slideMasterTextStyles,
                 "layoutResObj": layoutResObj,
-                "masterResObj": masterResObj
+                "masterResObj": masterResObj,
+                "themeContent": themeContent,
+                "themeResObj": themeResObj,
+                "digramFileContent": digramFileContent,
+                "diagramResObj": diagramResObj,
+                "defaultTextStyle": defaultTextStyle
             };
+            var bgResult = "";
+            if (processFullTheme === true) {
+                bgResult = getBackground(warpObj, slideSize, index);
+            }
 
-            var bgColor = getSlideBackgroundFill(slideContent, slideLayoutContent, slideMasterContent, warpObj);
+            var bgColor = "";
+            if (processFullTheme == "colorsAndImageOnly") {
+                bgColor = getSlideBackgroundFill(warpObj, index);
+            }
+
             if (settings.slideMode && settings.slideType == "revealjs") {
                 var result = "<section class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
             } else {
                 var result = "<div class='slide' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
             }
-
-            //result += "<div>"+getBackgroundShapes(slideContent, slideLayoutContent, slideMasterContent,warpObj) + "</div>" - TODO
+            result += bgResult;
             for (var nodeKey in nodes) {
                 if (nodes[nodeKey].constructor === Array) {
                     for (var i = 0; i < nodes[nodeKey].length; i++) {
-                        result += processNodesInSlide(nodeKey, nodes[nodeKey][i], warpObj);
+                        result += processNodesInSlide(nodeKey, nodes[nodeKey][i], nodes, warpObj, "slide");
                     }
                 } else {
-                    result += processNodesInSlide(nodeKey, nodes[nodeKey], warpObj);
+                    result += processNodesInSlide(nodeKey, nodes[nodeKey], nodes, warpObj, "slide");
                 }
             }
             if (settings.slideMode && settings.slideType == "revealjs") {
-                return result + "</section>";
+                return result + "</div></section>";
             } else {
-                return result + "</div>";
+                return result + "</div></div>";
             }
 
         }
@@ -685,63 +776,108 @@
             return { "idTable": idTable, "idxTable": idxTable, "typeTable": typeTable };
         }
 
-        function processNodesInSlide(nodeKey, nodeValue, warpObj) {
-
+        function processNodesInSlide(nodeKey, nodeValue, nodes, warpObj, source, sType) {
             var result = "";
 
             switch (nodeKey) {
                 case "p:sp":    // Shape, Text
-                    result = processSpNode(nodeValue, warpObj);
+                    result = processSpNode(nodeValue, nodes, warpObj, source, sType);
                     break;
                 case "p:cxnSp":    // Shape, Text (with connection)
-                    result = processCxnSpNode(nodeValue, warpObj);
+                    result = processCxnSpNode(nodeValue, nodes, warpObj, source, sType);
                     break;
                 case "p:pic":    // Picture
-                    result = processPicNode(nodeValue, warpObj);
+                    result = processPicNode(nodeValue, warpObj, source, sType);
                     break;
                 case "p:graphicFrame":    // Chart, Diagram, Table
-                    result = processGraphicFrameNode(nodeValue, warpObj);
+                    result = processGraphicFrameNode(nodeValue, warpObj, source, sType);
                     break;
                 case "p:grpSp":
-                    result = processGroupSpNode(nodeValue, warpObj);
+                    result = processGroupSpNode(nodeValue, warpObj, source);
                     break;
                 case "mc:AlternateContent": //Equations and formulas as Image
-                    var mcFallbackNode = getTextByPathList(nodeValue, ["mc:Fallback", "p:sp"]);
-                    result = processSpNode(mcFallbackNode, warpObj);
+                    //console.log("mc:AlternateContent nodeValue:" , nodeValue , "nodes:",nodes, "sType:",sType)
+                    var mcFallbackNode = getTextByPathList(nodeValue, ["mc:Fallback"]);
+                    result = processGroupSpNode(mcFallbackNode, warpObj, source);
                     break;
                 default:
+                    //console.log("nodeKey: ", nodeKey)
             }
 
             return result;
 
         }
 
-        function processGroupSpNode(node, warpObj) {
+        function processGroupSpNode(node, warpObj, source) {
+            //console.log("processGroupSpNode: node: ", node)
+            var xfrmNode = getTextByPathList(node, ["p:grpSpPr", "a:xfrm"]);
+            if (xfrmNode !== undefined) {
+                var x = parseInt(xfrmNode["a:off"]["attrs"]["x"]) * slideFactor;
+                var y = parseInt(xfrmNode["a:off"]["attrs"]["y"]) * slideFactor;
+                var chx = parseInt(xfrmNode["a:chOff"]["attrs"]["x"]) * slideFactor;
+                var chy = parseInt(xfrmNode["a:chOff"]["attrs"]["y"]) * slideFactor;
+                var cx = parseInt(xfrmNode["a:ext"]["attrs"]["cx"]) * slideFactor;
+                var cy = parseInt(xfrmNode["a:ext"]["attrs"]["cy"]) * slideFactor;
+                var chcx = parseInt(xfrmNode["a:chExt"]["attrs"]["cx"]) * slideFactor;
+                var chcy = parseInt(xfrmNode["a:chExt"]["attrs"]["cy"]) * slideFactor;
+                var rotate = parseInt(xfrmNode["attrs"]["rot"])
+                var rotStr = ""//;" border: 3px solid black;";
+                // angleToDegrees(getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
+                // var rotX = 0;
+                // var rotY = 0;
+                var top = y - chy,
+                    left = x - chx,
+                    width = cx - chcx,
+                    height = cy - chcy;
 
-            var factor = 96 / 914400;
+                var sType = "group";
+                if (!isNaN(rotate)) {
+                    rotate = angleToDegrees(rotate);
+                    rotStr += "transform: rotate(" + rotate + "deg) ; transform-origin: center;";
+                    // var cLin = Math.sqrt(Math.pow((chy), 2) + Math.pow((chx), 2));
+                    // var rdian = degreesToRadians(rotate);
+                    // rotX = cLin * Math.cos(rdian);
+                    // rotY = cLin * Math.sin(rdian);
+                    if (rotate != 0) {
+                        top = y;
+                        left = x;
+                        width = cx;
+                        height = cy;
+                        sType = "group-rotate";
+                    }
 
-            var xfrmNode = node["p:grpSpPr"]["a:xfrm"];
-            var x = parseInt(xfrmNode["a:off"]["attrs"]["x"]) * factor;
-            var y = parseInt(xfrmNode["a:off"]["attrs"]["y"]) * factor;
-            var chx = parseInt(xfrmNode["a:chOff"]["attrs"]["x"]) * factor;
-            var chy = parseInt(xfrmNode["a:chOff"]["attrs"]["y"]) * factor;
-            var cx = parseInt(xfrmNode["a:ext"]["attrs"]["cx"]) * factor;
-            var cy = parseInt(xfrmNode["a:ext"]["attrs"]["cy"]) * factor;
-            var chcx = parseInt(xfrmNode["a:chExt"]["attrs"]["cx"]) * factor;
-            var chcy = parseInt(xfrmNode["a:chExt"]["attrs"]["cy"]) * factor;
+                }
+            }
+            var grpStyle = "";
 
+            if (rotStr !== undefined && rotStr != "") {
+                grpStyle += rotStr;
+            }
+
+            if (top !== undefined) {
+                grpStyle += "top: " + top + "px;";
+            }
+            if (left !== undefined) {
+                grpStyle += "left: " + left + "px;";
+            }
+            if (width !== undefined) {
+                grpStyle += "width:" + width + "px;";
+            }
+            if (height !== undefined) {
+                grpStyle += "height: " + height + "px;";
+            }
             var order = node["attrs"]["order"];
 
-            var result = "<div class='block group' style='z-index: " + order + "; top: " + (y - chy) + "px; left: " + (x - chx) + "px; width: " + (cx - chcx) + "px; height: " + (cy - chcy) + "px;'>";
+            var result = "<div class='block group' style='z-index: " + order + ";" + grpStyle + " border:1px solid red;'>";
 
             // Procsee all child nodes
             for (var nodeKey in node) {
                 if (node[nodeKey].constructor === Array) {
                     for (var i = 0; i < node[nodeKey].length; i++) {
-                        result += processNodesInSlide(nodeKey, node[nodeKey][i], warpObj);
+                        result += processNodesInSlide(nodeKey, node[nodeKey][i], node, warpObj, source, sType);
                     }
                 } else {
-                    result += processNodesInSlide(nodeKey, node[nodeKey], warpObj);
+                    result += processNodesInSlide(nodeKey, node[nodeKey], node, warpObj, source, sType);
                 }
             }
 
@@ -750,7 +886,7 @@
             return result;
         }
 
-        function processSpNode(node, warpObj) {
+        function processSpNode(node, pNode, warpObj, source, sType) {
 
             /*
             *  958    <xsd:complexType name="CT_GvmlShape">
@@ -766,54 +902,72 @@
 
             var id = getTextByPathList(node, ["p:nvSpPr", "p:cNvPr", "attrs", "id"]);
             var name = getTextByPathList(node, ["p:nvSpPr", "p:cNvPr", "attrs", "name"]);
-            var idx = (getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "idx"]);
-            var type = (getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+            var idx = (getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "idx"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "idx"]);
+            var type = (getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]) === undefined) ? undefined : getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
             var order = getTextByPathList(node, ["attrs", "order"]);
-
+            var isUserDrawnBg;
+            if (source == "slideLayoutBg" || source == "slideMasterBg") {
+                var userDrawn = getTextByPathList(node, ["p:nvSpPr", "p:nvPr", "attrs", "userDrawn"]);
+                if (userDrawn == "1") {
+                    isUserDrawnBg = true;
+                } else {
+                    isUserDrawnBg = false;
+                }
+            }
             var slideLayoutSpNode = undefined;
             var slideMasterSpNode = undefined;
 
-            if (type !== undefined) {
-                if (idx !== undefined) {
-                    slideLayoutSpNode = warpObj["slideLayoutTables"]["typeTable"][type];
+            if (idx !== undefined) {
+                slideLayoutSpNode = warpObj["slideLayoutTables"]["idxTable"][idx];
+                if (type !== undefined) {
                     slideMasterSpNode = warpObj["slideMasterTables"]["typeTable"][type];
                 } else {
-                    slideLayoutSpNode = warpObj["slideLayoutTables"]["typeTable"][type];
-                    slideMasterSpNode = warpObj["slideMasterTables"]["typeTable"][type];
+                    slideMasterSpNode = warpObj["slideMasterTables"]["idxTable"][idx];
                 }
             } else {
-                if (idx !== undefined) {
-                    slideLayoutSpNode = warpObj["slideLayoutTables"]["idxTable"][idx];
-                    slideMasterSpNode = warpObj["slideMasterTables"]["idxTable"][idx];
-                } else {
-                    // Nothing
+                if (type !== undefined) {
+                    slideLayoutSpNode = warpObj["slideLayoutTables"]["typeTable"][type];
+                    slideMasterSpNode = warpObj["slideMasterTables"]["typeTable"][type];
                 }
             }
 
             if (type === undefined) {
-                type = getTextByPathList(slideLayoutSpNode, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
-                if (type === undefined) {
-                    type = getTextByPathList(slideMasterSpNode, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                txBoxVal = getTextByPathList(node, ["p:nvSpPr", "p:cNvSpPr", "attrs", "txBox"]);
+                if (txBoxVal == "1") {
+                    type = "textBox";
                 }
             }
+            if (type === undefined) {
+                type = getTextByPathList(slideLayoutSpNode, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                if (type === undefined) {
+                    //type = getTextByPathList(slideMasterSpNode, ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                    if (source == "diagramBg") {
+                        type = "diagram";
+                    } else {
 
-            return genShape(node, slideLayoutSpNode, slideMasterSpNode, id, name, idx, type, order, warpObj);
+                        type = "obj"; //default type
+                    }
+                }
+            }
+            //console.log("processSpNode type:", type, "idx:", idx);
+            return genShape(node, pNode, slideLayoutSpNode, slideMasterSpNode, id, name, idx, type, order, warpObj, isUserDrawnBg, sType, source);
         }
 
-        function processCxnSpNode(node, warpObj) {
+        function processCxnSpNode(node, pNode, warpObj, source, sType) {
 
             var id = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]["id"];
             var name = node["p:nvCxnSpPr"]["p:cNvPr"]["attrs"]["name"];
-            //var idx = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["idx"];
-            //var type = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["type"];
+            var idx = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["idx"];
+            var type = (node["p:nvCxnSpPr"]["p:nvPr"]["p:ph"] === undefined) ? undefined : node["p:nvSpPr"]["p:nvPr"]["p:ph"]["attrs"]["type"];
             //<p:cNvCxnSpPr>(<p:cNvCxnSpPr>, <a:endCxn>)
             var order = node["attrs"]["order"];
 
-            return genShape(node, undefined, undefined, id, name, undefined, undefined, order, warpObj);
+            return genShape(node, pNode, undefined, undefined, id, name, idx, type, order, warpObj, undefined, sType, source);
         }
 
-        function genShape(node, slideLayoutSpNode, slideMasterSpNode, id, name, idx, type, order, warpObj) {
-
+        function genShape(node, pNode, slideLayoutSpNode, slideMasterSpNode, id, name, idx, type, order, warpObj, isUserDrawnBg, sType, source) {
+            //var dltX = 0;
+            //var dltY = 0;
             var xfrmList = ["p:spPr", "a:xfrm"];
             var slideXfrmNode = getTextByPathList(node, xfrmList);
             var slideLayoutXfrmNode = getTextByPathList(slideLayoutSpNode, xfrmList);
@@ -828,13 +982,26 @@
             var custShapType = getTextByPathList(node, ["p:spPr", "a:custGeom"]);
 
             var isFlipV = false;
-            if (getTextByPathList(slideXfrmNode, ["attrs", "flipV"]) === "1" || getTextByPathList(slideXfrmNode, ["attrs", "flipH"]) === "1") {
+            var isFlipH = false;
+            var flip = "";
+            if (getTextByPathList(slideXfrmNode, ["attrs", "flipV"]) === "1") {
                 isFlipV = true;
+            }
+            if (getTextByPathList(slideXfrmNode, ["attrs", "flipH"]) === "1") {
+                isFlipH = true;
+            }
+            if (isFlipH && !isFlipV) {
+                flip = " scale(-1,1)"
+            } else if (!isFlipH && isFlipV) {
+                flip = " scale(1,-1)"
+            } else if (isFlipH && isFlipV) {
+                flip = " scale(-1,-1)"
             }
             /////////////////////////Amir////////////////////////
             //rotate
             var rotate = angleToDegrees(getTextByPathList(slideXfrmNode, ["attrs", "rot"]));
-            //console.log("rotate: "+rotate);
+
+            //console.log("genShape rotate: " + rotate);
             var txtRotate;
             var txtXframeNode = getTextByPathList(node, ["p:txXfrm"]);
             if (txtXframeNode !== undefined) {
@@ -846,42 +1013,66 @@
                 txtRotate = rotate;
             }
             //////////////////////////////////////////////////
-            if (shapType !== undefined || custShapType !== undefined) {
+            if (shapType !== undefined || custShapType !== undefined /*&& slideXfrmNode !== undefined*/) {
                 var off = getTextByPathList(slideXfrmNode, ["a:off", "attrs"]);
-                var x = parseInt(off["x"]) * 96 / 914400;
-                var y = parseInt(off["y"]) * 96 / 914400;
+                var x = parseInt(off["x"]) * slideFactor;
+                var y = parseInt(off["y"]) * slideFactor;
 
                 var ext = getTextByPathList(slideXfrmNode, ["a:ext", "attrs"]);
-                var w = parseInt(ext["cx"]) * 96 / 914400;
-                var h = parseInt(ext["cy"]) * 96 / 914400;
+                var w = parseInt(ext["cx"]) * slideFactor;
+                var h = parseInt(ext["cy"]) * slideFactor;
 
-                result += "<svg class='drawing' _id='" + id + "' _idx='" + idx + "' _type='" + type + "' _name='" + name +
+                var svgCssName = "_svg_css_" + (Object.keys(styleTable).length + 1) + "_"  + Math.floor(Math.random() * 1001);
+                //console.log("name:", name, "svgCssName: ", svgCssName)
+                var effectsClassName = svgCssName + "_effects";
+                result += "<svg class='drawing " + svgCssName + " " + effectsClassName + " ' _id='" + id + "' _idx='" + idx + "' _type='" + type + "' _name='" + name + "'" +
                     "' style='" +
-                    getPosition(slideXfrmNode, undefined, undefined) +
+                    getPosition(slideXfrmNode, pNode, undefined, undefined, sType) +
                     getSize(slideXfrmNode, undefined, undefined) +
                     " z-index: " + order + ";" +
-                    "transform: rotate(" + rotate + "deg);" +
+                    "transform: rotate(" + ((rotate !== undefined) ? rotate : 0) + "deg)" + flip + ";" +
                     "'>";
                 result += '<defs>'
                 // Fill Color
-                var fillColor = getShapeFill(node, true, warpObj);
+                var fillColor = getShapeFill(node, pNode, true, warpObj, source);
+                //console.log("genShape: fillColor: ", fillColor)
                 var grndFillFlg = false;
                 var imgFillFlg = false;
                 var clrFillType = getFillType(getTextByPathList(node, ["p:spPr"]));
+                if (clrFillType == "GROUP_FILL") {
+                    clrFillType = getFillType(getTextByPathList(pNode, ["p:grpSpPr"]));
+                }
+                // if (clrFillType == "") {
+                //     var clrFillType = getFillType(getTextByPathList(node, ["p:style","a:fillRef"]));
+                // }
+                //console.log("genShape: fillColor: ", fillColor, ", clrFillType: ", clrFillType, ", node: ", node)
                 /////////////////////////////////////////                    
                 if (clrFillType == "GRADIENT_FILL") {
                     grndFillFlg = true;
                     var color_arry = fillColor.color;
-                    var angl = fillColor.rot;
+                    var angl = fillColor.rot + 90;
                     var svgGrdnt = getSvgGradient(w, h, angl, color_arry, shpId);
                     //fill="url(#linGrd)"
+                    //console.log("genShape: svgGrdnt: ", svgGrdnt)
                     result += svgGrdnt;
+
                 } else if (clrFillType == "PIC_FILL") {
                     imgFillFlg = true;
-                    var svgBgImg = getSvgImagePattern(fillColor, shpId);
+                    var svgBgImg = getSvgImagePattern(node, fillColor, shpId, warpObj);
                     //fill="url(#imgPtrn)"
                     //console.log(svgBgImg)
                     result += svgBgImg;
+                } else if (clrFillType == "PATTERN_FILL") {
+                    var styleText = fillColor;
+                    if (styleText in styleTable) {
+                        styleText += "do-nothing: " + svgCssName +";";
+                    }
+                    styleTable[styleText] = {
+                        "name": svgCssName,
+                        "text": styleText
+                    };
+                    //}
+                    fillColor = "none";
                 } else {
                     if (clrFillType != "SOLID_FILL" && clrFillType != "PATTERN_FILL" &&
                         (shapType == "arc" ||
@@ -895,12 +1086,79 @@
                     }
                 }
                 // Border Color
-                var border = getBorder(node, true, "shape");
+                var border = getBorder(node, pNode, true, "shape", warpObj);
 
                 var headEndNodeAttrs = getTextByPathList(node, ["p:spPr", "a:ln", "a:headEnd", "attrs"]);
                 var tailEndNodeAttrs = getTextByPathList(node, ["p:spPr", "a:ln", "a:tailEnd", "attrs"]);
                 // type: none, triangle, stealth, diamond, oval, arrow
 
+                ////////////////////effects/////////////////////////////////////////////////////
+                //p:spPr => a:effectLst =>
+                //"a:blur"
+                //"a:fillOverlay"
+                //"a:glow"
+                //"a:innerShdw"
+                //"a:outerShdw"
+                //"a:prstShdw"
+                //"a:reflection"
+                //"a:softEdge"
+                //p:spPr => a:scene3d
+                //"a:camera"
+                //"a:lightRig"
+                //"a:backdrop"
+                //"a:extLst"?
+                //p:spPr => a:sp3d
+                //"a:bevelT"
+                //"a:bevelB"
+                //"a:extrusionClr"
+                //"a:contourClr"
+                //"a:extLst"?
+                //////////////////////////////outerShdw///////////////////////////////////////////
+                //not support sizing the shadow
+                var outerShdwNode = getTextByPathList(node, ["p:spPr", "a:effectLst", "a:outerShdw"]);
+                var oShadowSvgUrlStr = ""
+                if (outerShdwNode !== undefined) {
+                    var chdwClrNode = getSolidFill(outerShdwNode, undefined, undefined, warpObj);
+                    var outerShdwAttrs = outerShdwNode["attrs"];
+
+                    //var algn = outerShdwAttrs["algn"];
+                    var dir = (outerShdwAttrs["dir"]) ? (parseInt(outerShdwAttrs["dir"]) / 60000) : 0;
+                    var dist = parseInt(outerShdwAttrs["dist"]) * slideFactor;//(px) //* (3 / 4); //(pt)
+                    //var rotWithShape = outerShdwAttrs["rotWithShape"];
+                    var blurRad = (outerShdwAttrs["blurRad"]) ? (parseInt(outerShdwAttrs["blurRad"]) * slideFactor) : ""; //+ "px"
+                    //var sx = (outerShdwAttrs["sx"]) ? (parseInt(outerShdwAttrs["sx"]) / 100000) : 1;
+                    //var sy = (outerShdwAttrs["sy"]) ? (parseInt(outerShdwAttrs["sy"]) / 100000) : 1;
+                    var vx = dist * Math.sin(dir * Math.PI / 180);
+                    var hx = dist * Math.cos(dir * Math.PI / 180);
+                    //SVG
+                    //var oShadowId = "outerhadow_" + shpId;
+                    //oShadowSvgUrlStr = "filter='url(#" + oShadowId+")'";
+                    //var shadowFilterStr = '<filter id="' + oShadowId + '" x="0" y="0" width="' + w * (6 / 8) + '" height="' + h + '">';
+                    //1:
+                    //shadowFilterStr += '<feDropShadow dx="' + vx + '" dy="' + hx + '" stdDeviation="' + blurRad * (3 / 4) + '" flood-color="#' + chdwClrNode +'" flood-opacity="1" />'
+                    //2:
+                    //shadowFilterStr += '<feFlood result="floodColor" flood-color="red" flood-opacity="0.5"   width="' + w * (6 / 8) + '" height="' + h + '"  />'; //#' + chdwClrNode +'
+                    //shadowFilterStr += '<feOffset result="offOut" in="SourceGraph ccfsdf-+ic"  dx="' + vx + '" dy="' + hx + '"/>'; //how much to offset
+                    //shadowFilterStr += '<feGaussianBlur result="blurOut" in="offOut" stdDeviation="' + blurRad*(3/4) +'"/>'; //tdDeviation is how much to blur
+                    //shadowFilterStr += '<feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer>'; //slope is the opacity of the shadow
+                    //shadowFilterStr += '<feBlend in="SourceGraphic" in2="blurOut"  mode="normal" />'; //this contains the element that the filter is applied to
+                    //shadowFilterStr += '</filter>'; 
+                    //result += shadowFilterStr;
+
+                    //css:
+                    var svg_css_shadow = "filter:drop-shadow(" + hx + "px " + vx + "px " + blurRad + "px #" + chdwClrNode + ");";
+
+                    if (svg_css_shadow in styleTable) {
+                        svg_css_shadow += "do-nothing: " + svgCssName + ";";
+                    }
+
+                    styleTable[svg_css_shadow] = {
+                        "name": effectsClassName,
+                        "text": svg_css_shadow
+                    };
+
+                } 
+                ////////////////////////////////////////////////////////////////////////////////////////
                 if ((headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) ||
                     (tailEndNodeAttrs !== undefined && (tailEndNodeAttrs["type"] === "triangle" || tailEndNodeAttrs["type"] === "arrow"))) {
                     var triangleMarker = "<marker id='markerTriangle_" + shpId + "' viewBox='0 0 10 10' refX='1' refY='5' markerWidth='5' markerHeight='5' stroke='" + border.color + "' fill='" + border.color +
@@ -910,7 +1168,7 @@
                 result += '</defs>'
             }
             if (shapType !== undefined && custShapType === undefined) {
-
+                //console.log("shapType: ", shapType)
                 switch (shapType) {
                     case "rect":
                     case "flowChartProcess":
@@ -918,7 +1176,7 @@
                     case "flowChartInternalStorage":
                     case "actionButtonBlank":
                         result += "<rect x='0' y='0' width='" + w + "' height='" + h + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
-                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' " + oShadowSvgUrlStr + "  />";
 
                         if (shapType == "flowChartPredefinedProcess") {
                             result += "<rect x='" + w * (1 / 8) + "' y='0' width='" + w * (6 / 8) + "' height='" + h + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
@@ -1638,12 +1896,12 @@
                             result += " <polyline points='" + w / 2 + " " + 0 + "," + w / 2 + " " + h + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                             result += " <polyline points='" + 0 + " " + h / 2 + "," + w + " " + h / 2 + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         } else if (shapType == "flowChartSummingJunction") {
-                            var idx, idy, il, ir, it, ib, hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                            var iDx, idy, il, ir, it, ib, hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
                             var angVal = Math.PI / 4;
-                            idx = wd2 * Math.cos(angVal);
+                            iDx = wd2 * Math.cos(angVal);
                             idy = hd2 * Math.sin(angVal);
-                            il = hc - idx;
-                            ir = hc + idx;
+                            il = hc - iDx;
+                            ir = hc + iDx;
                             it = vc - idy;
                             ib = vc + idy;
                             result += " <polyline points='" + il + " " + it + "," + ir + " " + ib + "' fill='none' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
@@ -1758,11 +2016,11 @@
                         break;
                     case "bentConnector2":
                         var d = "";
-                        if (isFlipV) {
-                            d = "M 0 " + w + " L " + h + " " + w + " L " + h + " 0";
-                        } else {
-                            d = "M " + w + " 0 L " + w + " " + h + " L 0 " + h;
-                        }
+                        // if (isFlipV) {
+                        //     d = "M 0 " + w + " L " + h + " " + w + " L " + h + " 0";
+                        // } else {
+                        d = "M " + w + " 0 L " + w + " " + h + " L 0 " + h;
+                        //}
                         result += "<path d='" + d + "' stroke='" + border.color +
                             "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' fill='none' ";
                         if (headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) {
@@ -1783,7 +2041,7 @@
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
                         var shapAdjst_val = 0.5;
                         if (shapAdjst !== undefined) {
-                            shapAdjst_val = parseInt(shapAdjst.substr(4)) * 96 / 9144000;
+                            shapAdjst_val = parseInt(shapAdjst.substr(4)) * slideFactor;
                             //console.log("w: "+w+"\nh: "+h+"\nshapAdjst: "+shapAdjst+"\nshapAdjst_val: "+shapAdjst_val);
                         }
                         var tranglRott = "";
@@ -1809,7 +2067,7 @@
                         var adjst_val = 0.2;
                         var max_adj_const = 0.7407;
                         if (shapAdjst !== undefined) {
-                            var adjst = parseInt(shapAdjst.substr(4)) * 96 / 9144000;
+                            var adjst = parseInt(shapAdjst.substr(4)) * slideFactor;
                             adjst_val = (adjst * 0.5) / max_adj_const;
                             // console.log("w: "+w+"\nh: "+h+"\nshapAdjst: "+shapAdjst+"\nadjst_val: "+adjst_val);
                         }
@@ -1852,13 +2110,13 @@
                     case "hexagon":
                     case "flowChartPreparation":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 25000 * 96 / 914400;
-                        var vf = 115470 * 96 / 914400;;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 25000 * slideFactor;
+                        var vf = 115470 * slideFactor;;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         var angVal1 = 60 * Math.PI / 180;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var maxAdj, a, shd2, x1, x2, dy1, y1, y2, vc = h / 2, hd2 = h / 2;
                         var ss = Math.min(w, h);
@@ -1912,58 +2170,901 @@
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
                     case "star4":
-                    case "star5":
-                    case "star6":
-                    case "star7":
-                    case "star8":
-                    case "star10":
-                    case "star12":
-                    case "star16":
-                    case "star24":
-                    case "star32":
+                        var a, iwd2, ihd2, sdx, sdy, sx1, sx2, sy1, sy2, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 19098 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
-                        var starNum = shapType.substr(4);
-                        var shapAdjst1, adj;
-                        switch (starNum) {
-                            case "4":
-                                adj = 30;
-                                break;
-                            case "5":
-                                adj = 40;
-                                break;
-                            case "6":
-                                adj = 60;
-                                break;
-                            case "7":
-                                adj = 70;
-                                break;
-                            case "8":
-                                adj = 77;
-                                break;
-                            case "10":
-                                adj = 86;
-                                break;
-                            case "12":
-                            case "16":
-                            case "24":
-                            case "32":
-                                adj = 75;
-                                break;
-                        }
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
                         if (shapAdjst !== undefined) {
-                            shapAdjst1 = getTextByPathList(shapAdjst, ["attrs", "fmla"]);
-                            if (shapAdjst1 === undefined) {
-                                shapAdjst1 = shapAdjst[0]["attrs"]["fmla"];
-                            }
-                            if (shapAdjst1 !== undefined) {
-                                adj = 2 * parseInt(shapAdjst1.substr(4)) / 1000;
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                                //min = 0
+                                //max = 50000
                             }
                         }
+                        a = (adj < 0) ? 0 : (adj > cnstVal1) ? cnstVal1 : adj;
+                        iwd2 = wd2 * a / cnstVal1;
+                        ihd2 = hd2 * a / cnstVal1;
+                        sdx = iwd2 * Math.cos(0.7853981634); //cd8 = 2700000; (45°) =>
+                        sdy = ihd2 * Math.sin(0.7853981634);
+                        sx1 = hc - sdx;
+                        sx2 = hc + sdx;
+                        sy1 = vc - sdy;
+                        sy2 = vc + sdy;
+                        yAdj = vc - ihd2;
 
-                        var points = shapeStar(adj, starNum);
-                        result += " <polygon points='" + points + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx2 + "," + sy1 +
+                            " L" + w + "," + vc +
+                            " L" + sx2 + "," + sy2 +
+                            " L" + hc + "," + h +
+                            " L" + sx1 + "," + sy2 +
+                            " z";
+
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
                         break;
+                    case "star5":
+                        var a, swd2, shd2, svc, dx1, dx2, dy1, dy2, x1, x2, x3, x4, y1, y2, iwd2, ihd2, sdx1, sdx2, sdy1, sdy2, sx1, sx2, sx3, sx4, sy1, sy2, sy3, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 19098 * slideFactor;
+                        var hf = 105146 * slideFactor;
+                        var vf = 110557 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        //var radians = angle * (Math.PI / 180);
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            Object.keys(shapAdjst).forEach(function (key) {
+                                var name = shapAdjst[key]["attrs"]["name"];
+                                if (name == "adj") {
+                                    adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                    //min = 0
+                                    //max = 50000
+                                } else if (name == "hf") {
+                                    hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                } else if (name == "vf") {
+                                    vf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                }
+                            })
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        swd2 = wd2 * hf / cnstVal1;
+                        shd2 = hd2 * vf / cnstVal1;
+                        svc = vc * vf / cnstVal1;
+                        dx1 = swd2 * Math.cos(0.31415926536); // 1080000
+                        dx2 = swd2 * Math.cos(5.3407075111); // 18360000
+                        dy1 = shd2 * Math.sin(0.31415926536); //1080000
+                        dy2 = shd2 * Math.sin(5.3407075111);// 18360000
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc + dx2;
+                        x4 = hc + dx1;
+                        y1 = svc - dy1;
+                        y2 = svc - dy2;
+                        iwd2 = swd2 * a / maxAdj;
+                        ihd2 = shd2 * a / maxAdj;
+                        sdx1 = iwd2 * Math.cos(5.9690260418); // 20520000
+                        sdx2 = iwd2 * Math.cos(0.94247779608); // 3240000
+                        sdy1 = ihd2 * Math.sin(0.94247779608); // 3240000
+                        sdy2 = ihd2 * Math.sin(5.9690260418); // 20520000
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc + sdx2;
+                        sx4 = hc + sdx1;
+                        sy1 = svc - sdy1;
+                        sy2 = svc - sdy2;
+                        sy3 = svc + ihd2;
+                        yAdj = svc - ihd2;
+
+                        var d = "M" + x1 + "," + y1 +
+                            " L" + sx2 + "," + sy1 +
+                            " L" + hc + "," + 0 +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + x4 + "," + y1 +
+                            " L" + sx4 + "," + sy2 +
+                            " L" + x3 + "," + y2 +
+                            " L" + hc + "," + sy3 +
+                            " L" + x2 + "," + y2 +
+                            " L" + sx1 + "," + sy2 +
+                            " z";
+
+
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star6":
+                        var a, swd2, dx1, x1, x2, y2, iwd2, ihd2, sdx2, sx1, sx2, sx3, sx4, sdy1, sy1, sy2, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4;
+                        var adj = 28868 * slideFactor;
+                        var hf = 115470 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            Object.keys(shapAdjst).forEach(function (key) {
+                                var name = shapAdjst[key]["attrs"]["name"];
+                                if (name == "adj") {
+                                    adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                    //min = 0
+                                    //max = 50000
+                                } else if (name == "hf") {
+                                    hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                }
+                            })
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        swd2 = wd2 * hf / cnstVal1;
+                        dx1 = swd2 * Math.cos(0.5235987756); //1800000->30 ->0.5235987756
+                        x1 = hc - dx1;
+                        x2 = hc + dx1;
+                        y2 = vc + hd4;
+                        iwd2 = swd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx2 = iwd2 / 2;
+                        sx1 = hc - iwd2;
+                        sx2 = hc - sdx2;
+                        sx3 = hc + sdx2;
+                        sx4 = hc + iwd2;
+                        sdy1 = ihd2 * Math.sin(1.0471975512); //3600000->60->1.0471975512
+                        sy1 = vc - sdy1;
+                        sy2 = vc + sdy1;
+                        yAdj = vc - ihd2;
+
+                        var d = "M" + x1 + "," + hd4 +
+                            " L" + sx2 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + x2 + "," + hd4 +
+                            " L" + sx4 + "," + vc +
+                            " L" + x2 + "," + y2 +
+                            " L" + sx3 + "," + sy2 +
+                            " L" + hc + "," + h +
+                            " L" + sx2 + "," + sy2 +
+                            " L" + x1 + "," + y2 +
+                            " L" + sx1 + "," + vc +
+                            " z";
+
+
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star7":
+                        var a, swd2, shd2, svc, dx1, dx2, dx3, dy1, dy2, dy3, x1, x2, x3, x4, x5, x6, y1, y2, y3,
+                            iwd2, ihd2, sdx1, sdx2, sdx3, sx1, sx2, sx3, sx4, sx5, sx6, sdy1, sdy2, sdy3, sy1, sy2, sy3, sy4, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 34601 * slideFactor;
+                        var hf = 102572 * slideFactor;
+                        var vf = 105210 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            Object.keys(shapAdjst).forEach(function (key) {
+                                var name = shapAdjst[key]["attrs"]["name"];
+                                if (name == "adj") {
+                                    adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                    //min = 0
+                                    //max = 50000
+                                } else if (name == "hf") {
+                                    hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                } else if (name == "vf") {
+                                    vf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                }
+                            })
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        swd2 = wd2 * hf / cnstVal1;
+                        shd2 = hd2 * vf / cnstVal1;
+                        svc = vc * vf / cnstVal1;
+                        dx1 = swd2 * 97493 / 100000;
+                        dx2 = swd2 * 78183 / 100000;
+                        dx3 = swd2 * 43388 / 100000;
+                        dy1 = shd2 * 62349 / 100000;
+                        dy2 = shd2 * 22252 / 100000;
+                        dy3 = shd2 * 90097 / 100000;
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc - dx3;
+                        x4 = hc + dx3;
+                        x5 = hc + dx2;
+                        x6 = hc + dx1;
+                        y1 = svc - dy1;
+                        y2 = svc + dy2;
+                        y3 = svc + dy3;
+                        iwd2 = swd2 * a / maxAdj;
+                        ihd2 = shd2 * a / maxAdj;
+                        sdx1 = iwd2 * 97493 / 100000;
+                        sdx2 = iwd2 * 78183 / 100000;
+                        sdx3 = iwd2 * 43388 / 100000;
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc - sdx3;
+                        sx4 = hc + sdx3;
+                        sx5 = hc + sdx2;
+                        sx6 = hc + sdx1;
+                        sdy1 = ihd2 * 90097 / 100000;
+                        sdy2 = ihd2 * 22252 / 100000;
+                        sdy3 = ihd2 * 62349 / 100000;
+                        sy1 = svc - sdy1;
+                        sy2 = svc - sdy2;
+                        sy3 = svc + sdy3;
+                        sy4 = svc + ihd2;
+                        yAdj = svc - ihd2;
+
+                        var d = "M" + x1 + "," + y2 +
+                            " L" + sx1 + "," + sy2 +
+                            " L" + x2 + "," + y1 +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx4 + "," + sy1 +
+                            " L" + x5 + "," + y1 +
+                            " L" + sx6 + "," + sy2 +
+                            " L" + x6 + "," + y2 +
+                            " L" + sx5 + "," + sy3 +
+                            " L" + x4 + "," + y3 +
+                            " L" + hc + "," + sy4 +
+                            " L" + x3 + "," + y3 +
+                            " L" + sx2 + "," + sy3 +
+                            " z";
+
+
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star8":
+                        var a, dx1, x1, x2, dy1, y1, y2, iwd2, ihd2, sdx1, sdx2, sdy1, sdy2, sx1, sx2, sx3, sx4, sy1, sy2, sy3, sy4, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 37500 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                                //min = 0
+                                //max = 50000
+                            }
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        dx1 = wd2 * Math.cos(0.7853981634); //2700000
+                        x1 = hc - dx1;
+                        x2 = hc + dx1;
+                        dy1 = hd2 * Math.sin(0.7853981634); //2700000
+                        y1 = vc - dy1;
+                        y2 = vc + dy1;
+                        iwd2 = wd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * 92388 / 100000;
+                        sdx2 = iwd2 * 38268 / 100000;
+                        sdy1 = ihd2 * 92388 / 100000;
+                        sdy2 = ihd2 * 38268 / 100000;
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc + sdx2;
+                        sx4 = hc + sdx1;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc + sdy2;
+                        sy4 = vc + sdy1;
+                        yAdj = vc - ihd2;
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy2 +
+                            " L" + x1 + "," + y1 +
+                            " L" + sx2 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + x2 + "," + y1 +
+                            " L" + sx4 + "," + sy2 +
+                            " L" + w + "," + vc +
+                            " L" + sx4 + "," + sy3 +
+                            " L" + x2 + "," + y2 +
+                            " L" + sx3 + "," + sy4 +
+                            " L" + hc + "," + h +
+                            " L" + sx2 + "," + sy4 +
+                            " L" + x1 + "," + y2 +
+                            " L" + sx1 + "," + sy3 +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+
+                    case "star10":
+                        var a, swd2, dx1, dx2, x1, x2, x3, x4, dy1, dy2, y1, y2, y3, y4, iwd2, ihd2,
+                            sdx1, sdx2, sdy1, sdy2, sx1, sx2, sx3, sx4, sx5, sx6, sy1, sy2, sy3, sy4, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 42533 * slideFactor;
+                        var hf = 105146 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star5 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            Object.keys(shapAdjst).forEach(function (key) {
+                                var name = shapAdjst[key]["attrs"]["name"];
+                                if (name == "adj") {
+                                    adj = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                    //min = 0
+                                    //max = 50000
+                                } else if (name == "hf") {
+                                    hf = parseInt(shapAdjst[key]["attrs"]["fmla"].substr(4)) * slideFactor;
+                                }
+                            })
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        swd2 = wd2 * hf / cnstVal1;
+                        dx1 = swd2 * 95106 / 100000;
+                        dx2 = swd2 * 58779 / 100000;
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc + dx2;
+                        x4 = hc + dx1;
+                        dy1 = hd2 * 80902 / 100000;
+                        dy2 = hd2 * 30902 / 100000;
+                        y1 = vc - dy1;
+                        y2 = vc - dy2;
+                        y3 = vc + dy2;
+                        y4 = vc + dy1;
+                        iwd2 = swd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * 80902 / 100000;
+                        sdx2 = iwd2 * 30902 / 100000;
+                        sdy1 = ihd2 * 95106 / 100000;
+                        sdy2 = ihd2 * 58779 / 100000;
+                        sx1 = hc - iwd2;
+                        sx2 = hc - sdx1;
+                        sx3 = hc - sdx2;
+                        sx4 = hc + sdx2;
+                        sx5 = hc + sdx1;
+                        sx6 = hc + iwd2;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc + sdy2;
+                        sy4 = vc + sdy1;
+                        yAdj = vc - ihd2;
+                        var d = "M" + x1 + "," + y2 +
+                            " L" + sx2 + "," + sy2 +
+                            " L" + x2 + "," + y1 +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx4 + "," + sy1 +
+                            " L" + x3 + "," + y1 +
+                            " L" + sx5 + "," + sy2 +
+                            " L" + x4 + "," + y2 +
+                            " L" + sx6 + "," + vc +
+                            " L" + x4 + "," + y3 +
+                            " L" + sx5 + "," + sy3 +
+                            " L" + x3 + "," + y4 +
+                            " L" + sx4 + "," + sy4 +
+                            " L" + hc + "," + h +
+                            " L" + sx3 + "," + sy4 +
+                            " L" + x2 + "," + y4 +
+                            " L" + sx2 + "," + sy3 +
+                            " L" + x1 + "," + y3 +
+                            " L" + sx1 + "," + vc +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star12":
+                        var a, dx1, dy1, x1, x3, x4, y1, y3, y4, iwd2, ihd2, sdx1, sdx2, sdx3, sdy1,
+                            sdy2, sdy3, sx1, sx2, sx3, sx4, sx5, sx6, sy1, sy2, sy3, sy4, sy5, sy6, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
+                        var adj = 37500 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                                //min = 0
+                                //max = 50000
+                            }
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        dx1 = wd2 * Math.cos(0.5235987756);
+                        dy1 = hd2 * Math.sin(1.0471975512);
+                        x1 = hc - dx1;
+                        x3 = w * 3 / 4;
+                        x4 = hc + dx1;
+                        y1 = vc - dy1;
+                        y3 = h * 3 / 4;
+                        y4 = vc + dy1;
+                        iwd2 = wd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * Math.cos(0.2617993878); //900000->15
+                        sdx2 = iwd2 * Math.cos(0.7853981634);
+                        sdx3 = iwd2 * Math.cos(1.308996939); //4500000->75
+                        sdy1 = ihd2 * Math.sin(1.308996939);
+                        sdy2 = ihd2 * Math.sin(0.7853981634);
+                        sdy3 = ihd2 * Math.sin(0.2617993878);
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc - sdx3;
+                        sx4 = hc + sdx3;
+                        sx5 = hc + sdx2;
+                        sx6 = hc + sdx1;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc - sdy3;
+                        sy4 = vc + sdy3;
+                        sy5 = vc + sdy2;
+                        sy6 = vc + sdy1;
+                        yAdj = vc - ihd2;
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy3 +
+                            " L" + x1 + "," + hd4 +
+                            " L" + sx2 + "," + sy2 +
+                            " L" + wd4 + "," + y1 +
+                            " L" + sx3 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx4 + "," + sy1 +
+                            " L" + x3 + "," + y1 +
+                            " L" + sx5 + "," + sy2 +
+                            " L" + x4 + "," + hd4 +
+                            " L" + sx6 + "," + sy3 +
+                            " L" + w + "," + vc +
+                            " L" + sx6 + "," + sy4 +
+                            " L" + x4 + "," + y3 +
+                            " L" + sx5 + "," + sy5 +
+                            " L" + x3 + "," + y4 +
+                            " L" + sx4 + "," + sy6 +
+                            " L" + hc + "," + h +
+                            " L" + sx3 + "," + sy6 +
+                            " L" + wd4 + "," + y4 +
+                            " L" + sx2 + "," + sy5 +
+                            " L" + x1 + "," + y3 +
+                            " L" + sx1 + "," + sy4 +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star16":
+                        var a, dx1, dx2, dx3, dy1, dy2, dy3, x1, x2, x3, x4, x5, x6, y1, y2, y3, y4, y5, y6,
+                            iwd2, ihd2, sdx1, sdx2, sdx3, sdx4, sdy1, sdy2, sdy3, sdy4, sx1, sx2, sx3, sx4,
+                            sx5, sx6, sx7, sx8, sy1, sy2, sy3, sy4, sy5, sy6, sy7, sy8, iDx, idy, il, it, ir, ib, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2;
+                        var adj = 37500 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                                //min = 0
+                                //max = 50000
+                            }
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        dx1 = wd2 * 92388 / 100000;
+                        dx2 = wd2 * 70711 / 100000;
+                        dx3 = wd2 * 38268 / 100000;
+                        dy1 = hd2 * 92388 / 100000;
+                        dy2 = hd2 * 70711 / 100000;
+                        dy3 = hd2 * 38268 / 100000;
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc - dx3;
+                        x4 = hc + dx3;
+                        x5 = hc + dx2;
+                        x6 = hc + dx1;
+                        y1 = vc - dy1;
+                        y2 = vc - dy2;
+                        y3 = vc - dy3;
+                        y4 = vc + dy3;
+                        y5 = vc + dy2;
+                        y6 = vc + dy1;
+                        iwd2 = wd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * 98079 / 100000;
+                        sdx2 = iwd2 * 83147 / 100000;
+                        sdx3 = iwd2 * 55557 / 100000;
+                        sdx4 = iwd2 * 19509 / 100000;
+                        sdy1 = ihd2 * 98079 / 100000;
+                        sdy2 = ihd2 * 83147 / 100000;
+                        sdy3 = ihd2 * 55557 / 100000;
+                        sdy4 = ihd2 * 19509 / 100000;
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc - sdx3;
+                        sx4 = hc - sdx4;
+                        sx5 = hc + sdx4;
+                        sx6 = hc + sdx3;
+                        sx7 = hc + sdx2;
+                        sx8 = hc + sdx1;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc - sdy3;
+                        sy4 = vc - sdy4;
+                        sy5 = vc + sdy4;
+                        sy6 = vc + sdy3;
+                        sy7 = vc + sdy2;
+                        sy8 = vc + sdy1;
+                        iDx = iwd2 * Math.cos(0.7853981634);
+                        idy = ihd2 * Math.sin(0.7853981634);
+                        il = hc - iDx;
+                        it = vc - idy;
+                        ir = hc + iDx;
+                        ib = vc + idy;
+                        yAdj = vc - ihd2;
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy4 +
+                            " L" + x1 + "," + y3 +
+                            " L" + sx2 + "," + sy3 +
+                            " L" + x2 + "," + y2 +
+                            " L" + sx3 + "," + sy2 +
+                            " L" + x3 + "," + y1 +
+                            " L" + sx4 + "," + sy1 +
+                            " L" + hc + ",0" +
+                            " L" + sx5 + "," + sy1 +
+                            " L" + x4 + "," + y1 +
+                            " L" + sx6 + "," + sy2 +
+                            " L" + x5 + "," + y2 +
+                            " L" + sx7 + "," + sy3 +
+                            " L" + x6 + "," + y3 +
+                            " L" + sx8 + "," + sy4 +
+                            " L" + w + "," + vc +
+                            " L" + sx8 + "," + sy5 +
+                            " L" + x6 + "," + y4 +
+                            " L" + sx7 + "," + sy6 +
+                            " L" + x5 + "," + y5 +
+                            " L" + sx6 + "," + sy7 +
+                            " L" + x4 + "," + y6 +
+                            " L" + sx5 + "," + sy8 +
+                            " L" + hc + "," + h +
+                            " L" + sx4 + "," + sy8 +
+                            " L" + x3 + "," + y6 +
+                            " L" + sx3 + "," + sy7 +
+                            " L" + x2 + "," + y5 +
+                            " L" + sx2 + "," + sy6 +
+                            " L" + x1 + "," + y4 +
+                            " L" + sx1 + "," + sy5 +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star24":
+                        var a, dx1, dx2, dx3, dx4, dx5, dy1, dy2, dy3, dy4, dy5, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10,
+                            y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, iwd2, ihd2, sdx1, sdx2, sdx3, sdx4, sdx5, sdx6, sdy1,
+                            sdy2, sdy3, sdy4, sdy5, sdy6, sx1, sx2, sx3, sx4, sx5, sx6, sx7, sx8, sx9, sx10, sx11, sx12,
+                            sy1, sy2, sy3, sy4, sy5, sy6, sy7, sy8, sy9, sy10, sy11, sy12, iDx, idy, il, it, ir, ib, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
+                        var adj = 37500 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                            }
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        dx1 = wd2 * Math.cos(0.2617993878);
+                        dx2 = wd2 * Math.cos(0.5235987756);
+                        dx3 = wd2 * Math.cos(0.7853981634);
+                        dx4 = wd4
+                        dx5 = wd2 * Math.cos(1.308996939);
+                        dy1 = hd2 * Math.sin(1.308996939);
+                        dy2 = hd2 * Math.sin(1.0471975512);
+                        dy3 = hd2 * Math.sin(0.7853981634);
+                        dy4 = hd4
+                        dy5 = hd2 * Math.sin(0.2617993878);
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc - dx3;
+                        x4 = hc - dx4;
+                        x5 = hc - dx5;
+                        x6 = hc + dx5;
+                        x7 = hc + dx4;
+                        x8 = hc + dx3;
+                        x9 = hc + dx2;
+                        x10 = hc + dx1;
+                        y1 = vc - dy1;
+                        y2 = vc - dy2;
+                        y3 = vc - dy3;
+                        y4 = vc - dy4;
+                        y5 = vc - dy5;
+                        y6 = vc + dy5;
+                        y7 = vc + dy4;
+                        y8 = vc + dy3;
+                        y9 = vc + dy2;
+                        y10 = vc + dy1;
+                        iwd2 = wd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * 99144 / 100000;
+                        sdx2 = iwd2 * 92388 / 100000;
+                        sdx3 = iwd2 * 79335 / 100000;
+                        sdx4 = iwd2 * 60876 / 100000;
+                        sdx5 = iwd2 * 38268 / 100000;
+                        sdx6 = iwd2 * 13053 / 100000;
+                        sdy1 = ihd2 * 99144 / 100000;
+                        sdy2 = ihd2 * 92388 / 100000;
+                        sdy3 = ihd2 * 79335 / 100000;
+                        sdy4 = ihd2 * 60876 / 100000;
+                        sdy5 = ihd2 * 38268 / 100000;
+                        sdy6 = ihd2 * 13053 / 100000;
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc - sdx3;
+                        sx4 = hc - sdx4;
+                        sx5 = hc - sdx5;
+                        sx6 = hc - sdx6;
+                        sx7 = hc + sdx6;
+                        sx8 = hc + sdx5;
+                        sx9 = hc + sdx4;
+                        sx10 = hc + sdx3;
+                        sx11 = hc + sdx2;
+                        sx12 = hc + sdx1;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc - sdy3;
+                        sy4 = vc - sdy4;
+                        sy5 = vc - sdy5;
+                        sy6 = vc - sdy6;
+                        sy7 = vc + sdy6;
+                        sy8 = vc + sdy5;
+                        sy9 = vc + sdy4;
+                        sy10 = vc + sdy3;
+                        sy11 = vc + sdy2;
+                        sy12 = vc + sdy1;
+                        iDx = iwd2 * Math.cos(0.7853981634);
+                        idy = ihd2 * Math.sin(0.7853981634);
+                        il = hc - iDx;
+                        it = vc - idy;
+                        ir = hc + iDx;
+                        ib = vc + idy;
+                        yAdj = vc - ihd2;
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy6 +
+                            " L" + x1 + "," + y5 +
+                            " L" + sx2 + "," + sy5 +
+                            " L" + x2 + "," + y4 +
+                            " L" + sx3 + "," + sy4 +
+                            " L" + x3 + "," + y3 +
+                            " L" + sx4 + "," + sy3 +
+                            " L" + x4 + "," + y2 +
+                            " L" + sx5 + "," + sy2 +
+                            " L" + x5 + "," + y1 +
+                            " L" + sx6 + "," + sy1 +
+                            " L" + hc + "," + 0 +
+                            " L" + sx7 + "," + sy1 +
+                            " L" + x6 + "," + y1 +
+                            " L" + sx8 + "," + sy2 +
+                            " L" + x7 + "," + y2 +
+                            " L" + sx9 + "," + sy3 +
+                            " L" + x8 + "," + y3 +
+                            " L" + sx10 + "," + sy4 +
+                            " L" + x9 + "," + y4 +
+                            " L" + sx11 + "," + sy5 +
+                            " L" + x10 + "," + y5 +
+                            " L" + sx12 + "," + sy6 +
+                            " L" + w + "," + vc +
+                            " L" + sx12 + "," + sy7 +
+                            " L" + x10 + "," + y6 +
+                            " L" + sx11 + "," + sy8 +
+                            " L" + x9 + "," + y7 +
+                            " L" + sx10 + "," + sy9 +
+                            " L" + x8 + "," + y8 +
+                            " L" + sx9 + "," + sy10 +
+                            " L" + x7 + "," + y9 +
+                            " L" + sx8 + "," + sy11 +
+                            " L" + x6 + "," + y10 +
+                            " L" + sx7 + "," + sy12 +
+                            " L" + hc + "," + h +
+                            " L" + sx6 + "," + sy12 +
+                            " L" + x5 + "," + y10 +
+                            " L" + sx5 + "," + sy11 +
+                            " L" + x4 + "," + y9 +
+                            " L" + sx4 + "," + sy10 +
+                            " L" + x3 + "," + y8 +
+                            " L" + sx3 + "," + sy9 +
+                            " L" + x2 + "," + y7 +
+                            " L" + sx2 + "," + sy8 +
+                            " L" + x1 + "," + y6 +
+                            " L" + sx1 + "," + sy7 +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+                    case "star32":
+                        var a, dx1, dx2, dx3, dx4, dx5, dx6, dx7, dy1, dy2, dy3, dy4, dy5, dy6, dy7, x1, x2, x3, x4, x5, x6,
+                            x7, x8, x9, x10, x11, x12, x13, x14, y1, y2, y3, y4, y5, y6, y7, y8, y9, y10, y11, y12, y13, y14,
+                            iwd2, ihd2, sdx1, sdx2, sdx3, sdx4, sdx5, sdx6, sdx7, sdx8, sdy1, sdy2, sdy3, sdy4, sdy5, sdy6, sdy7,
+                            sdy8, sx1, sx2, sx3, sx4, sx5, sx6, sx7, sx8, sx9, sx10, sx11, sx12, sx13, sx14, sx15, sx16, sy1, sy2,
+                            sy3, sy4, sy5, sy6, sy7, sy8, sy9, sy10, sy11, sy12, sy13, sy14, sy15, sy16, iDx, idy, il, it, ir, ib, yAdj;
+                        var hc = w / 2, vc = h / 2, wd2 = w / 2, hd2 = h / 2, hd4 = h / 4, wd4 = w / 4;
+                        var adj = 37500 * slideFactor;
+                        var maxAdj = 50000 * slideFactor;
+                        var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);//[0]["attrs"]["fmla"];
+                        //console.log("star4 node: ", node, "shapAdjst:", shapAdjst)
+                        if (shapAdjst !== undefined) {
+                            var name = shapAdjst["attrs"]["name"];
+                            if (name == "adj") {
+                                adj = parseInt(shapAdjst["attrs"]["fmla"].substr(4)) * slideFactor;
+                            }
+                        }
+                        a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
+                        dx1 = wd2 * 98079 / 100000;
+                        dx2 = wd2 * 92388 / 100000;
+                        dx3 = wd2 * 83147 / 100000;
+                        dx4 = wd2 * Math.cos(0.7853981634);
+                        dx5 = wd2 * 55557 / 100000;
+                        dx6 = wd2 * 38268 / 100000;
+                        dx7 = wd2 * 19509 / 100000;
+                        dy1 = hd2 * 98079 / 100000;
+                        dy2 = hd2 * 92388 / 100000;
+                        dy3 = hd2 * 83147 / 100000;
+                        dy4 = hd2 * Math.sin(0.7853981634);
+                        dy5 = hd2 * 55557 / 100000;
+                        dy6 = hd2 * 38268 / 100000;
+                        dy7 = hd2 * 19509 / 100000;
+                        x1 = hc - dx1;
+                        x2 = hc - dx2;
+                        x3 = hc - dx3;
+                        x4 = hc - dx4;
+                        x5 = hc - dx5;
+                        x6 = hc - dx6;
+                        x7 = hc - dx7;
+                        x8 = hc + dx7;
+                        x9 = hc + dx6;
+                        x10 = hc + dx5;
+                        x11 = hc + dx4;
+                        x12 = hc + dx3;
+                        x13 = hc + dx2;
+                        x14 = hc + dx1;
+                        y1 = vc - dy1;
+                        y2 = vc - dy2;
+                        y3 = vc - dy3;
+                        y4 = vc - dy4;
+                        y5 = vc - dy5;
+                        y6 = vc - dy6;
+                        y7 = vc - dy7;
+                        y8 = vc + dy7;
+                        y9 = vc + dy6;
+                        y10 = vc + dy5;
+                        y11 = vc + dy4;
+                        y12 = vc + dy3;
+                        y13 = vc + dy2;
+                        y14 = vc + dy1;
+                        iwd2 = wd2 * a / maxAdj;
+                        ihd2 = hd2 * a / maxAdj;
+                        sdx1 = iwd2 * 99518 / 100000;
+                        sdx2 = iwd2 * 95694 / 100000;
+                        sdx3 = iwd2 * 88192 / 100000;
+                        sdx4 = iwd2 * 77301 / 100000;
+                        sdx5 = iwd2 * 63439 / 100000;
+                        sdx6 = iwd2 * 47140 / 100000;
+                        sdx7 = iwd2 * 29028 / 100000;
+                        sdx8 = iwd2 * 9802 / 100000;
+                        sdy1 = ihd2 * 99518 / 100000;
+                        sdy2 = ihd2 * 95694 / 100000;
+                        sdy3 = ihd2 * 88192 / 100000;
+                        sdy4 = ihd2 * 77301 / 100000;
+                        sdy5 = ihd2 * 63439 / 100000;
+                        sdy6 = ihd2 * 47140 / 100000;
+                        sdy7 = ihd2 * 29028 / 100000;
+                        sdy8 = ihd2 * 9802 / 100000;
+                        sx1 = hc - sdx1;
+                        sx2 = hc - sdx2;
+                        sx3 = hc - sdx3;
+                        sx4 = hc - sdx4;
+                        sx5 = hc - sdx5;
+                        sx6 = hc - sdx6;
+                        sx7 = hc - sdx7;
+                        sx8 = hc - sdx8;
+                        sx9 = hc + sdx8;
+                        sx10 = hc + sdx7;
+                        sx11 = hc + sdx6;
+                        sx12 = hc + sdx5;
+                        sx13 = hc + sdx4;
+                        sx14 = hc + sdx3;
+                        sx15 = hc + sdx2;
+                        sx16 = hc + sdx1;
+                        sy1 = vc - sdy1;
+                        sy2 = vc - sdy2;
+                        sy3 = vc - sdy3;
+                        sy4 = vc - sdy4;
+                        sy5 = vc - sdy5;
+                        sy6 = vc - sdy6;
+                        sy7 = vc - sdy7;
+                        sy8 = vc - sdy8;
+                        sy9 = vc + sdy8;
+                        sy10 = vc + sdy7;
+                        sy11 = vc + sdy6;
+                        sy12 = vc + sdy5;
+                        sy13 = vc + sdy4;
+                        sy14 = vc + sdy3;
+                        sy15 = vc + sdy2;
+                        sy16 = vc + sdy1;
+                        iDx = iwd2 * Math.cos(0.7853981634);
+                        idy = ihd2 * Math.sin(0.7853981634);
+                        il = hc - iDx;
+                        it = vc - idy;
+                        ir = hc + iDx;
+                        ib = vc + idy;
+                        yAdj = vc - ihd2;
+                        var d = "M0" + "," + vc +
+                            " L" + sx1 + "," + sy8 +
+                            " L" + x1 + "," + y7 +
+                            " L" + sx2 + "," + sy7 +
+                            " L" + x2 + "," + y6 +
+                            " L" + sx3 + "," + sy6 +
+                            " L" + x3 + "," + y5 +
+                            " L" + sx4 + "," + sy5 +
+                            " L" + x4 + "," + y4 +
+                            " L" + sx5 + "," + sy4 +
+                            " L" + x5 + "," + y3 +
+                            " L" + sx6 + "," + sy3 +
+                            " L" + x6 + "," + y2 +
+                            " L" + sx7 + "," + sy2 +
+                            " L" + x7 + "," + y1 +
+                            " L" + sx8 + "," + sy1 +
+                            " L" + hc + "," + 0 +
+                            " L" + sx9 + "," + sy1 +
+                            " L" + x8 + "," + y1 +
+                            " L" + sx10 + "," + sy2 +
+                            " L" + x9 + "," + y2 +
+                            " L" + sx11 + "," + sy3 +
+                            " L" + x10 + "," + y3 +
+                            " L" + sx12 + "," + sy4 +
+                            " L" + x11 + "," + y4 +
+                            " L" + sx13 + "," + sy5 +
+                            " L" + x12 + "," + y5 +
+                            " L" + sx14 + "," + sy6 +
+                            " L" + x13 + "," + y6 +
+                            " L" + sx15 + "," + sy7 +
+                            " L" + x14 + "," + y7 +
+                            " L" + sx16 + "," + sy8 +
+                            " L" + w + "," + vc +
+                            " L" + sx16 + "," + sy9 +
+                            " L" + x14 + "," + y8 +
+                            " L" + sx15 + "," + sy10 +
+                            " L" + x13 + "," + y9 +
+                            " L" + sx14 + "," + sy11 +
+                            " L" + x12 + "," + y10 +
+                            " L" + sx13 + "," + sy12 +
+                            " L" + x11 + "," + y11 +
+                            " L" + sx12 + "," + sy13 +
+                            " L" + x10 + "," + y12 +
+                            " L" + sx11 + "," + sy14 +
+                            " L" + x9 + "," + y13 +
+                            " L" + sx10 + "," + sy15 +
+                            " L" + x8 + "," + y14 +
+                            " L" + sx9 + "," + sy16 +
+                            " L" + hc + "," + h +
+                            " L" + sx8 + "," + sy16 +
+                            " L" + x7 + "," + y14 +
+                            " L" + sx7 + "," + sy15 +
+                            " L" + x6 + "," + y13 +
+                            " L" + sx6 + "," + sy14 +
+                            " L" + x5 + "," + y12 +
+                            " L" + sx5 + "," + sy13 +
+                            " L" + x4 + "," + y11 +
+                            " L" + sx4 + "," + sy12 +
+                            " L" + x3 + "," + y10 +
+                            " L" + sx3 + "," + sy11 +
+                            " L" + x2 + "," + y9 +
+                            " L" + sx2 + "," + sy10 +
+                            " L" + x1 + "," + y8 +
+                            " L" + sx1 + "," + sy9 +
+                            " z";
+                        result += "<path   d='" + d + "'  fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
+                        break;
+
                     case "pie":
                     case "pieWedge":
                     case "arc":
@@ -2029,11 +3130,11 @@
                         break;
                     case "frame":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj1 = 12500 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj1 = 12500 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj1 = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj1 = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a1, x1, x4, y4;
                         if (adj1 < 0) a1 = 0
@@ -2057,11 +3158,11 @@
                         break;
                     case "donut":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a, dr, iwd2, ihd2;
                         if (adj < 0) a = 0
@@ -2087,11 +3188,11 @@
                         break;
                     case "noSmoking":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 18750 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 18750 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a, dr, iwd2, ihd2, ang, ang2rad, ct, st, m, n, drd2, dang, dang2, swAng, t3, stAng1, stAng2;
                         if (adj < 0) a = 0
@@ -2148,16 +3249,16 @@
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
                         var sAdj1, sAdj1_val = 3.5;
                         var sAdj2, sAdj2_val = 3.5;
-                        var cnsVal = 100000 * 96 / 914400;
+                        var cnsVal = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    sAdj1_val = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    sAdj1_val = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    sAdj2_val = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    sAdj2_val = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -2194,9 +3295,9 @@
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
                         var sAdj1, adj1 = 180;
                         var sAdj2, adj2 = 0;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
@@ -2208,7 +3309,7 @@
                                     adj2 = parseInt(sAdj2.substr(4)) / 60000;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -2292,12 +3393,12 @@
                         break;
                     case "bracePair":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 8333 * 96 / 914400;
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal2 = 50000 * 96 / 914400;
-                        var cnstVal3 = 100000 * 96 / 914400;
+                        var adj = 8333 * slideFactor;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal2 = 50000 * slideFactor;
+                        var cnstVal3 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var vc = h / 2, cd = 360, cd2 = 180, cd4 = 90, c3d4 = 270, a, x1, x2, x3, x4, y2, y3, y4;
                         if (adj < 0) a = 0
@@ -2332,18 +3433,18 @@
                         break;
                     case "leftBrace":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 8333 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 8333 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -2378,18 +3479,18 @@
                         break;
                     case "rightBrace":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 8333 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 8333 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -2424,11 +3525,11 @@
                         break;
                     case "bracketPair":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 16667 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 16667 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var r = w, b = h, cd2 = 180, cd4 = 90, c3d4 = 270, a, x1, x2, y2;
                         if (adj < 0) a = 0
@@ -2447,12 +3548,12 @@
                         break;
                     case "leftBracket":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 8333 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 8333 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         var maxAdj = cnstVal1 * h / Math.min(w, h);
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var r = w, b = h, cd2 = 180, cd4 = 90, c3d4 = 270, a, y1, y2;
                         if (adj < 0) a = 0
@@ -2471,12 +3572,12 @@
                         break;
                     case "rightBracket":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 8333 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var adj = 8333 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         var maxAdj = cnstVal1 * h / Math.min(w, h);
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var cd = 360, cd2 = 180, cd4 = 90, c3d4 = 270, a, y1, y2, y3;
                         if (adj < 0) a = 0
@@ -2517,18 +3618,18 @@
                         break;
                     case "corner":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, sAdj1_val = 50000 * 96 / 914400;
-                        var sAdj2, sAdj2_val = 50000 * 96 / 914400;
-                        var cnsVal = 100000 * 96 / 914400;
+                        var sAdj1, sAdj1_val = 50000 * slideFactor;
+                        var sAdj2, sAdj2_val = 50000 * slideFactor;
+                        var cnsVal = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    sAdj1_val = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    sAdj1_val = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    sAdj2_val = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    sAdj2_val = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -2559,10 +3660,10 @@
                         break;
                     case "diagStripe":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var sAdj1_val = 50000 * 96 / 914400;
-                        var cnsVal = 100000 * 96 / 914400;
+                        var sAdj1_val = 50000 * slideFactor;
+                        var cnsVal = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            sAdj1_val = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            sAdj1_val = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a1, x2, y2;
                         if (sAdj1_val < 0) a1 = 0
@@ -2595,13 +3696,13 @@
                         var shapAdjst_val = 0.5;
                         if (shapAdjst !== undefined) {
                             shapAdjst_val = parseInt(shapAdjst.substr(4)) / 100000;
-                            if (isFlipV) {
-                                result += " <polyline points='" + w + " 0," + ((1 - shapAdjst_val) * w) + " 0," + ((1 - shapAdjst_val) * w) + " " + h + ",0 " + h + "' fill='transparent'" +
-                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
-                            } else {
-                                result += " <polyline points='0 0," + (shapAdjst_val) * w + " 0," + (shapAdjst_val) * w + " " + h + "," + w + " " + h + "' fill='transparent'" +
-                                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
-                            }
+                            // if (isFlipV) {
+                            //     result += " <polyline points='" + w + " 0," + ((1 - shapAdjst_val) * w) + " 0," + ((1 - shapAdjst_val) * w) + " " + h + ",0 " + h + "' fill='transparent'" +
+                            //         "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
+                            // } else {
+                            result += " <polyline points='0 0," + (shapAdjst_val) * w + " 0," + (shapAdjst_val) * w + " " + h + "," + w + " " + h + "' fill='transparent'" +
+                                "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
+                            //}
                             if (headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) {
                                 result += "marker-start='url(#markerTriangle_" + shpId + ")' ";
                             }
@@ -2626,11 +3727,11 @@
                         break;
                     case "teardrop":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj1 = 100000 * 96 / 914400;
+                        var adj1 = 100000 * slideFactor;
                         var cnsVal1 = adj1;
-                        var cnsVal2 = 200000 * 96 / 914400;
+                        var cnsVal2 = 200000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj1 = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj1 = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a1, r2, tw, th, sw, sh, dx1, dy1, x1, y1, x2, y2, rd45;
                         if (adj1 < 0) a1 = 0
@@ -2661,11 +3762,11 @@
                         break;
                     case "plaque":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj1 = 16667 * 96 / 914400;
-                        var cnsVal1 = 50000 * 96 / 914400;
-                        var cnsVal2 = 100000 * 96 / 914400;
+                        var adj1 = 16667 * slideFactor;
+                        var cnsVal1 = 50000 * slideFactor;
+                        var cnsVal2 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj1 = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj1 = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a1, x1, x2, y2;
                         if (adj1 < 0) a1 = 0
@@ -2689,7 +3790,7 @@
                         break;
                     case "sun":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj1 = 25000 * refr;
                         var cnstVal1 = 12500 * refr;
                         var cnstVal2 = 46875 * refr;
@@ -2850,7 +3951,7 @@
                         break;
                     case "cube":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj = 25000 * refr;
                         if (shapAdjst !== undefined) {
                             adj = parseInt(shapAdjst.substr(4)) * refr;
@@ -2883,7 +3984,7 @@
                         break;
                     case "bevel":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj = 12500 * refr;
                         if (shapAdjst !== undefined) {
                             adj = parseInt(shapAdjst.substr(4)) * refr;
@@ -2922,7 +4023,7 @@
                         break;
                     case "foldedCorner":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj = 16667 * refr;
                         if (shapAdjst !== undefined) {
                             adj = parseInt(shapAdjst.substr(4)) * refr;
@@ -3055,7 +4156,7 @@
                             " z";
                         if (shapType == "cloudCallout") {
                             var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                            var refr = 96 / 914400;
+                            var refr = slideFactor;
                             var sAdj1, adj1 = -20833 * refr;
                             var sAdj2, adj2 = 62500 * refr;
                             if (shapAdjst_ary !== undefined) {
@@ -3136,7 +4237,7 @@
                         break;
                     case "smileyFace":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj = 4653 * refr;
                         if (shapAdjst !== undefined) {
                             adj = parseInt(shapAdjst.substr(4)) * refr;
@@ -3184,7 +4285,7 @@
                     case "verticalScroll":
                     case "horizontalScroll":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var adj = 12500 * refr;
                         if (shapAdjst !== undefined) {
                             adj = parseInt(shapAdjst.substr(4)) * refr;
@@ -3273,7 +4374,7 @@
                         break;
                     case "wedgeEllipseCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = -20833 * refr;
                         var sAdj2, adj2 = 62500 * refr;
                         if (shapAdjst_ary !== undefined) {
@@ -3289,7 +4390,7 @@
                             }
                         }
                         var d_val;
-                        var cnstVal1 = 100000 * 96 / 914400;
+                        var cnstVal1 = 100000 * slideFactor;
                         var angVal1 = 11 * Math.PI / 180;
                         var ss = Math.min(w, h);
                         var dxPos, dyPos, xPos, yPos, sdx, sdy, pang, stAng, enAng, dx1, dy1, x1, y1, dx2, dy2,
@@ -3353,7 +4454,7 @@
                         break;
                     case "wedgeRectCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = -20833 * refr;
                         var sAdj2, adj2 = 62500 * refr;
                         if (shapAdjst_ary !== undefined) {
@@ -3369,7 +4470,7 @@
                             }
                         }
                         var d_val;
-                        var cnstVal1 = 100000 * 96 / 914400;
+                        var cnstVal1 = 100000 * slideFactor;
                         var dxPos, dyPos, xPos, yPos, dx, dy, dq, ady, adq, dz, xg1, xg2, x1, x2,
                             yg1, yg2, y1, y2, t1, xl, t2, xt, t3, xr, t4, xb, t5, yl, t6, yt, t7, yr, t8, yb,
                             vc = h / 2, hc = w / 2;
@@ -3432,7 +4533,7 @@
                         break;
                     case "wedgeRoundRectCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = -20833 * refr;
                         var sAdj2, adj2 = 62500 * refr;
                         var sAdj3, adj3 = 16667 * refr;
@@ -3452,7 +4553,7 @@
                             }
                         }
                         var d_val;
-                        var cnstVal1 = 100000 * 96 / 914400;
+                        var cnstVal1 = 100000 * slideFactor;
                         var ss = Math.min(w, h);
                         var dxPos, dyPos, xPos, yPos, dq, ady, adq, dz, xg1, xg2, x1, x2, yg1, yg2, y1, y2,
                             t1, xl, t2, xt, t3, xr, t4, xb, t5, yl, t6, yt, t7, yr, t8, yb, u1, u2, v2,
@@ -3530,7 +4631,7 @@
                     case "callout2":
                     case "callout3":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = 18750 * refr;
                         var sAdj2, adj2 = -8333 * refr;
                         var sAdj3, adj3 = 18750 * refr;
@@ -3798,7 +4899,7 @@
                                 break;
                         }
 
-                        console.log("shapType: ", shapType, ",isBorder:", isBorder)
+                        //console.log("shapType: ", shapType, ",isBorder:", isBorder)
                         //if(isBorder){
                         result += "<path d='" + d_val + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
                             "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' />";
@@ -3811,7 +4912,7 @@
                         break;
                     case "leftRightRibbon":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = 50000 * refr;
                         var sAdj2, adj2 = 50000 * refr;
                         var sAdj3, adj3 = 16667 * refr;
@@ -3892,27 +4993,27 @@
                     case "ribbon":
                     case "ribbon2":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 16667 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
+                        var sAdj1, adj1 = 16667 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var d_val;
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal2 = 33333 * 96 / 914400;
-                        var cnstVal3 = 75000 * 96 / 914400;
-                        var cnstVal4 = 100000 * 96 / 914400;
-                        var cnstVal5 = 200000 * 96 / 914400;
-                        var cnstVal6 = 400000 * 96 / 914400;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal2 = 33333 * slideFactor;
+                        var cnstVal3 = 75000 * slideFactor;
+                        var cnstVal4 = 100000 * slideFactor;
+                        var cnstVal5 = 200000 * slideFactor;
+                        var cnstVal6 = 400000 * slideFactor;
                         var hc = w / 2, t = 0, l = 0, b = h, r = w, wd8 = w / 8, wd32 = w / 32;
                         var a1, a2, x10, dx2, x2, x9, x3, x8, x5, x6, x4, x7, y1, y2, y4, y3, hR, y6;
                         a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal2) ? cnstVal2 : adj1;
@@ -4014,27 +5115,27 @@
                     case "doubleWave":
                     case "wave":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = (shapType == "doubleWave") ? 6250 * 96 / 914400 : 12500 * 96 / 914400;
+                        var sAdj1, adj1 = (shapType == "doubleWave") ? 6250 * slideFactor : 12500 * slideFactor;
                         var sAdj2, adj2 = 0;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var d_val;
-                        var cnstVal2 = -10000 * 96 / 914400;
-                        var cnstVal3 = 50000 * 96 / 914400;
-                        var cnstVal4 = 100000 * 96 / 914400;
+                        var cnstVal2 = -10000 * slideFactor;
+                        var cnstVal3 = 50000 * slideFactor;
+                        var cnstVal4 = 100000 * slideFactor;
                         var hc = w / 2, t = 0, l = 0, b = h, r = w, wd8 = w / 8, wd32 = w / 32;
                         if (shapType == "doubleWave") {
-                            var cnstVal1 = 12500 * 96 / 914400;
+                            var cnstVal1 = 12500 * slideFactor;
                             var a1, a2, y1, dy2, y2, y3, y4, y5, y6, of2, dx2, x2, dx8, x8, dx3, x3, dx4, x4, x5, x6, x7, x9, x15, x10, x11, x12, x13, x14;
                             a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal1) ? cnstVal1 : adj1;
                             a2 = (adj2 < cnstVal2) ? cnstVal2 : (adj2 > cnstVal4) ? cnstVal4 : adj2;
@@ -4073,7 +5174,7 @@
                                 " C" + x11 + "," + y6 + " " + x10 + "," + y5 + " " + x9 + "," + y4 +
                                 " z";
                         } else if (shapType == "wave") {
-                            var cnstVal5 = 20000 * 96 / 914400;
+                            var cnstVal5 = 20000 * slideFactor;
                             var a1, a2, y1, dy2, y2, y3, y4, y5, y6, of2, dx2, x2, dx5, x5, dx3, x3, x4, x6, x10, x7, x8;
                             a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal5) ? cnstVal5 : adj1;
                             a2 = (adj2 < cnstVal2) ? cnstVal2 : (adj2 > cnstVal4) ? cnstVal4 : adj2;
@@ -4110,29 +5211,29 @@
                     case "ellipseRibbon":
                     case "ellipseRibbon2":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var sAdj3, adj3 = 12500 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var sAdj3, adj3 = 12500 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var d_val;
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal3 = 75000 * 96 / 914400;
-                        var cnstVal4 = 100000 * 96 / 914400;
-                        var cnstVal5 = 200000 * 96 / 914400;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal3 = 75000 * slideFactor;
+                        var cnstVal4 = 100000 * slideFactor;
+                        var cnstVal5 = 200000 * slideFactor;
                         var hc = w / 2, t = 0, l = 0, b = h, r = w, wd8 = w / 8;
                         var a1, a2, q10, q11, q12, minAdj3, a3, dx2, x2, x3, x4, x5, x6, dy1, f1, q1, q2,
                             cx1, cx2, q1, dy3, q3, q4, q5, rh, q8, cx4, q9, cx5;
@@ -4271,13 +5372,13 @@
                     case "curvedConnector3":
                     case "curvedConnector4":
                     case "curvedConnector5":
-                        if (isFlipV) {
-                            result += "<line x1='" + w + "' y1='0' x2='0' y2='" + h + "' stroke='" + border.color +
-                                "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
-                        } else {
-                            result += "<line x1='0' y1='0' x2='" + w + "' y2='" + h + "' stroke='" + border.color +
-                                "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
-                        }
+                        // if (isFlipV) {
+                        //     result += "<line x1='" + w + "' y1='0' x2='0' y2='" + h + "' stroke='" + border.color +
+                        //         "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
+                        // } else {
+                        result += "<line x1='0' y1='0' x2='" + w + "' y2='" + h + "' stroke='" + border.color +
+                            "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
+                        //}
                         if (headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) {
                             result += "marker-start='url(#markerTriangle_" + shpId + ")' ";
                         }
@@ -4436,24 +5537,24 @@
                         break;
                     case "quadArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 22500 * 96 / 914400;
-                        var sAdj2, adj2 = 22500 * 96 / 914400;
-                        var sAdj3, adj3 = 22500 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 22500 * slideFactor;
+                        var sAdj2, adj2 = 22500 * slideFactor;
+                        var sAdj3, adj3 = 22500 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4515,24 +5616,24 @@
                         break;
                     case "leftRightUpArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4587,24 +5688,24 @@
                         break;
                     case "leftUpArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4652,24 +5753,24 @@
                         break;
                     case "bentUpArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4710,27 +5811,27 @@
                         break;
                     case "bentArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 43750 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 43750 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4787,31 +5888,31 @@
                         break;
                     case "uturnArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 43750 * 96 / 914400;
-                        var sAdj5, adj5 = 75000 * 96 / 914400;
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 43750 * slideFactor;
+                        var sAdj5, adj5 = 75000 * slideFactor;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj5") {
                                     sAdj5 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj5 = parseInt(sAdj5.substr(4)) * 96 / 914400;
+                                    adj5 = parseInt(sAdj5.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4884,20 +5985,20 @@
                         break;
                     case "stripedRightArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 50000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var cnstVal1 = 100000 * 96 / 914400;
-                        var cnstVal2 = 200000 * 96 / 914400;
-                        var cnstVal3 = 84375 * 96 / 914400;
+                        var sAdj1, adj1 = 50000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        var cnstVal2 = 200000 * slideFactor;
+                        var cnstVal3 = 84375 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4943,19 +6044,19 @@
                         break;
                     case "notchedRightArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 50000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var cnstVal1 = 100000 * 96 / 914400;
-                        var cnstVal2 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 50000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
+                        var cnstVal2 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -4989,10 +6090,10 @@
                         break;
                     case "homePlate":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 50000 * 96 / 914400;
-                        var cnstVal1 = 100000 * 96 / 914400;
+                        var adj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a, x1, dx1, maxAdj, vc = h / 2;
                         var minWH = Math.min(w, h);
@@ -5014,10 +6115,10 @@
                         break;
                     case "chevron":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 50000 * 96 / 914400;
-                        var cnstVal1 = 100000 * 96 / 914400;
+                        var adj = 50000 * slideFactor;
+                        var cnstVal1 = 100000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var a, x1, dx1, x2, maxAdj, vc = h / 2;
                         var minWH = Math.min(w, h);
@@ -5041,28 +6142,28 @@
                         break;
                     case "rightArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 64977 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 64977 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5106,28 +6207,28 @@
                         break;
                     case "downArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 64977 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 64977 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5172,28 +6273,28 @@
                         break;
                     case "leftArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 64977 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 64977 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5238,28 +6339,28 @@
                         break;
                     case "upArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 64977 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 64977 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5304,28 +6405,28 @@
                         break;
                     case "leftRightArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 25000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var sAdj4, adj4 = 48123 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 25000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var sAdj4, adj4 = 48123 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5377,28 +6478,28 @@
                         break;
                     case "quadArrowCallout":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 18515 * 96 / 914400;
-                        var sAdj2, adj2 = 18515 * 96 / 914400;
-                        var sAdj3, adj3 = 18515 * 96 / 914400;
-                        var sAdj4, adj4 = 48123 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var sAdj1, adj1 = 18515 * slideFactor;
+                        var sAdj2, adj2 = 18515 * slideFactor;
+                        var sAdj3, adj3 = 18515 * slideFactor;
+                        var sAdj4, adj4 = 48123 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj4") {
                                     sAdj4 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj4 = parseInt(sAdj4.substr(4)) * 96 / 914400;
+                                    adj4 = parseInt(sAdj4.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5472,23 +6573,23 @@
                         break;
                     case "curvedDownArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5561,29 +6662,29 @@
                         break;
                     case "curvedLeftArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var vc = h / 2, hc = w / 2, hd2 = h / 2, r = w, b = h, l = 0, t = 0, c3d4 = 270, cd2 = 180, cd4 = 90;
                         var ss = Math.min(w, h);
-                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, idx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy, y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
+                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, iDx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy, y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
 
                         maxAdj2 = cnstVal1 * h / ss;
                         a2 = (adj2 < 0) ? 0 : (adj2 > maxAdj2) ? maxAdj2 : adj2;
@@ -5597,8 +6698,8 @@
                         q9 = th * th;
                         q10 = q8 - q9;
                         q11 = Math.sqrt(q10);
-                        idx = q11 * w / q7;
-                        maxAdj3 = cnstVal2 * idx / ss;
+                        iDx = q11 * w / q7;
+                        maxAdj3 = cnstVal2 * iDx / ss;
                         a3 = (adj3 < 0) ? 0 : (adj3 > maxAdj3) ? maxAdj3 : adj3;
                         ah = ss * a3 / cnstVal2;
                         y3 = hR + th;
@@ -5618,10 +6719,10 @@
                         x1 = l + ah;
                         swAng = Math.atan(dy / ah);
                         mswAng = -swAng;
-                        ix = l + idx;
+                        ix = l + iDx;
                         iy = (hR + y3) / 2;
                         q12 = th / 2;
-                        dang2 = Math.atan(q12 / idx);
+                        dang2 = Math.atan(q12 / iDx);
                         swAng2 = dang2 - swAng;
                         swAng3 = swAng + dang2;
                         stAng3 = -dang2;
@@ -5652,29 +6753,30 @@
                         break;
                     case "curvedRightArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var vc = h / 2, hc = w / 2, hd2 = h / 2, r = w, b = h, l = 0, t = 0, c3d4 = 270, cd2 = 180, cd4 = 90;
                         var ss = Math.min(w, h);
-                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, idx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy, y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, stAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
+                        var maxAdj2, a2, a1, th, aw, q1, hR, q7, q8, q9, q10, q11, iDx, maxAdj3, a3, ah, y3, q2, q3, q4, q5, dy,
+                            y5, y7, q6, dh, y4, y8, aw2, y6, x1, swAng, stAng, mswAng, ix, iy, q12, dang2, swAng2, swAng3, stAng3;
 
                         maxAdj2 = cnstVal1 * h / ss;
                         a2 = (adj2 < 0) ? 0 : (adj2 > maxAdj2) ? maxAdj2 : adj2;
@@ -5688,8 +6790,8 @@
                         q9 = th * th;
                         q10 = q8 - q9;
                         q11 = Math.sqrt(q10);
-                        idx = q11 * w / q7;
-                        maxAdj3 = cnstVal2 * idx / ss;
+                        iDx = q11 * w / q7;
+                        maxAdj3 = cnstVal2 * iDx / ss;
                         a3 = (adj3 < 0) ? 0 : (adj3 > maxAdj3) ? maxAdj3 : adj3;
                         ah = ss * a3 / cnstVal2;
                         y3 = hR + th;
@@ -5710,10 +6812,10 @@
                         swAng = Math.atan(dy / ah);
                         stAng = Math.PI + 0 - swAng;
                         mswAng = -swAng;
-                        ix = r - idx;
+                        ix = r - iDx;
                         iy = (hR + y3) / 2;
                         q12 = th / 2;
-                        dang2 = Math.atan(q12 / idx);
+                        dang2 = Math.atan(q12 / iDx);
                         swAng2 = dang2 - Math.PI / 2;
                         swAng3 = Math.PI / 2 + dang2;
                         stAng3 = Math.PI - dang2;
@@ -5743,23 +6845,23 @@
                         break;
                     case "curvedUpArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 25000 * 96 / 914400;
-                        var sAdj2, adj2 = 50000 * 96 / 914400;
-                        var sAdj3, adj3 = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var sAdj1, adj1 = 25000 * slideFactor;
+                        var sAdj2, adj2 = 50000 * slideFactor;
+                        var sAdj3, adj3 = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj2 = parseInt(sAdj2.substr(4)) * 96 / 914400;
+                                    adj2 = parseInt(sAdj2.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj3") {
                                     sAdj3 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj3 = parseInt(sAdj3.substr(4)) * 96 / 914400;
+                                    adj3 = parseInt(sAdj3.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -5863,27 +6965,27 @@
                                 adj1 = parseInt(sAdj1.substr(4));
                             }
                         }
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
-                        var cnstVal3 = 200000 * 96 / 914400;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
+                        var cnstVal3 = 200000 * slideFactor;
                         var dVal;
                         var hc = w / 2, vc = h / 2, hd2 = h / 2;
                         if (shapType == "mathNotEqual") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
                                 adj2 = 110 * Math.PI / 180;
-                                adj3 = 11760 * 96 / 914400;
+                                adj3 = 11760 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
                                 adj2 = (adj2 / 60000) * Math.PI / 180;
-                                adj3 = adj3 * 96 / 914400;
+                                adj3 = adj3 * slideFactor;
                             }
                             var a1, crAng, a2a1, maxAdj3, a3, dy1, dy2, dx1, x1, x8, y2, y3, y1, y4,
                                 cadj2, xadj2, len, bhw, bhw2, x7, dx67, x6, dx57, x5, dx47, x4, dx37,
                                 x3, dx27, x2, rx7, rx6, rx5, rx4, rx3, rx2, dx7, rxt, lxt, rx, lx,
                                 dy3, dy4, ry, ly, dlx, drx, dly, dry, xC1, xC2, yC1, yC2, yC3, yC4;
                             var angVal1 = 70 * Math.PI / 180, angVal2 = 110 * Math.PI / 180;
-                            var cnstVal4 = 73490 * 96 / 914400;
+                            var cnstVal4 = 73490 * slideFactor;
                             //var cd4 = 90;
                             a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal1) ? cnstVal1 : adj1;
                             crAng = (adj2 < angVal1) ? angVal1 : (adj2 > angVal2) ? angVal2 : adj2;
@@ -5964,19 +7066,19 @@
                                 " z";
                         } else if (shapType == "mathDivide") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
-                                adj2 = 5880 * 96 / 914400;
-                                adj3 = 11760 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
+                                adj2 = 5880 * slideFactor;
+                                adj3 = 11760 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
-                                adj2 = adj2 * 96 / 914400;
-                                adj3 = adj3 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
+                                adj2 = adj2 * slideFactor;
+                                adj3 = adj3 * slideFactor;
                             }
                             var a1, ma1, ma3h, ma3w, maxAdj3, a3, m4a3, maxAdj2, a2, dy1, yg, rad, dx1,
                                 y3, y4, a, y2, y1, y5, x1, x3, x2;
-                            var cnstVal4 = 1000 * 96 / 914400;
-                            var cnstVal5 = 36745 * 96 / 914400;
-                            var cnstVal6 = 73490 * 96 / 914400;
+                            var cnstVal4 = 1000 * slideFactor;
+                            var cnstVal5 = 36745 * slideFactor;
+                            var cnstVal6 = 73490 * slideFactor;
                             a1 = (adj1 < cnstVal4) ? cnstVal4 : (adj1 > cnstVal5) ? cnstVal5 : adj1;
                             ma1 = -a1;
                             ma3h = (cnstVal6 + ma1) / 4;
@@ -6017,14 +7119,14 @@
                                 " z";
                         } else if (shapType == "mathEqual") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
-                                adj2 = 11760 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
+                                adj2 = 11760 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
-                                adj2 = adj2 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
+                                adj2 = adj2 * slideFactor;
                             }
-                            var cnstVal5 = 36745 * 96 / 914400;
-                            var cnstVal6 = 73490 * 96 / 914400;
+                            var cnstVal5 = 36745 * slideFactor;
+                            var cnstVal6 = 73490 * slideFactor;
                             var a1, a2a1, mAdj2, a2, dy1, dy2, dx1, y2, y3, y1, y4, x1, x2, yC1, yC2;
 
                             a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal5) ? cnstVal5 : adj1;
@@ -6054,11 +7156,11 @@
                                 " z";
                         } else if (shapType == "mathMinus") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
                             }
-                            var cnstVal6 = 73490 * 96 / 914400;
+                            var cnstVal6 = 73490 * slideFactor;
                             var a1, dy1, dx1, y1, y2, x1, x2;
                             a1 = (adj1 < 0) ? 0 : (adj1 > cnstVal2) ? cnstVal2 : adj1;
                             dy1 = h * a1 / cnstVal3;
@@ -6075,11 +7177,11 @@
                                 " z";
                         } else if (shapType == "mathMultiply") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
                             }
-                            var cnstVal6 = 51965 * 96 / 914400;
+                            var cnstVal6 = 51965 * slideFactor;
                             var a1, th, a, sa, ca, ta, dl, rw, lM, xM, yM, dxAM, dyAM,
                                 xA, yA, xB, yB, xBC, yBC, yC, xD, xE, yFE, xFE, xF, xL, yG, yH, yI, xC2, yC3;
                             var ss = Math.min(w, h);
@@ -6130,11 +7232,11 @@
                                 " z";
                         } else if (shapType == "mathPlus") {
                             if (shapAdjst_ary === undefined) {
-                                adj1 = 23520 * 96 / 914400;
+                                adj1 = 23520 * slideFactor;
                             } else {
-                                adj1 = adj1 * 96 / 914400;
+                                adj1 = adj1 * slideFactor;
                             }
-                            var cnstVal6 = 73490 * 96 / 914400;
+                            var cnstVal6 = 73490 * slideFactor;
                             var ss = Math.min(w, h);
                             var a1, dx1, dy1, dx2, x1, x2, x3, x4, y1, y2, y3, y4;
 
@@ -6174,16 +7276,16 @@
                     case "flowChartMagneticDisk":
                     case "flowChartMagneticDrum":
                         var shapAdjst = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd", "attrs", "fmla"]);
-                        var adj = 25000 * 96 / 914400;
-                        var cnstVal1 = 50000 * 96 / 914400;
-                        var cnstVal2 = 200000 * 96 / 914400;
+                        var adj = 25000 * slideFactor;
+                        var cnstVal1 = 50000 * slideFactor;
+                        var cnstVal2 = 200000 * slideFactor;
                         if (shapAdjst !== undefined) {
-                            adj = parseInt(shapAdjst.substr(4)) * 96 / 914400;
+                            adj = parseInt(shapAdjst.substr(4)) * slideFactor;
                         }
                         var ss = Math.min(w, h);
                         var maxAdj, a, y1, y2, y3, dVal;
                         if (shapType == "flowChartMagneticDisk" || shapType == "flowChartMagneticDrum") {
-                            adj = 50000 * 96 / 914400;
+                            adj = 50000 * slideFactor;
                         }
                         maxAdj = cnstVal1 * h / ss;
                         a = (adj < 0) ? 0 : (adj > maxAdj) ? maxAdj : adj;
@@ -6208,7 +7310,7 @@
                         break;
                     case "swooshArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var refr = 96 / 914400;
+                        var refr = slideFactor;
                         var sAdj1, adj1 = 25000 * refr;
                         var sAdj2, adj2 = 16667 * refr;
                         if (shapAdjst_ary !== undefined) {
@@ -6274,17 +7376,17 @@
                         break;
                     case "circularArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 12500 * 96 / 914400;
+                        var sAdj1, adj1 = 12500 * slideFactor;
                         var sAdj2, adj2 = (1142319 / 60000) * Math.PI / 180;
                         var sAdj3, adj3 = (20457681 / 60000) * Math.PI / 180;
                         var sAdj4, adj4 = (10800000 / 60000) * Math.PI / 180;
-                        var sAdj5, adj5 = 12500 * 96 / 914400;
+                        var sAdj5, adj5 = 12500 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
                                     adj2 = (parseInt(sAdj2.substr(4)) / 60000) * Math.PI / 180;
@@ -6296,7 +7398,7 @@
                                     adj4 = (parseInt(sAdj4.substr(4)) / 60000) * Math.PI / 180;
                                 } else if (sAdj_name == "adj5") {
                                     sAdj5 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj5 = parseInt(sAdj5.substr(4)) * 96 / 914400;
+                                    adj5 = parseInt(sAdj5.substr(4)) * slideFactor;
                                 }
                             }
                         }
@@ -6312,8 +7414,8 @@
                             dxC1, v12, dxC2, adyI, v13, v14, dyC1, v15, dyC2, v16, v17, v18, v19, v20, v21, v22, dxC, dyC,
                             sdxC, sdyC, xC, yC, ist0, ist1, istAng, isw1, isw2, iswAng, p1, p2, p3, p4, p5, xGp, yGp,
                             xBp, yBp, en0, en1, en2, sw0, sw1, swAng;
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         var rdAngVal1 = (1 / 60000) * Math.PI / 180;
                         var rdAngVal2 = (21599999 / 60000) * Math.PI / 180;
                         var rdAngVal3 = 2 * Math.PI;
@@ -6535,17 +7637,17 @@
                         break;
                     case "leftCircularArrow":
                         var shapAdjst_ary = getTextByPathList(node, ["p:spPr", "a:prstGeom", "a:avLst", "a:gd"]);
-                        var sAdj1, adj1 = 12500 * 96 / 914400;
+                        var sAdj1, adj1 = 12500 * slideFactor;
                         var sAdj2, adj2 = (-1142319 / 60000) * Math.PI / 180;
                         var sAdj3, adj3 = (1142319 / 60000) * Math.PI / 180;
                         var sAdj4, adj4 = (10800000 / 60000) * Math.PI / 180;
-                        var sAdj5, adj5 = 12500 * 96 / 914400;
+                        var sAdj5, adj5 = 12500 * slideFactor;
                         if (shapAdjst_ary !== undefined) {
                             for (var i = 0; i < shapAdjst_ary.length; i++) {
                                 var sAdj_name = getTextByPathList(shapAdjst_ary[i], ["attrs", "name"]);
                                 if (sAdj_name == "adj1") {
                                     sAdj1 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj1 = parseInt(sAdj1.substr(4)) * 96 / 914400;
+                                    adj1 = parseInt(sAdj1.substr(4)) * slideFactor;
                                 } else if (sAdj_name == "adj2") {
                                     sAdj2 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
                                     adj2 = (parseInt(sAdj2.substr(4)) / 60000) * Math.PI / 180;
@@ -6557,14 +7659,14 @@
                                     adj4 = (parseInt(sAdj4.substr(4)) / 60000) * Math.PI / 180;
                                 } else if (sAdj_name == "adj5") {
                                     sAdj5 = getTextByPathList(shapAdjst_ary[i], ["attrs", "fmla"]);
-                                    adj5 = parseInt(sAdj5.substr(4)) * 96 / 914400;
+                                    adj5 = parseInt(sAdj5.substr(4)) * slideFactor;
                                 }
                             }
                         }
                         var vc = h / 2, hc = w / 2, r = w, b = h, l = 0, t = 0, wd2 = w / 2, hd2 = h / 2;
                         var ss = Math.min(w, h);
-                        var cnstVal1 = 25000 * 96 / 914400;
-                        var cnstVal2 = 100000 * 96 / 914400;
+                        var cnstVal1 = 25000 * slideFactor;
+                        var cnstVal2 = 100000 * slideFactor;
                         var rdAngVal1 = (1 / 60000) * Math.PI / 180;
                         var rdAngVal2 = (21599999 / 60000) * Math.PI / 180;
                         var rdAngVal3 = 2 * Math.PI;
@@ -6809,223 +7911,311 @@
 
                 result += "</svg>";
 
-                result += "<div class='block content " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) +
+                result += "<div class='block " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) + //block content
+                    " " + getContentDir(node, type, warpObj) +
                     "' _id='" + id + "' _idx='" + idx + "' _type='" + type + "' _name='" + name +
                     "' style='" +
-                    getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
+                    getPosition(slideXfrmNode, pNode, slideLayoutXfrmNode, slideMasterXfrmNode, sType) +
                     getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
                     " z-index: " + order + ";" +
-                    "transform: rotate(" + txtRotate + "deg);" +
+                    "transform: rotate(" + ((txtRotate !== undefined) ? txtRotate : 0) + "deg);" +
                     "'>";
 
                 // TextBody
-                if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                if (node["p:txBody"] !== undefined && (isUserDrawnBg === undefined || isUserDrawnBg === true)) {
+                    if (type != "diagram" && type != "textBox") {
+                        type = "shape";
+                    }
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj); //type='shape'
                 }
                 result += "</div>";
             } else if (custShapType !== undefined) {
                 //custGeom here - Amir ///////////////////////////////////////////////////////
                 //http://officeopenxml.com/drwSp-custGeom.php
                 var pathLstNode = getTextByPathList(custShapType, ["a:pathLst"]);
-                var pathNode = getTextByPathList(pathLstNode, ["a:path", "attrs"]);
-                var maxX = parseInt(pathNode["w"]) * 96 / 914400;
-                var maxY = parseInt(pathNode["h"]) * 96 / 914400;
+                var pathNodes = getTextByPathList(pathLstNode, ["a:path"]);
+                //var pathNode = getTextByPathList(pathLstNode, ["a:path", "attrs"]);
+                var maxX = parseInt(pathNodes["attrs"]["w"]);// * slideFactor;
+                var maxY = parseInt(pathNodes["attrs"]["h"]);// * slideFactor;
+                var cX = (1 / maxX) * w;
+                var cY = (1 / maxY) * h;
                 //console.log("w = "+w+"\nh = "+h+"\nmaxX = "+maxX +"\nmaxY = " + maxY);
                 //cheke if it is close shape
-                var closeNode = getTextByPathList(pathLstNode, ["a:path", "a:close"]);
-                var startPoint = getTextByPathList(pathLstNode, ["a:path", "a:moveTo", "a:pt", "attrs"]);
-                var spX = parseInt(startPoint["x"]) * 96 / 914400;
-                var spY = parseInt(startPoint["y"]) * 96 / 914400;
-                var d = "M" + spX + "," + spY;
-                var pathNodes = getTextByPathList(pathLstNode, ["a:path"]);
-                var lnToNodes = pathNodes["a:lnTo"];
-                var cubicBezToNodes = pathNodes["a:cubicBezTo"];
-                var arcToNodes = pathNodes["a:arcTo"];
-                var sortblAry = [];
-                if (lnToNodes !== undefined) {
-                    Object.keys(lnToNodes).forEach(function (key) {
-                        var lnToPtNode = lnToNodes[key]["a:pt"];
-                        if (lnToPtNode !== undefined) {
-                            Object.keys(lnToPtNode).forEach(function (key2) {
+
+                //console.log("custShapType : ", custShapType, ", pathLstNode: ", pathLstNode, ", node: ", node);//, ", y:", y, ", w:", w, ", h:", h);
+
+                var moveToNode = getTextByPathList(pathNodes, ["a:moveTo"]);
+                var total_shapes = moveToNode.length;
+
+                var lnToNodes = pathNodes["a:lnTo"]; //total a:pt : 1
+                var cubicBezToNodes = pathNodes["a:cubicBezTo"]; //total a:pt : 3
+                var arcToNodes = pathNodes["a:arcTo"]; //total a:pt : 0?1? ; attrs: ~4 ()
+                var closeNode = getTextByPathList(pathNodes, ["a:close"]); //total a:pt : 0
+                //quadBezTo //total a:pt : 2 - TODO
+                //console.log("ia moveToNode array: ", Array.isArray(moveToNode))
+                if (!Array.isArray(moveToNode)) {
+                    moveToNode = [moveToNode];
+                }
+                //console.log("ia moveToNode array: ", Array.isArray(moveToNode))
+
+                var multiSapeAry = [];
+                if (moveToNode.length > 0) {
+                    //a:moveTo
+                    Object.keys(moveToNode).forEach(function (key) {
+                        var moveToPtNode = moveToNode[key]["a:pt"];
+                        if (moveToPtNode !== undefined) {
+                            Object.keys(moveToPtNode).forEach(function (key2) {
                                 var ptObj = {};
-                                var lnToNoPt = lnToPtNode[key2];
-                                var ptX = lnToNoPt["attrs", "x"];
-                                var ptY = lnToNoPt["attrs", "y"];
-                                var ptOrdr = lnToNoPt["attrs", "order"];
-                                ptObj.type = "lnto";
+                                var moveToNoPt = moveToPtNode[key2];
+                                var spX = moveToNoPt["attrs", "x"];//parseInt(moveToNoPt["attrs", "x"]) * slideFactor;
+                                var spY = moveToNoPt["attrs", "y"];//parseInt(moveToNoPt["attrs", "y"]) * slideFactor;
+                                var ptOrdr = moveToNoPt["attrs", "order"];
+                                ptObj.type = "movto";
                                 ptObj.order = ptOrdr;
-                                ptObj.x = ptX;
-                                ptObj.y = ptY;
-                                sortblAry.push(ptObj);
+                                ptObj.x = spX;
+                                ptObj.y = spY;
+                                multiSapeAry.push(ptObj);
                                 //console.log(key2, lnToNoPt);
 
                             });
                         }
                     });
-
-                }
-                if (cubicBezToNodes !== undefined) {
-                    Object.keys(cubicBezToNodes).forEach(function (key) {
-                        //console.log("cubicBezTo["+key+"]:");
-                        var cubicBezToPtNodes = cubicBezToNodes[key]["a:pt"];
-                        if (cubicBezToPtNodes !== undefined) {
-                            Object.keys(cubicBezToPtNodes).forEach(function (key2) {
-                                //console.log("cubicBezTo["+key+"]pt["+key2+"]:");
-                                var cubBzPts = cubicBezToPtNodes[key2];
-                                Object.keys(cubBzPts).forEach(function (key3) {
-                                    //console.log(key3, cubBzPts[key3]);
+                    //a:lnTo
+                    if (lnToNodes !== undefined) {
+                        Object.keys(lnToNodes).forEach(function (key) {
+                            var lnToPtNode = lnToNodes[key]["a:pt"];
+                            if (lnToPtNode !== undefined) {
+                                Object.keys(lnToPtNode).forEach(function (key2) {
                                     var ptObj = {};
-                                    var cubBzPt = cubBzPts[key3];
-                                    var ptX = cubBzPt["attrs", "x"];
-                                    var ptY = cubBzPt["attrs", "y"];
-                                    var ptOrdr = cubBzPt["attrs", "order"];
-                                    ptObj.type = "cubicBezTo";
+                                    var lnToNoPt = lnToPtNode[key2];
+                                    var ptX = lnToNoPt["attrs", "x"];
+                                    var ptY = lnToNoPt["attrs", "y"];
+                                    var ptOrdr = lnToNoPt["attrs", "order"];
+                                    ptObj.type = "lnto";
                                     ptObj.order = ptOrdr;
                                     ptObj.x = ptX;
                                     ptObj.y = ptY;
-                                    sortblAry.push(ptObj);
+                                    multiSapeAry.push(ptObj);
+                                    //console.log(key2, lnToNoPt);
                                 });
-                            });
+                            }
+                        });
+                    }
+                    //a:cubicBezTo
+                    if (cubicBezToNodes !== undefined) {
+
+                        var cubicBezToPtNodesAry = [];
+                        //console.log("cubicBezToNodes: ", cubicBezToNodes, ", is arry: ", Array.isArray(cubicBezToNodes))
+                        if (!Array.isArray(cubicBezToNodes)) {
+                            cubicBezToNodes = [cubicBezToNodes];
                         }
+                        Object.keys(cubicBezToNodes).forEach(function (key) {
+                            //console.log("cubicBezTo[" + key + "]:");
+                            cubicBezToPtNodesAry.push(cubicBezToNodes[key]["a:pt"]);
+                        });
+
+                        //console.log("cubicBezToNodes: ", cubicBezToPtNodesAry)
+                        cubicBezToPtNodesAry.forEach(function (key2) {
+                            //console.log("cubicBezToPtNodesAry: key2 : ", key2)
+                            var nodeObj = {};
+                            nodeObj.type = "cubicBezTo";
+                            nodeObj.order = key2[0]["attrs"]["order"];
+                            var pts_ary = [];
+                            key2.forEach(function (pt) {
+                                var pt_obj = {
+                                    x: pt["attrs"]["x"],
+                                    y: pt["attrs"]["y"]
+                                }
+                                pts_ary.push(pt_obj)
+                            })
+                            nodeObj.cubBzPt = pts_ary;//key2;
+                            multiSapeAry.push(nodeObj);
+                        });
+                    }
+                    //a:arcTo
+                    if (arcToNodes !== undefined) {
+                        var arcToNodesAttrs = arcToNodes["attrs"];
+                        var arcOrder = arcToNodesAttrs["order"];
+                        var hR = arcToNodesAttrs["hR"];
+                        var wR = arcToNodesAttrs["wR"];
+                        var stAng = arcToNodesAttrs["stAng"];
+                        var swAng = arcToNodesAttrs["swAng"];
+                        var shftX = 0;
+                        var shftY = 0;
+                        var arcToPtNode = getTextByPathList(arcToNodes, ["a:pt", "attrs"]);
+                        if (arcToPtNode !== undefined) {
+                            shftX = arcToPtNode["x"];
+                            shftY = arcToPtNode["y"];
+                            //console.log("shftX: ",shftX," shftY: ",shftY)
+                        }
+                        var ptObj = {};
+                        ptObj.type = "arcTo";
+                        ptObj.order = arcOrder;
+                        ptObj.hR = hR;
+                        ptObj.wR = wR;
+                        ptObj.stAng = stAng;
+                        ptObj.swAng = swAng;
+                        ptObj.shftX = shftX;
+                        ptObj.shftY = shftY;
+                        multiSapeAry.push(ptObj);
+
+                    }
+                    //a:quadBezTo - TODO
+
+                    //a:close
+                    if (closeNode !== undefined) {
+
+                        if (!Array.isArray(closeNode)) {
+                            closeNode = [closeNode];
+                        }
+                        // Object.keys(closeNode).forEach(function (key) {
+                        //     //console.log("cubicBezTo[" + key + "]:");
+                        //     cubicBezToPtNodesAry.push(closeNode[key]["a:pt"]);
+                        // });
+                        Object.keys(closeNode).forEach(function (key) {
+                            //console.log("custShapType >> closeNode: key: ", key);
+                            var clsAttrs = closeNode[key]["attrs"];
+                            //var clsAttrs = closeNode["attrs"];
+                            var clsOrder = clsAttrs["order"];
+                            var ptObj = {};
+                            ptObj.type = "close";
+                            ptObj.order = clsOrder;
+                            multiSapeAry.push(ptObj);
+
+                        });
+
+                    }
+
+                    // console.log("custShapType >> multiSapeAry: ", multiSapeAry);
+
+                    multiSapeAry.sort(function (a, b) {
+                        return a.order - b.order;
                     });
-                }
-                if (arcToNodes !== undefined) {
-                    var arcToNodesAttrs = arcToNodes["attrs"];
-                    var arcOrder = arcToNodesAttrs["order"];
-                    var hR = arcToNodesAttrs["hR"];
-                    var wR = arcToNodesAttrs["wR"];
-                    var stAng = arcToNodesAttrs["stAng"];
-                    var swAng = arcToNodesAttrs["swAng"];
-                    var shftX = 0;
-                    var shftY = 0;
-                    var arcToPtNode = getTextByPathList(arcToNodes, ["a:pt", "attrs"]);
-                    if (arcToPtNode !== undefined) {
-                        shftX = arcToPtNode["x"];
-                        shftY = arcToPtNode["y"];
-                        //console.log("shftX: ",shftX," shftY: ",shftY)
-                    }
-                    var ptObj = {};
-                    ptObj.type = "arcTo";
-                    ptObj.order = arcOrder;
-                    ptObj.hR = hR;
-                    ptObj.wR = wR;
-                    ptObj.stAng = stAng;
-                    ptObj.swAng = swAng;
-                    ptObj.shftX = shftX;
-                    ptObj.shftY = shftY;
-                    sortblAry.push(ptObj);
 
-                }
-                var sortByOrder = sortblAry.slice(0);
-                sortByOrder.sort(function (a, b) {
-                    return a.order - b.order;
-                });
-                //console.log(sortByOrder);
-                var k = 0;
-                while (k < sortByOrder.length) {
-                    if (sortByOrder[k].type == "lnto") {
-                        var Lx = parseInt(sortByOrder[k].x) * 96 / 914400;
-                        var Ly = parseInt(sortByOrder[k].y) * 96 / 914400;
-                        d += "L" + Lx + "," + Ly;
+                    //console.log("custShapType >>sorted  multiSapeAry: ");
+                    //console.log(multiSapeAry);
+                    var k = 0;
+                    var isClose = false;
+                    var d = "";
+                    while (k < multiSapeAry.length) {
+
+                        if (multiSapeAry[k].type == "movto") {
+                            //start point
+                            var spX = parseInt(multiSapeAry[k].x) * cX;//slideFactor;
+                            var spY = parseInt(multiSapeAry[k].y) * cY;//slideFactor;
+                            // if (d == "") {
+                            //     d = "M" + spX + "," + spY;
+                            // } else {
+                            //     //shape without close : then close the shape and start new path
+                            //     result += "<path d='" + d + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            //         "' stroke='" + ((border === undefined) ? "" : border.color) + "' stroke-width='" + ((border === undefined) ? "" : border.width) + "' stroke-dasharray='" + ((border === undefined) ? "" : border.strokeDasharray) + "' ";
+                            //     result += "/>";
+
+                            //     if (headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) {
+                            //         result += "marker-start='url(#markerTriangle_" + shpId + ")' ";
+                            //     }
+                            //     if (tailEndNodeAttrs !== undefined && (tailEndNodeAttrs["type"] === "triangle" || tailEndNodeAttrs["type"] === "arrow")) {
+                            //         result += "marker-end='url(#markerTriangle_" + shpId + ")' ";
+                            //     }
+                            //     result += "/>";
+
+                            //     d = "M" + spX + "," + spY;
+                            //     isClose = true;
+                            // }
+
+                            d += " M" + spX + "," + spY;
+
+                        } else if (multiSapeAry[k].type == "lnto") {
+                            var Lx = parseInt(multiSapeAry[k].x) * cX;//slideFactor;
+                            var Ly = parseInt(multiSapeAry[k].y) * cY;//slideFactor;
+                            d += " L" + Lx + "," + Ly;
+
+                        } else if (multiSapeAry[k].type == "cubicBezTo") {
+                            var Cx1 = parseInt(multiSapeAry[k].cubBzPt[0].x) * cX;//slideFactor;
+                            var Cy1 = parseInt(multiSapeAry[k].cubBzPt[0].y) * cY;//slideFactor;
+                            var Cx2 = parseInt(multiSapeAry[k].cubBzPt[1].x) * cX;//slideFactor;
+                            var Cy2 = parseInt(multiSapeAry[k].cubBzPt[1].y) * cY;//slideFactor;
+                            var Cx3 = parseInt(multiSapeAry[k].cubBzPt[2].x) * cX;//slideFactor;
+                            var Cy3 = parseInt(multiSapeAry[k].cubBzPt[2].y) * cY;//slideFactor;
+                            d += " C" + Cx1 + "," + Cy1 + " " + Cx2 + "," + Cy2 + " " + Cx3 + "," + Cy3;
+                        } else if (multiSapeAry[k].type == "arcTo") {
+                            var hR = parseInt(multiSapeAry[k].hR) * cX;//slideFactor;
+                            var wR = parseInt(multiSapeAry[k].wR) * cY;//slideFactor;
+                            var stAng = parseInt(multiSapeAry[k].stAng) / 60000;
+                            var swAng = parseInt(multiSapeAry[k].swAng) / 60000;
+                            //var shftX = parseInt(multiSapeAry[k].shftX) * slideFactor;
+                            //var shftY = parseInt(multiSapeAry[k].shftY) * slideFactor;
+                            var endAng = stAng + swAng;
+
+                            d += shapeArc(wR, hR, wR, hR, stAng, endAng, false);
+                        } else if (multiSapeAry[k].type == "quadBezTo") {
+                            console.log("custShapType: quadBezTo - TODO")
+
+                        } else if (multiSapeAry[k].type == "close") {
+                            // result += "<path d='" + d + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                            //     "' stroke='" + ((border === undefined) ? "" : border.color) + "' stroke-width='" + ((border === undefined) ? "" : border.width) + "' stroke-dasharray='" + ((border === undefined) ? "" : border.strokeDasharray) + "' ";
+                            // result += "/>";
+                            // d = "";
+                            // isClose = true;
+
+                            d += "z";
+                        }
                         k++;
-                    } else if (sortByOrder[k].type == "cubicBezTo") {
-                        var Cx1 = parseInt(sortByOrder[k].x) * 96 / 914400;
-                        var Cy1 = parseInt(sortByOrder[k].y) * 96 / 914400;
-                        var Cx2 = parseInt(sortByOrder[k + 1].x) * 96 / 914400;
-                        var Cy2 = parseInt(sortByOrder[k + 1].y) * 96 / 914400;
-                        var Cx3 = parseInt(sortByOrder[k + 2].x) * 96 / 914400;
-                        var Cy3 = parseInt(sortByOrder[k + 2].y) * 96 / 914400;
-
-                        d += "C" + Cx1 + "," + Cy1 + " " + Cx2 + "," + Cy2 + " " + Cx3 + "," + Cy3;
-                        k += 3;
-                    } else if (sortByOrder[k].type == "arcTo") {
-                        var hR = parseInt(sortByOrder[k].hR) * 96 / 914400;
-                        var wR = parseInt(sortByOrder[k].wR) * 96 / 914400;
-                        var stAng = parseInt(sortByOrder[k].stAng) / 60000;
-                        var swAng = parseInt(sortByOrder[k].swAng) / 60000;
-                        //var shftX = parseInt(sortByOrder[k].shftX) * 96 / 914400;
-                        //var shftY = parseInt(sortByOrder[k].shftY) * 96 / 914400;
-                        var endAng = stAng + swAng;
-
-                        d += shapeArc(wR, hR, wR, hR, stAng, endAng, false);
-                        k++;
                     }
-                }
-                result += "<path d='" + d + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
-                    "' stroke='" + border.color + "' stroke-width='" + border.width + "' stroke-dasharray='" + border.strokeDasharray + "' ";
-                if (closeNode !== undefined) {
-                    //console.log("Close shape");
+                    //if (!isClose) {
+                    //only one "moveTo" and no "close"
+                    result += "<path d='" + d + "' fill='" + (!imgFillFlg ? (grndFillFlg ? "url(#linGrd_" + shpId + ")" : fillColor) : "url(#imgPtrn_" + shpId + ")") +
+                        "' stroke='" + ((border === undefined) ? "" : border.color) + "' stroke-width='" + ((border === undefined) ? "" : border.width) + "' stroke-dasharray='" + ((border === undefined) ? "" : border.strokeDasharray) + "' ";
                     result += "/>";
-                } else {
-                    //console.log("Open shape");
-                    //check and add "marker-start" and "marker-end"
-                    if (headEndNodeAttrs !== undefined && (headEndNodeAttrs["type"] === "triangle" || headEndNodeAttrs["type"] === "arrow")) {
-                        result += "marker-start='url(#markerTriangle_" + shpId + ")' ";
-                    }
-                    if (tailEndNodeAttrs !== undefined && (tailEndNodeAttrs["type"] === "triangle" || tailEndNodeAttrs["type"] === "arrow")) {
-                        result += "marker-end='url(#markerTriangle_" + shpId + ")' ";
-                    }
-                    result += "/>";
-
+                    //console.log(result);
                 }
 
                 result += "</svg>";
-
-                result += "<div class='block content " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) +
+                result += "<div class='block " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) + //block content 
+                    " " + getContentDir(node, type, warpObj) +
                     "' _id='" + id + "' _idx='" + idx + "' _type='" + type + "' _name='" + name +
                     "' style='" +
-                    getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
+                    getPosition(slideXfrmNode, pNode, slideLayoutXfrmNode, slideMasterXfrmNode, sType) +
                     getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
                     " z-index: " + order + ";" +
-                    "transform: rotate(" + txtRotate + "deg);" +
+                    "transform: rotate(" + ((txtRotate !== undefined) ? txtRotate : 0) + "deg);" +
                     "'>";
 
                 // TextBody
-                if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                if (node["p:txBody"] !== undefined && (isUserDrawnBg === undefined || isUserDrawnBg === true)) {
+                    if (type != "diagram" && type != "textBox") {
+                        type = "shape";
+                    }
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj); //type=shape
                 }
                 result += "</div>";
 
                 // result = "";
             } else {
 
-                result += "<div class='block content " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) +
+                result += "<div class='block " + getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) +//block content 
+                    " " + getContentDir(node, type, warpObj) +
                     "' _id='" + id + "' _idx='" + idx + "' _type='" + type + "' _name='" + name +
                     "' style='" +
-                    getPosition(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
+                    getPosition(slideXfrmNode, pNode, slideLayoutXfrmNode, slideMasterXfrmNode, sType) +
                     getSize(slideXfrmNode, slideLayoutXfrmNode, slideMasterXfrmNode) +
-                    getBorder(node, false, "shape") +
-                    getShapeFill(node, false, warpObj) +
+                    getBorder(node, pNode, false, "shape", warpObj) +
+                    getShapeFill(node, pNode, false, warpObj, source) +
                     " z-index: " + order + ";" +
-                    "transform: rotate(" + txtRotate + "deg);" +
+                    "transform: rotate(" + ((txtRotate !== undefined) ? txtRotate : 0) + "deg);" +
                     "'>";
 
                 // TextBody
-                if (node["p:txBody"] !== undefined) {
-                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
+                if (node["p:txBody"] !== undefined && (isUserDrawnBg === undefined || isUserDrawnBg === true)) {
+                    result += genTextBody(node["p:txBody"], node, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj);
                 }
                 result += "</div>";
 
             }
-
+            //console.log("div block result:\n", result)
             return result;
         }
-        function shapeStar(adj, starNum) {
-            var innerRadius = adj; /*1-100*/
-            var outerRadius = 100;//star.outerRadius;
-            var numPoints = starNum;/*1-100*/
-            var center = Math.max(innerRadius, outerRadius);
-            var angle = Math.PI / numPoints;
-            var points = [];
 
-            for (var i = 0; i < numPoints * 2; i++) {
-                var radius = i & 1 ? innerRadius : outerRadius;
-                points.push(center + radius * Math.sin(i * angle));
-                points.push(center - radius * Math.cos(i * angle));
-            }
-
-            return points;
-        }
         function shapePie(H, w, adj1, adj2, isClose) {
             var pieVal = parseInt(adj2);
             var piAngle = parseInt(adj1);
@@ -7184,18 +8374,37 @@
             return points;
         }
         */
-        function processPicNode(node, warpObj) {
+        function processPicNode(node, warpObj, source, sType) {
+            //console.log("processPicNode node:", node, "source:", source, "sType:", sType, "warpObj;", warpObj);
             var rtrnData = "";
             var mediaPicFlag = false;
             var order = node["attrs"]["order"];
 
             var rid = node["p:blipFill"]["a:blip"]["attrs"]["r:embed"];
-            var imgName = warpObj["slideResObj"][rid]["target"];
+            var resObj;
+            if (source == "slideMasterBg") {
+                resObj = warpObj["masterResObj"];
+            } else if (source == "slideLayoutBg") {
+                resObj = warpObj["layoutResObj"];
+            } else {
+                //imgName = warpObj["slideResObj"][rid]["target"];
+                resObj = warpObj["slideResObj"];
+            }
+            var imgName = resObj[rid]["target"];
+
+            //console.log("processPicNode imgName:", imgName);
             var imgFileExt = extractFileExtension(imgName).toLowerCase();
             var zip = warpObj["zip"];
             var imgArrayBuffer = zip.file(imgName).asArrayBuffer();
             var mimeType = "";
             var xfrmNode = node["p:spPr"]["a:xfrm"];
+            if (xfrmNode === undefined) {
+                var idx = getTextByPathList(node, ["p:nvPicPr", "p:nvPr", "p:ph", "attrs", "idx"]);
+                var type = getTextByPathList(node, ["p:nvPicPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                if (idx !== undefined) {
+                    xfrmNode = getTextByPathList(warpObj["slideLayoutTables"], ["idxTable", idx, "p:spPr", "a:xfrm"]);
+                }
+            }
             ///////////////////////////////////////Amir//////////////////////////////
             var rotate = 0;
             var rotateNode = getTextByPathList(node, ["p:spPr", "a:xfrm", "attrs", "rot"]);
@@ -7208,7 +8417,7 @@
             var mediaProcess = settings.mediaProcess;
             if (vdoNode !== undefined & mediaProcess) {
                 vdoRid = vdoNode["attrs"]["r:link"];
-                vdoFile = warpObj["slideResObj"][vdoRid]["target"];
+                vdoFile = resObj[vdoRid]["target"];
                 var checkIfLink = IsVideoLink(vdoFile);
                 if (checkIfLink) {
                     vdoFile = escapeHtml(vdoFile);
@@ -7237,7 +8446,7 @@
             var audioObjc;
             if (audioNode !== undefined & mediaProcess) {
                 audioRid = audioNode["attrs"]["r:link"];
-                audioFile = warpObj["slideResObj"][audioRid]["target"];
+                audioFile = resObj[audioRid]["target"];
                 audioFileExt = extractFileExtension(audioFile).toLowerCase();
                 if (audioFileExt == "mp3" || audioFileExt == "wav" || audioFileExt == "ogg") {
                     uInt8ArrayAudio = zip.file(audioFile).asArrayBuffer();
@@ -7271,7 +8480,7 @@
             //////////////////////////////////////////////////////////////////////////
             mimeType = getMimeType(imgFileExt);
             rtrnData = "<div class='block content' style='" +
-                ((mediaProcess && audioPlayerFlag) ? getPosition(audioObjc, undefined, undefined) : getPosition(xfrmNode, undefined, undefined)) +
+                ((mediaProcess && audioPlayerFlag) ? getPosition(audioObjc, node, undefined, undefined) : getPosition(xfrmNode, node, undefined, undefined)) +
                 ((mediaProcess && audioPlayerFlag) ? getSize(audioObjc, undefined, undefined) : getSize(xfrmNode, undefined, undefined)) +
                 " z-index: " + order + ";" +
                 "transform: rotate(" + rotate + "deg);'>";
@@ -7300,7 +8509,7 @@
             return rtrnData;
         }
 
-        function processGraphicFrameNode(node, warpObj) {
+        function processGraphicFrameNode(node, warpObj, source, sType) {
 
             var result = "";
             var graphicTypeUri = getTextByPathList(node, ["a:graphic", "a:graphicData", "attrs", "uri"]);
@@ -7313,7 +8522,13 @@
                     result = genChart(node, warpObj);
                     break;
                 case "http://schemas.openxmlformats.org/drawingml/2006/diagram":
-                    result = genDiagram(node, warpObj);
+                    result = genDiagram(node, warpObj, source, sType);
+                    break;
+                case "http://schemas.openxmlformats.org/presentationml/2006/ole":
+                    //result = genDiagram(node, warpObj, source, sType);
+                    var oleObjNode = getTextByPathList(node, ["a:graphic", "a:graphicData", "mc:AlternateContent", "mc:Fallback","p:oleObj"]);
+                    //console.log("oleObjNode:", oleObjNode)
+                    result = processGroupSpNode(oleObjNode, warpObj, source);
                     break;
                 default:
             }
@@ -7342,7 +8557,8 @@
             // TODO:
         }
 
-        function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+        var is_first_br = false;
+        function genTextBody(textBodyNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, idx, warpObj, tbl_col_width) {
             var text = "";
             var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
 
@@ -7352,116 +8568,183 @@
             //rtl : <p:txBody>
             //          <a:bodyPr wrap="square" rtlCol="1">
 
-            //var rtlStr = "";
-            if (textBodyNode["a:p"].constructor === Array) {
-                // multi p
-                for (var i = 0; i < textBodyNode["a:p"].length; i++) {
-                    var pNode = textBodyNode["a:p"][i];
-                    var rNode = pNode["a:r"];
+            var pFontStyle = getTextByPathList(spNode, ["p:style", "a:fontRef"]);
+            //console.log("genTextBody spNode: ", getTextByPathList(spNode,["p:spPr","a:xfrm","a:ext"]));
 
-                    //var isRTL = getTextDirection(pNode, type, slideMasterTextStyles);
-                    //rtlStr = "";//"dir='"+isRTL+"'";
+            //var lstStyle = textBodyNode["a:lstStyle"];
+            
+            var apNode = textBodyNode["a:p"];
+            if (apNode.constructor !== Array) {
+                apNode = [apNode];
+            }
 
-                    text += "<div  class='" + getHorizontalAlign(pNode, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + "'>";
-                    text += genBuChar(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-
-                    if (rNode === undefined) {
-                        // without r
-                        text += genSpanElement(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                    } else if (rNode.constructor === Array) {
-                        // with multi r
-                        for (var j = 0; j < rNode.length; j++) {
-                            text += genSpanElement(rNode[j], spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                            //////////////////Amir////////////
-                            if (pNode["a:br"] !== undefined) {
-                                text += "<br>";
-                            }
-                            //////////////////////////////////                    
-                        }
-                    } else {
-                        // with one r
-                        text += genSpanElement(rNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                    }
-                    text += "</div>";
-                }
-            } else {
-                // one p
-                var pNode = textBodyNode["a:p"];
+            for (var i = 0; i < apNode.length; i++) {
+                var pNode = apNode[i];
                 var rNode = pNode["a:r"];
-
-                //var isRTL = getTextDirection(pNode, type, slideMasterTextStyles);
+                var fldNode = pNode["a:fld"];
+                var brNode = pNode["a:br"];
+                if (rNode !== undefined) {
+                    rNode = (rNode.constructor === Array) ? rNode : [rNode];
+                }
+                if (rNode !== undefined && fldNode !== undefined) {
+                    fldNode = (fldNode.constructor === Array) ? fldNode : [fldNode];
+                    rNode = rNode.concat(fldNode)
+                }
+                if (rNode !== undefined && brNode !== undefined) {
+                    is_first_br = true;
+                    brNode = (brNode.constructor === Array) ? brNode : [brNode];
+                    brNode.forEach(function (item, indx) {
+                        item.type = "br";
+                    });
+                    if (brNode.length > 1) {
+                        brNode.shift();
+                    }
+                    rNode = rNode.concat(brNode)
+                    //console.log("single a:p  rNode:", rNode, "brNode:", brNode )
+                    rNode.sort(function (a, b) {
+                        return a.attrs.order - b.attrs.order;
+                    });
+                    //console.log("sorted rNode:",rNode)
+                }
                 //rtlStr = "";//"dir='"+isRTL+"'";
+                var styleText = "";
+                var marginsVer = getVerticalMargins(pNode, textBodyNode, type, idx, warpObj);
+                if (marginsVer != "") {
+                    styleText = marginsVer;
+                }
+                if (type == "body" || type == "obj" || type == "shape") {
+                    styleText += "font-size: 0px;";
+                    //styleText += "line-height: 0;";
+                    styleText += "font-weight: 100;";
+                    styleText += "font-style: normal;";
+                }
+                var cssName = "";
 
-                text += "<div class='slide-prgrph " + getHorizontalAlign(pNode, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + "'>";
-                text += genBuChar(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                if (rNode === undefined) {
+                if (styleText in styleTable) {
+                    cssName = styleTable[styleText]["name"];
+                } else {
+                    cssName = "_css_" + (Object.keys(styleTable).length + 1);
+                    styleTable[styleText] = {
+                        "name": cssName,
+                        "text": styleText
+                    };
+                }
+                //console.log("textBodyNode: ", textBodyNode["a:lstStyle"])
+                var prg_width_node = getTextByPathList(spNode, ["p:spPr", "a:xfrm", "a:ext", "attrs", "cx"]);
+                var prg_height_node;// = getTextByPathList(spNode, ["p:spPr", "a:xfrm", "a:ext", "attrs", "cy"]);
+                var sld_prg_width = ((prg_width_node !== undefined) ? ("width:" + (parseInt(prg_width_node) * slideFactor) + "px;") : "width:inherit;");
+                var sld_prg_height = ((prg_height_node !== undefined) ? ("height:" + (parseInt(prg_height_node) * slideFactor) + "px;") : "");
+                var prg_dir = getPregraphDir(pNode, textBodyNode, idx, type, warpObj);
+                text += "<div style='display: flex;" + sld_prg_width + sld_prg_height + "' class='slide-prgrph " + getHorizontalAlign(pNode, textBodyNode, idx, type, prg_dir, warpObj) + " " +
+                    prg_dir + " " + cssName + "' >";
+                var buText_ary = genBuChar(pNode, i, spNode, textBodyNode, pFontStyle, idx, type, warpObj);
+                var isBullate = (buText_ary[0] !== undefined && buText_ary[0] !== null && buText_ary[0] != "" ) ? true : false;
+                var bu_width = (buText_ary[1] !== undefined && buText_ary[1] !== null && isBullate) ? buText_ary[1] + buText_ary[2] : 0;
+                text += (buText_ary[0] !== undefined) ? buText_ary[0]:"";
+                //get text margin 
+                var margin_ary = getPregraphMargn(pNode, idx, type, isBullate, warpObj);
+                var margin = margin_ary[0];
+                var mrgin_val = margin_ary[1];
+                if (prg_width_node === undefined && tbl_col_width !== undefined && prg_width_node != 0){
+                    //sorce : table text
+                    prg_width_node = tbl_col_width;
+                }
+
+                var prgrph_text = "";
+                //var prgr_txt_art = [];
+                var total_text_len = 0;
+                if (rNode === undefined && pNode !== undefined) {
                     // without r
-                    text += genSpanElement(pNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                } else if (rNode.constructor === Array) {
+                    var prgr_text = genSpanElement(pNode, undefined, spNode, textBodyNode, pFontStyle, slideLayoutSpNode, idx, type, 1, warpObj, isBullate);
+                    if (isBullate) {
+                        var txt_obj = $(prgr_text)
+                            .css({ 'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden' })
+                            .appendTo($('body'));
+                        total_text_len += txt_obj.outerWidth();
+                        txt_obj.remove();
+                    }
+                    prgrph_text += prgr_text;
+                } else if (rNode !== undefined) {
                     // with multi r
                     for (var j = 0; j < rNode.length; j++) {
-                        text += genSpanElement(rNode[j], spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
-                        //////////////////Amir////////////
-                        if (pNode["a:br"] !== undefined) {
-                            text += "<br>";
+                        var prgr_text = genSpanElement(rNode[j], j, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, idx, type, rNode.length, warpObj, isBullate);
+                        if (isBullate) {
+                            var txt_obj = $(prgr_text)
+                                .css({ 'position': 'absolute', 'float': 'left', 'white-space': 'nowrap', 'visibility': 'hidden'})
+                                .appendTo($('body'));
+                            total_text_len += txt_obj.outerWidth();
+                            txt_obj.remove();
                         }
-                        //////////////////////////////////
+                        prgrph_text += prgr_text;
                     }
-                } else {
-                    // with one r
-                    text += genSpanElement(rNode, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj);
                 }
+
+                prg_width_node = parseInt(prg_width_node) * slideFactor - bu_width - mrgin_val;
+                if (isBullate) {
+                    //get prg_width_node if there is a bulltes
+                    //console.log("total_text_len: ", total_text_len, "prg_width_node:", prg_width_node)
+
+                    if (total_text_len < prg_width_node ){
+                        prg_width_node = total_text_len + bu_width;
+                    }
+                }
+                var prg_width = ((prg_width_node !== undefined) ? ("width:" + (prg_width_node )) + "px;" : "width:inherit;");
+                text += "<div style='height: 100%;direction: initial;overflow-wrap:break-word;word-wrap: break-word;" + prg_width + margin + "' >";
+                text += prgrph_text;
+                text += "</div>";
                 text += "</div>";
             }
 
             return text;
         }
-
-        function genBuChar(node, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
+        
+        function genBuChar(node, i, spNode, textBodyNode, pFontStyle, idx, type, warpObj) {
+            //console.log("genBuChar node: ", node, ", spNode: ", spNode, ", pFontStyle: ", pFontStyle, "type", type)
             ///////////////////////////////////////Amir///////////////////////////////
             var sldMstrTxtStyles = warpObj["slideMasterTextStyles"];
+            var lstStyle = textBodyNode["a:lstStyle"];
 
             var rNode = getTextByPathList(node, ["a:r"]);
             if (rNode !== undefined && rNode.constructor === Array) {
-                rNode = rNode[0];
+                rNode = rNode[0]; //bullet only to first "a:r"
             }
-            var dfltBultColor, dfltBultSize, bultColor, bultSize;
+            var lvl = parseInt(getTextByPathList(node["a:pPr"], ["attrs", "lvl"])) + 1;
+            if (isNaN(lvl)) {
+                lvl = 1;
+            }
+            var lvlStr = "a:lvl" + lvl + "pPr";
+            var dfltBultColor, dfltBultSize, bultColor, bultSize, color_tye;
+
             if (rNode !== undefined) {
-                dfltBultColor = getFontColorPr(rNode, spNode, type, sldMstrTxtStyles)[0];
-                dfltBultSize = getFontSize(rNode, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);
+                dfltBultColor = getFontColorPr(rNode, spNode, lstStyle, pFontStyle, lvl, idx, type, warpObj);
+                color_tye = dfltBultColor[2];
+                dfltBultSize = getFontSize(rNode, textBodyNode, pFontStyle, lvl, type, warpObj);
             } else {
-                dfltBultColor = getFontColorPr(node, spNode, type, sldMstrTxtStyles)[0];
-                dfltBultSize = getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, sldMstrTxtStyles);
+                return "";
             }
             //console.log("Bullet Size: " + bultSize);
 
-            var bullet = "";
+            var bullet = "", marRStr = "", marLStr = "", margin_val=0, font_val=0;
             /////////////////////////////////////////////////////////////////
 
 
             var pPrNode = node["a:pPr"];
-
-            //////////////////cheke if is rtl ///Amir ////////////////////////////////////
-            var getRtlVal = getTextByPathList(pPrNode, ["attrs", "rtl"])
-            var isRTL = false;
-            if (getRtlVal !== undefined && getRtlVal == "1") {
-                isRTL = true;
+            var BullNONE = getTextByPathList(pPrNode, ["a:buNone"]);
+            if (BullNONE !== undefined) {
+                return "";
             }
-            ////////////////////////////////////////////////////////////
 
-            var lvl = parseInt(getTextByPathList(pPrNode, ["attrs", "lvl"]));
-            if (isNaN(lvl)) {
-                lvl = 0;
-            }
+            var buType = "TYPE_NONE";
+
+            var layoutMasterNode = getLayoutAndMasterNode(node, idx, type, warpObj);
+            var pPrNodeLaout = layoutMasterNode.nodeLaout;
+            var pPrNodeMaster = layoutMasterNode.nodeMaster;
 
             var buChar = getTextByPathList(pPrNode, ["a:buChar", "attrs", "char"]);
-            /////////////////////////////////Amir///////////////////////////////////
-            var buType = "TYPE_NONE";
             var buNum = getTextByPathList(pPrNode, ["a:buAutoNum", "attrs", "type"]);
             var buPic = getTextByPathList(pPrNode, ["a:buBlip"]);
             if (buChar !== undefined) {
                 buType = "TYPE_BULLET";
-                // console.log("Bullet Chr to code: " + buChar.charCodeAt(0));
             }
             if (buNum !== undefined) {
                 buType = "TYPE_NUMERIC";
@@ -7470,118 +8753,385 @@
                 buType = "TYPE_BULPIC";
             }
 
+            var buFontSize = getTextByPathList(pPrNode, ["a:buSzPts", "attrs", "val"]);
+            if (buFontSize === undefined) {
+                buFontSize = getTextByPathList(pPrNode, ["a:buSzPct", "attrs", "val"]);
+                if (buFontSize !== undefined) {
+                    var prcnt = parseInt(buFontSize) / 100000;
+                    //dfltBultSize = XXpt
+                    //var dfltBultSizeNoPt = dfltBultSize.substr(0, dfltBultSize.length - 2);
+                    var dfltBultSizeNoPt = parseInt(dfltBultSize, "px");
+                    bultSize = prcnt * (parseInt(dfltBultSizeNoPt)) + "px";// + "pt";
+                }
+            } else {
+                bultSize = (parseInt(buFontSize) / 100) * fontSizeFactor + "px";
+            }
+
+            //get definde bullet COLOR
+            var buClrNode = getTextByPathList(pPrNode, ["a:buClr"]);
+
+
+            if (buChar === undefined && buNum === undefined && buPic === undefined) {
+
+                if (lstStyle !== undefined) {
+                    BullNONE = getTextByPathList(lstStyle, [lvlStr,"a:buNone"]);
+                    if (BullNONE !== undefined) {
+                        return "";
+                    }
+                    buType = "TYPE_NONE";
+                    buChar = getTextByPathList(lstStyle, [lvlStr,"a:buChar", "attrs", "char"]);
+                    buNum = getTextByPathList(lstStyle, [lvlStr,"a:buAutoNum", "attrs", "type"]);
+                    buPic = getTextByPathList(lstStyle, [lvlStr,"a:buBlip"]);
+                    if (buChar !== undefined) {
+                        buType = "TYPE_BULLET";
+                    }
+                    if (buNum !== undefined) {
+                        buType = "TYPE_NUMERIC";
+                    }
+                    if (buPic !== undefined) {
+                        buType = "TYPE_BULPIC";
+                    }
+                    if (buChar !== undefined || buNum !== undefined || buPic !== undefined) {
+                        pPrNode = lstStyle[lvlStr];
+                    }
+                }
+            }
+            if (buChar === undefined && buNum === undefined && buPic === undefined) {
+                //check in slidelayout and masterlayout - TODO
+                if (pPrNodeLaout !== undefined) {
+                    BullNONE = getTextByPathList(pPrNodeLaout, ["a:buNone"]);
+                    if (BullNONE !== undefined) {
+                        return "";
+                    }
+                    buType = "TYPE_NONE";
+                    buChar = getTextByPathList(pPrNodeLaout, ["a:buChar", "attrs", "char"]);
+                    buNum = getTextByPathList(pPrNodeLaout, ["a:buAutoNum", "attrs", "type"]);
+                    buPic = getTextByPathList(pPrNodeLaout, ["a:buBlip"]);
+                    if (buChar !== undefined) {
+                        buType = "TYPE_BULLET";
+                    }
+                    if (buNum !== undefined) {
+                        buType = "TYPE_NUMERIC";
+                    }
+                    if (buPic !== undefined) {
+                        buType = "TYPE_BULPIC";
+                    }
+                }
+                if (buChar === undefined && buNum === undefined && buPic === undefined) {
+                    //masterlayout
+
+                    if (pPrNodeMaster !== undefined) {
+                        BullNONE = getTextByPathList(pPrNodeMaster, ["a:buNone"]);
+                        if (BullNONE !== undefined) {
+                            return "";
+                        }
+                        buType = "TYPE_NONE";
+                        buChar = getTextByPathList(pPrNodeMaster, ["a:buChar", "attrs", "char"]);
+                        buNum = getTextByPathList(pPrNodeMaster, ["a:buAutoNum", "attrs", "type"]);
+                        buPic = getTextByPathList(pPrNodeMaster, ["a:buBlip"]);
+                        if (buChar !== undefined) {
+                            buType = "TYPE_BULLET";
+                        }
+                        if (buNum !== undefined) {
+                            buType = "TYPE_NUMERIC";
+                        }
+                        if (buPic !== undefined) {
+                            buType = "TYPE_BULPIC";
+                        }
+                    }
+
+                }
+
+            }
+            //rtl
+            var getRtlVal = getTextByPathList(pPrNode, ["attrs", "rtl"]);
+            if (getRtlVal === undefined) {
+                getRtlVal = getTextByPathList(pPrNodeLaout, ["attrs", "rtl"]);
+                if (getRtlVal === undefined && type != "shape") {
+                    getRtlVal = getTextByPathList(pPrNodeMaster, ["attrs", "rtl"]);
+                }
+            }
+            var isRTL = false;
+            if (getRtlVal !== undefined && getRtlVal == "1") {
+                isRTL = true;
+            }
+            //align
+            var alignNode = getTextByPathList(pPrNode, ["attrs", "algn"]); //"l" | "ctr" | "r" | "just" | "justLow" | "dist" | "thaiDist
+            if (alignNode === undefined) {
+                alignNode = getTextByPathList(pPrNodeLaout, ["attrs", "algn"]);
+                if (alignNode === undefined) {
+                    alignNode = getTextByPathList(pPrNodeMaster, ["attrs", "algn"]);
+                }
+            }
+            //indent?
+            var indentNode = getTextByPathList(pPrNode, ["attrs", "indent"]);
+            if (indentNode === undefined) {
+                indentNode = getTextByPathList(pPrNodeLaout, ["attrs", "indent"]);
+                if (indentNode === undefined) {
+                    indentNode = getTextByPathList(pPrNodeMaster, ["attrs", "indent"]);
+                }
+            }
+            var indent = 0;
+            if (indentNode !== undefined) {
+                indent = parseInt(indentNode) * slideFactor;
+            }
+            //marL
+            var marLNode = getTextByPathList(pPrNode, ["attrs", "marL"]);
+            if (marLNode === undefined) {
+                marLNode = getTextByPathList(pPrNodeLaout, ["attrs", "marL"]);
+                if (marLNode === undefined) {
+                    marLNode = getTextByPathList(pPrNodeMaster, ["attrs", "marL"]);
+                }
+            }
+            //console.log("genBuChar() isRTL", isRTL, "alignNode:", alignNode)
+            if (marLNode !== undefined) {
+                var marginLeft = parseInt(marLNode) * slideFactor;
+                if (isRTL) {// && alignNode == "r") {
+                    marLStr = "padding-right:";// "margin-right: ";
+                } else {
+                    marLStr = "padding-left:";//"margin-left: ";
+                }
+                margin_val = ((marginLeft + indent < 0) ? 0 : (marginLeft + indent));
+                marLStr += margin_val + "px;";
+            }
+            
+            //marR?
+            var marRNode = getTextByPathList(pPrNode, ["attrs", "marR"]);
+            if (marRNode === undefined && marLNode === undefined) {
+                //need to check if this posble - TODO
+                marRNode = getTextByPathList(pPrNodeLaout, ["attrs", "marR"]);
+                if (marRNode === undefined) {
+                    marRNode = getTextByPathList(pPrNodeMaster, ["attrs", "marR"]);
+                }
+            }
+            if (marRNode !== undefined) {
+                var marginRight = parseInt(marRNode) * slideFactor;
+                if (isRTL) {// && alignNode == "r") {
+                    marLStr = "padding-right:";// "margin-right: ";
+                } else {
+                    marLStr = "padding-left:";//"margin-left: ";
+                }
+                marRStr += ((marginRight + indent < 0) ? 0 : (marginRight + indent)) + "px;";
+            }
+
             if (buType != "TYPE_NONE") {
-                var buFontAttrs = getTextByPathList(pPrNode, ["a:buFont", "attrs"]);
+                //var buFontAttrs = getTextByPathList(pPrNode, ["a:buFont", "attrs"]);
             }
             //console.log("Bullet Type: " + buType);
             //console.log("NumericTypr: " + buNum);
             //console.log("buChar: " + (buChar === undefined?'':buChar.charCodeAt(0)));
             //get definde bullet COLOR
-            var buClrNode = getTextByPathList(pPrNode, ["a:buClr"]);
-            var defBultColor = "NoNe";
-            if (buClrNode !== undefined) {
-                defBultColor = getSolidFill(buClrNode);
-            } else {
-                // console.log("buClrNode: " + buClrNode);
+            if (buClrNode === undefined){
+                //lstStyle
+                buClrNode = getTextByPathList(lstStyle, [lvlStr, "a:buClr"]);
             }
-
-            if (defBultColor == "NoNe") {
+            if (buClrNode === undefined) {
+                buClrNode = getTextByPathList(pPrNodeLaout, ["a:buClr"]);
+                if (buClrNode === undefined) {
+                    buClrNode = getTextByPathList(pPrNodeMaster, ["a:buClr"]);
+                }
+            }
+            var defBultColor;
+            if (buClrNode !== undefined) {
+                defBultColor = getSolidFill(buClrNode, undefined, undefined, warpObj);
+            } else {
+                if (pFontStyle !== undefined) {
+                    //console.log("genBuChar pFontStyle: ", pFontStyle)
+                    defBultColor = getSolidFill(pFontStyle, undefined, undefined, warpObj);
+                }
+            }
+            if (defBultColor === undefined || defBultColor == "NONE") {
                 bultColor = dfltBultColor;
             } else {
-                bultColor = "#" + defBultColor;
+                bultColor = [defBultColor, "", "solid"];
+                color_tye = "solid";
             }
+            //console.log("genBuChar node:", node, "pPrNode", pPrNode, " buClrNode: ", buClrNode, "defBultColor:", defBultColor,"dfltBultColor:" , dfltBultColor , "bultColor:", bultColor)
+
+            //console.log("genBuChar: buClrNode: ", buClrNode, "bultColor", bultColor)
             //get definde bullet SIZE
-            var buFontSize;
-            buFontSize = getTextByPathList(pPrNode, ["a:buSzPts", "attrs", "val"]); //pt
-            if (buFontSize !== undefined) {
-                bultSize = parseInt(buFontSize) / 100 + "pt";
-            } else {
-                buFontSize = getTextByPathList(pPrNode, ["a:buSzPct", "attrs", "val"]);
-                if (buFontSize !== undefined) {
-                    var prcnt = parseInt(buFontSize) / 100000;
-                    //dfltBultSize = XXpt
-                    var dfltBultSizeNoPt = dfltBultSize.substr(0, dfltBultSize.length - 2);
-                    bultSize = prcnt * (parseInt(dfltBultSizeNoPt)) + "pt";
-                } else {
-                    bultSize = dfltBultSize;
+            if (buFontSize === undefined) {
+                buFontSize = getTextByPathList(pPrNodeLaout, ["a:buSzPts", "attrs", "val"]);
+                if (buFontSize === undefined) {
+                    buFontSize = getTextByPathList(pPrNodeLaout, ["a:buSzPct", "attrs", "val"]);
+                    if (buFontSize !== undefined) {
+                        var prcnt = parseInt(buFontSize) / 100000;
+                        //var dfltBultSizeNoPt = dfltBultSize.substr(0, dfltBultSize.length - 2);
+                        var dfltBultSizeNoPt = parseInt(dfltBultSize, "px");
+                        bultSize = prcnt * (parseInt(dfltBultSizeNoPt)) + "px";// + "pt";
+                    }
+                }else{
+                    bultSize = (parseInt(buFontSize) / 100) * fontSizeFactor + "px";
                 }
             }
+            if (buFontSize === undefined) {
+                buFontSize = getTextByPathList(pPrNodeMaster, ["a:buSzPts", "attrs", "val"]);
+                if (buFontSize === undefined) {
+                    buFontSize = getTextByPathList(pPrNodeMaster, ["a:buSzPct", "attrs", "val"]);
+                    if (buFontSize !== undefined) {
+                        var prcnt = parseInt(buFontSize) / 100000;
+                        //dfltBultSize = XXpt
+                        //var dfltBultSizeNoPt = dfltBultSize.substr(0, dfltBultSize.length - 2);
+                        var dfltBultSizeNoPt = parseInt(dfltBultSize, "px");
+                        bultSize = prcnt * (parseInt(dfltBultSizeNoPt)) + "px";// + "pt";
+                    }
+                } else {
+                    bultSize = (parseInt(buFontSize) / 100) * fontSizeFactor + "px";
+                }
+            }
+            if (buFontSize === undefined) {
+                bultSize = dfltBultSize;
+            }
+            font_val = parseInt(bultSize, "px");
             ////////////////////////////////////////////////////////////////////////
             if (buType == "TYPE_BULLET") {
-                //var buFontAttrs = getTextByPathList(pPrNode, ["a:buFont", "attrs"]);
-                if (buFontAttrs !== undefined) {
-                    var marginLeft = parseInt(getTextByPathList(pPrNode, ["attrs", "marL"])) * 96 / 914400;
-                    var marginRight = parseInt(buFontAttrs["pitchFamily"]);
-                    if (isNaN(marginLeft)) {
-                        marginLeft = 328600 * 96 / 914400;
-                    }
-                    if (isNaN(marginRight)) {
-                        marginRight = 0;
-                    }
-                    var typeface = buFontAttrs["typeface"];
-
-                    bullet = "<span style='font-family: " + typeface +
-                        "; margin-left: " + marginLeft * lvl + "px" +
-                        "; margin-right: " + marginRight + "px" +
-                        ";color:" + bultColor +
-                        ";font-size:" + bultSize + ";";
-                    if (isRTL) {
-                        bullet += " float: right;  direction:rtl";
-                    }
-                    bullet += "'>" + buChar + "</span>";
-                } else {
-                    marginLeft = 328600 * 96 / 914400 * lvl;
-
-                    bullet = "<span style='margin-left: " + marginLeft + "px;'>" + buChar + "</span>";
+                var typefaceNode = getTextByPathList(pPrNode, ["a:buFont", "attrs", "typeface"]);
+                var typeface = "";
+                if (typefaceNode !== undefined) {
+                    typeface = "font-family: " + typefaceNode;
                 }
+                // var marginLeft = parseInt(getTextByPathList(marLNode)) * slideFactor;
+                // var marginRight = parseInt(getTextByPathList(marRNode)) * slideFactor;
+                // if (isNaN(marginLeft)) {
+                //     marginLeft = 328600 * slideFactor;
+                // }
+                // if (isNaN(marginRight)) {
+                //     marginRight = 0;
+                // }
+
+                bullet = "<div style='height: 100%;" + typeface + ";" +
+                    marLStr + marRStr +
+                    "font-size:" + bultSize + ";" ;
+                
+                //bullet += "display: table-cell;";
+                //"line-height: 0px;";
+                if (color_tye == "solid") {
+                    if (bultColor[0] !== undefined && bultColor[0] != "") {
+                        bullet += "color:#" + bultColor[0] + "; ";
+                    }
+                    if (bultColor[1] !== undefined && bultColor[1] != "" && bultColor[1] != ";") {
+                        bullet += "text-shadow:" + bultColor[1] + ";";
+                    }
+                    //no highlight/background-color to bullet
+                    // if (bultColor[3] !== undefined && bultColor[3] != "") {
+                    //     styleText += "background-color: #" + bultColor[3] + ";";
+                    // }
+                } else if (color_tye == "pattern" || color_tye == "pic" || color_tye == "gradient") {
+                    if (color_tye == "pattern") {
+                        bullet += "background:" + bultColor[0][0] + ";";
+                        if (bultColor[0][1] !== null && bultColor[0][1] !== undefined && bultColor[0][1] != "") {
+                            bullet += "background-size:" + bultColor[0][1] + ";";//" 2px 2px;" +
+                        }
+                        if (bultColor[0][2] !== null && bultColor[0][2] !== undefined && bultColor[0][2] != "") {
+                            bullet += "background-position:" + bultColor[0][2] + ";";//" 2px 2px;" +
+                        }
+                        // bullet += "-webkit-background-clip: text;" +
+                        //     "background-clip: text;" +
+                        //     "color: transparent;" +
+                        //     "-webkit-text-stroke: " + bultColor[1].border + ";" +
+                        //     "filter: " + bultColor[1].effcts + ";";
+                    } else if (color_tye == "pic") {
+                        bullet += bultColor[0] + ";";
+                        // bullet += "-webkit-background-clip: text;" +
+                        //     "background-clip: text;" +
+                        //     "color: transparent;" +
+                        //     "-webkit-text-stroke: " + bultColor[1].border + ";";
+
+                    } else if (color_tye == "gradient") {
+
+                        var colorAry = bultColor[0].color;
+                        var rot = bultColor[0].rot;
+
+                        bullet += "background: linear-gradient(" + rot + "deg,";
+                        for (var i = 0; i < colorAry.length; i++) {
+                            if (i == colorAry.length - 1) {
+                                bullet += "#" + colorAry[i] + ");";
+                            } else {
+                                bullet += "#" + colorAry[i] + ", ";
+                            }
+                        }
+                        // bullet += "color: transparent;" +
+                        //     "-webkit-background-clip: text;" +
+                        //     "background-clip: text;" +
+                        //     "-webkit-text-stroke: " + bultColor[1].border + ";";
+                    }
+                    bullet += "-webkit-background-clip: text;" +
+                        "background-clip: text;" +
+                        "color: transparent;";
+                    if (bultColor[1].border !== undefined && bultColor[1].border !== "") {
+                        bullet += "-webkit-text-stroke: " + bultColor[1].border + ";";
+                    }
+                    if (bultColor[1].effcts !== undefined && bultColor[1].effcts !== "") {
+                        bullet += "filter: " + bultColor[1].effcts + ";";
+                    }
+                }
+
+                if (isRTL) {
+                    //bullet += "display: inline-block;white-space: nowrap ;direction:rtl"; // float: right;  
+                    bullet += "white-space: nowrap ;direction:rtl"; // display: table-cell;;
+                }
+                var isIE11 = !!window.MSInputMethodContext && !!document.documentMode;
+                var htmlBu = buChar;
+
+                if (!isIE11) {
+                    //ie11 does not support unicode ?
+                    htmlBu = getHtmlBullet(typefaceNode, buChar);
+                }
+                bullet += "'><div style='line-height: " + (font_val/2) + "px;'>" + htmlBu + "</div></div>"; //font_val
+                //} 
+                // else {
+                //     marginLeft = 328600 * slideFactor * lvl;
+
+                //     bullet = "<div style='" + marLStr + "'>" + buChar + "</div>";
+                // }
             } else if (buType == "TYPE_NUMERIC") { ///////////Amir///////////////////////////////
-                if (buFontAttrs !== undefined) {
-                    var marginLeft = parseInt(getTextByPathList(pPrNode, ["attrs", "marL"])) * 96 / 914400;
-                    var marginRight = parseInt(buFontAttrs["pitchFamily"]);
+                //if (buFontAttrs !== undefined) {
+                // var marginLeft = parseInt(getTextByPathList(pPrNode, ["attrs", "marL"])) * slideFactor;
+                // var marginRight = parseInt(buFontAttrs["pitchFamily"]);
 
-                    if (isNaN(marginLeft)) {
-                        marginLeft = 328600 * 96 / 914400;
-                    }
-                    if (isNaN(marginRight)) {
-                        marginRight = 0;
-                    }
-                    //var typeface = buFontAttrs["typeface"];
+                // if (isNaN(marginLeft)) {
+                //     marginLeft = 328600 * slideFactor;
+                // }
+                // if (isNaN(marginRight)) {
+                //     marginRight = 0;
+                // }
+                //var typeface = buFontAttrs["typeface"];
 
-                    bullet = "<span style='margin-left: " + marginLeft * lvl + "px" +
-                        "; margin-right: " + marginRight + "px" +
-                        ";color:" + bultColor +
-                        ";font-size:" + bultSize + ";";
-                    if (isRTL) {
-                        bullet += " float: right; direction:rtl;";
-                    } else {
-                        bullet += " float: left; direction:ltr;";
-                    }
-                    bullet += "' data-bulltname = '" + buNum + "' data-bulltlvl = '" + lvl + "' class='numeric-bullet-style'></span>";
+                bullet = "<div style='height: 100%;" + marLStr + marRStr +
+                    "color:#" + bultColor[0] + ";" +
+                    "font-size:" + bultSize + ";";// +
+                //"line-height: 0px;";
+                if (isRTL) {
+                    bullet += "display: inline-block;white-space: nowrap ;direction:rtl;"; // float: right;
                 } else {
-                    marginLeft = 328600 * 96 / 914400 * lvl;
-                    bullet = "<span style='margin-left: " + marginLeft + "px;";
-                    if (isRTL) {
-                        bullet += " float: right; direction:rtl;";
-                    } else {
-                        bullet += " float: left; direction:ltr;";
-                    }
-                    bullet += "' data-bulltname = '" + buNum + "' data-bulltlvl = '" + lvl + "' class='numeric-bullet-style'></span>";
+                    bullet += "display: inline-block;white-space: nowrap ;direction:ltr;"; //float: left;
                 }
+                bullet += "' data-bulltname = '" + buNum + "' data-bulltlvl = '" + lvl + "' class='numeric-bullet-style'></div>";
+                // } else {
+                //     marginLeft = 328600 * slideFactor * lvl;
+                //     bullet = "<div style='margin-left: " + marginLeft + "px;";
+                //     if (isRTL) {
+                //         bullet += " float: right; direction:rtl;";
+                //     } else {
+                //         bullet += " float: left; direction:ltr;";
+                //     }
+                //     bullet += "' data-bulltname = '" + buNum + "' data-bulltlvl = '" + lvl + "' class='numeric-bullet-style'></div>";
+                // }
 
             } else if (buType == "TYPE_BULPIC") { //PIC BULLET
-                var marginLeft = parseInt(getTextByPathList(pPrNode, ["attrs", "marL"])) * 96 / 914400;
-                var marginRight = parseInt(getTextByPathList(pPrNode, ["attrs", "marR"])) * 96 / 914400;
+                // var marginLeft = parseInt(getTextByPathList(pPrNode, ["attrs", "marL"])) * slideFactor;
+                // var marginRight = parseInt(getTextByPathList(pPrNode, ["attrs", "marR"])) * slideFactor;
 
-                if (isNaN(marginRight)) {
-                    marginRight = 0;
-                }
-                //console.log("marginRight: "+marginRight)
-                //buPic
-                if (isNaN(marginLeft)) {
-                    marginLeft = 328600 * 96 / 914400;
-                } else {
-                    marginLeft = 0;
-                }
+                // if (isNaN(marginRight)) {
+                //     marginRight = 0;
+                // }
+                // //console.log("marginRight: "+marginRight)
+                // //buPic
+                // if (isNaN(marginLeft)) {
+                //     marginLeft = 328600 * slideFactor;
+                // } else {
+                //     marginLeft = 0;
+                // }
                 //var buPicId = getTextByPathList(buPic, ["a:blip","a:extLst","a:ext","asvg:svgBlip" , "attrs", "r:embed"]);
                 var buPicId = getTextByPathList(buPic, ["a:blip", "attrs", "r:embed"]);
                 var svgPicPath = "";
@@ -7596,59 +9146,359 @@
                     var imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
                     var imgExt = imgPath.split(".").pop();
                     var imgMimeType = getMimeType(imgExt);
-                    buImg = "<img src='data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%; height: 100%'/>"
+                    buImg = "<img src='data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer) + "' style='width: 100%;'/>"// height: 100%
                     //console.log("imgPath: "+imgPath+"\nimgMimeType: "+imgMimeType)
                 }
                 if (buPicId === undefined) {
                     buImg = "&#8227;";
                 }
-                bullet = "<span style='margin-left: " + marginLeft * lvl + "px" +
-                    "; margin-right: " + marginRight + "px" +
-                    ";width:" + bultSize + ";display: inline-block; ";
+                bullet = "<div style='height: 100%;" + marLStr + marRStr +
+                    "width:" + bultSize + ";display: inline-block; ";// +
+                //"line-height: 0px;";
                 if (isRTL) {
-                    bullet += " float: right;direction:rtl";
+                    bullet += "display: inline-block;white-space: nowrap ;direction:rtl;"; //direction:rtl; float: right;
                 }
-                bullet += "'>" + buImg + "  </span>";
+                bullet += "'>" + buImg + "  </div>";
                 //////////////////////////////////////////////////////////////////////////////////////
-            } else {
-                bullet = "<span style='margin-left: " + 328600 * 96 / 914400 * lvl + "px" +
-                    "; margin-right: " + 0 + "px;'></span>";
             }
-
-            return bullet;
+            // else {
+            //     bullet = "<div style='margin-left: " + 328600 * slideFactor * lvl + "px" +
+            //         "; margin-right: " + 0 + "px;'></div>";
+            // }
+            //console.log("genBuChar: width: ", $(bullet).outerWidth())
+            return [bullet, margin_val, font_val];//$(bullet).outerWidth()];
+        }
+        function getHtmlBullet(typefaceNode, buChar) {
+            //http://www.alanwood.net/demos/wingdings.html
+            //not work for IE11
+            //console.log("genBuChar typefaceNode:", typefaceNode, " buChar:", buChar, "charCodeAt:", buChar.charCodeAt(0))
+            switch (buChar) {
+                case "§":
+                    return "&#9632;";//"■"; //9632 | U+25A0 | Black square
+                    break;
+                case "q":
+                    return "&#10065;";//"❑"; // 10065 | U+2751 | Lower right shadowed white square
+                    break;
+                case "v":
+                    return "&#10070;";//"❖"; //10070 | U+2756 | Black diamond minus white X
+                    break;
+                case "Ø":
+                    return "&#11162;";//"⮚"; //11162 | U+2B9A | Three-D top-lighted rightwards equilateral arrowhead
+                    break;
+                case "ü":
+                    return "&#10004;";//"✔";  //10004 | U+2714 | Heavy check mark
+                    break;
+                default:
+                    if (/*typefaceNode == "Wingdings" ||*/ typefaceNode == "Wingdings 2" || typefaceNode == "Wingdings 3"){
+                        var wingCharCode =  getDingbatToUnicode(typefaceNode, buChar);
+                        if (wingCharCode !== null){
+                            return "&#" + wingCharCode + ";";
+                        }
+                    }
+                    return "&#" + (buChar.charCodeAt(0)) + ";";
+            }
+        }
+        function getDingbatToUnicode(typefaceNode, buChar){
+            if (dingbat_unicode){
+                var dingbat_code = buChar.codePointAt(0) & 0xFFF;
+                var char_unicode = null;
+                var len = dingbat_unicode.length;
+                var i = 0;
+                while (len--) {
+                    // blah blah
+                    var item = dingbat_unicode[i];
+                    if (item.f == typefaceNode && item.code == dingbat_code) {
+                        char_unicode = item.unicode;
+                        break;
+                    }
+                    i++;
+                }
+                return char_unicode
+            }
         }
 
-        function genSpanElement(node, spNode, slideLayoutSpNode, slideMasterSpNode, type, warpObj) {
-
+        function getLayoutAndMasterNode(node, idx, type, warpObj) {
+            var pPrNodeLaout, pPrNodeMaster;
+            var pPrNode = node["a:pPr"];
+            //lvl
+            var lvl = 1;
+            var lvlNode = getTextByPathList(pPrNode, ["attrs", "lvl"]);
+            if (lvlNode !== undefined) {
+                lvl = parseInt(lvlNode) + 1;
+            }
+            if (idx !== undefined) {
+                //slidelayout
+                pPrNodeLaout = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:lstStyle", "a:lvl" + lvl + "pPr"]);
+                if (pPrNodeLaout === undefined) {
+                    pPrNodeLaout = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:p", "a:pPr"]);
+                    if (pPrNodeLaout === undefined) {
+                        pPrNodeLaout = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:p", (lvl - 1), "a:pPr"]);
+                    }
+                }
+            }
+            if (type !== undefined) {
+                //slidelayout
+                var lvlStr = "a:lvl" + lvl + "pPr";
+                if (pPrNodeLaout === undefined) {
+                    pPrNodeLaout = getTextByPathList(warpObj, ["slideLayoutTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr]);
+                }
+                //masterlayout
+                if (type == "title" || type == "ctrTitle") {
+                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlStr]);
+                } else if (type == "body" || type == "obj" || type == "subTitle") {
+                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr]);
+                } else if (type == "shape" || type == "diagram") {
+                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:otherStyle", lvlStr]);
+                } else if (type == "textBox") {
+                    pPrNodeMaster = getTextByPathList(warpObj, ["defaultTextStyle", lvlStr]);
+                } else {
+                    pPrNodeMaster = getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr]);
+                }
+            }
+            return {
+                "nodeLaout": pPrNodeLaout,
+                "nodeMaster": pPrNodeMaster
+            };
+        }
+        function genSpanElement(node, rIndex, pNode, textBodyNode, pFontStyle, slideLayoutSpNode, idx, type, rNodeLength, warpObj, isBullate) {
+            //https://codepen.io/imdunn/pen/GRgwaye ?
+            var text_style = "";
+            var lstStyle = textBodyNode["a:lstStyle"];
             var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
 
             var text = node["a:t"];
+            //var text_count = text.length;
+
+            var openElemnt = "<sapn";//"<bdi";
+            var closeElemnt = "</sapn>";// "</bdi>";
+            var styleText = "";
+            if (text === undefined && node["type"] !== undefined) {
+                if (is_first_br) {
+                    //openElemnt = "<br";
+                    //closeElemnt = "";
+                    //return "<br style='font-size: initial'>"
+                    is_first_br = false;
+                    return "<sapn class='line-break-br' ></sapn>";
+                } else {
+                    // styleText += "display: block;";
+                    // openElemnt = "<sapn";
+                    // closeElemnt = "</sapn>";
+                }
+
+                styleText += "display: block;";
+                //openElemnt = "<sapn";
+                //closeElemnt = "</sapn>";
+            } else {
+
+                is_first_br = true;
+            }
             if (typeof text !== 'string') {
                 text = getTextByPathList(node, ["a:fld", "a:t"]);
                 if (typeof text !== 'string') {
                     text = "&nbsp;";
+                    //return "<span class='text-block '>&nbsp;</span>";
+                }
+                // if (text === undefined) {
+                //     return "";
+                // }
+            }
+
+            var pPrNode = pNode["a:pPr"];
+            //lvl
+            var lvl = 1;
+            var lvlNode = getTextByPathList(pPrNode, ["attrs", "lvl"]);
+            if (lvlNode !== undefined) {
+                lvl = parseInt(lvlNode) + 1;
+            }
+            //console.log("genSpanElement node: ", node, "rIndex: ", rIndex, ", pNode: ", pNode, ",pPrNode: ", pPrNode, "pFontStyle:", pFontStyle, ", idx: ", idx, "type:", type, warpObj);
+            var layoutMasterNode = getLayoutAndMasterNode(pNode, idx, type, warpObj);
+            var pPrNodeLaout = layoutMasterNode.nodeLaout;
+            var pPrNodeMaster = layoutMasterNode.nodeMaster;
+
+            //Language
+            var lang = getTextByPathList(node, ["a:rPr", "attrs", "lang"]);
+            var isRtlLan = (lang !== undefined && rtl_langs_array.indexOf(lang) !== -1)?true:false;
+            //rtl
+            var getRtlVal = getTextByPathList(pPrNode, ["attrs", "rtl"]);
+            if (getRtlVal === undefined) {
+                getRtlVal = getTextByPathList(pPrNodeLaout, ["attrs", "rtl"]);
+                if (getRtlVal === undefined && type != "shape") {
+                    getRtlVal = getTextByPathList(pPrNodeMaster, ["attrs", "rtl"]);
                 }
             }
-            //console.log("genSpanElement: ",node)
+            var isRTL = false;
+            var dirStr = "ltr";
+            if (getRtlVal !== undefined && getRtlVal == "1") {
+                isRTL = true;
+                dirStr = "rtl";
+            }
+
+            var linkID = getTextByPathList(node, ["a:rPr", "a:hlinkClick", "attrs", "r:id"]);
+            var linkTooltip = "";
+            var defLinkClr;
+            if (linkID !== undefined) {
+                linkTooltip = getTextByPathList(node, ["a:rPr", "a:hlinkClick", "attrs", "tooltip"]);
+                if (linkTooltip !== undefined) {
+                    linkTooltip = "title='" + linkTooltip + "'";
+                }
+                defLinkClr = getSchemeColorFromTheme("a:hlink", undefined, undefined, warpObj);
+
+                var linkClrNode = getTextByPathList(node, ["a:rPr", "a:solidFill"]);// getTextByPathList(node, ["a:rPr", "a:solidFill"]);
+                var rPrlinkClr = getSolidFill(linkClrNode, undefined, undefined, warpObj);
+
+
+                //console.log("genSpanElement defLinkClr: ", defLinkClr, "rPrlinkClr:", rPrlinkClr)
+                if (rPrlinkClr !== undefined && rPrlinkClr != "") {
+                    defLinkClr = rPrlinkClr;
+                }
+
+            }
+            /////////////////////////////////////////////////////////////////////////////////////
             //getFontColor
-            var fontClrPr = getFontColorPr(node, spNode, type, slideMasterTextStyles);
-            var styleText =
-                "color:" + fontClrPr[0] + ";" +
-                "text-shadow:" + fontClrPr[1] + ";" +
-                "font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + ";" +
-                "font-family:" + getFontType(node, type, slideMasterTextStyles) + ";" +
+            var fontClrPr = getFontColorPr(node, pNode, lstStyle, pFontStyle, lvl, idx, type, warpObj);
+            var fontClrType = fontClrPr[2];
+            //console.log("genSpanElement fontClrPr: ", fontClrPr, "linkID", linkID);
+            if (fontClrType == "solid") {
+                if (linkID === undefined && fontClrPr[0] !== undefined && fontClrPr[0] != "") {
+                    styleText += "color: #" + fontClrPr[0] + ";";
+                }
+                else if (linkID !== undefined && defLinkClr !== undefined) {
+                    styleText += "color: #" + defLinkClr + ";";
+                }
+
+                if (fontClrPr[1] !== undefined && fontClrPr[1] != "" && fontClrPr[1] != ";") {
+                    styleText += "text-shadow:" + fontClrPr[1] + ";";
+                }
+                if (fontClrPr[3] !== undefined && fontClrPr[3] != "") {
+                    styleText += "background-color: #" + fontClrPr[3] + ";";
+                }
+            } else if (fontClrType == "pattern" || fontClrType == "pic" || fontClrType == "gradient") {
+                if (fontClrType == "pattern") {
+                    styleText += "background:" + fontClrPr[0][0] + ";";
+                    if (fontClrPr[0][1] !== null && fontClrPr[0][1] !== undefined && fontClrPr[0][1] != "") {
+                        styleText += "background-size:" + fontClrPr[0][1] + ";";//" 2px 2px;" +
+                    }
+                    if (fontClrPr[0][2] !== null && fontClrPr[0][2] !== undefined && fontClrPr[0][2] != "") {
+                        styleText += "background-position:" + fontClrPr[0][2] + ";";//" 2px 2px;" +
+                    }
+                    // styleText += "-webkit-background-clip: text;" +
+                    //     "background-clip: text;" +
+                    //     "color: transparent;" +
+                    //     "-webkit-text-stroke: " + fontClrPr[1].border + ";" +
+                    //     "filter: " + fontClrPr[1].effcts + ";";
+                } else if (fontClrType == "pic") {
+                    styleText += fontClrPr[0] + ";";
+                    // styleText += "-webkit-background-clip: text;" +
+                    //     "background-clip: text;" +
+                    //     "color: transparent;" +
+                    //     "-webkit-text-stroke: " + fontClrPr[1].border + ";";
+                } else if (fontClrType == "gradient") {
+
+                    var colorAry = fontClrPr[0].color;
+                    var rot = fontClrPr[0].rot;
+
+                    styleText += "background: linear-gradient(" + rot + "deg,";
+                    for (var i = 0; i < colorAry.length; i++) {
+                        if (i == colorAry.length - 1) {
+                            styleText += "#" + colorAry[i] + ");";
+                        } else {
+                            styleText += "#" + colorAry[i] + ", ";
+                        }
+                    }
+                    // styleText += "-webkit-background-clip: text;" +
+                    //     "background-clip: text;" +
+                    //     "color: transparent;" +
+                    //     "-webkit-text-stroke: " + fontClrPr[1].border + ";";
+
+                }
+                styleText += "-webkit-background-clip: text;" +
+                    "background-clip: text;" +
+                    "color: transparent;";
+                if (fontClrPr[1].border !== undefined && fontClrPr[1].border !== "") {
+                    styleText += "-webkit-text-stroke: " + fontClrPr[1].border + ";";
+                }
+                if (fontClrPr[1].effcts !== undefined && fontClrPr[1].effcts !== "") {
+                    styleText += "filter: " + fontClrPr[1].effcts + ";";
+                }
+            }
+            var font_size = getFontSize(node, textBodyNode, pFontStyle, lvl, type, warpObj);
+            //text_style += "font-size:" + font_size + ";"
+            
+            text_style += "font-size:" + font_size + ";" +
+                // marLStr +
+                "font-family:" + getFontType(node, type, warpObj, pFontStyle) + ";" +
                 "font-weight:" + getFontBold(node, type, slideMasterTextStyles) + ";" +
                 "font-style:" + getFontItalic(node, type, slideMasterTextStyles) + ";" +
                 "text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) + ";" +
-                "text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + ";" +
+                "text-align:" + getTextHorizontalAlign(node, pNode, type, warpObj) + ";" +
                 "vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + ";";
-            //////////////////Amir///////////////
+            //rNodeLength
+            //console.log("genSpanElement node:", node, "lang:", lang, "isRtlLan:", isRtlLan, "span parent dir:", dirStr)
+            if (isRtlLan) { //|| rIndex === undefined
+                styleText += "direction:rtl;";
+            }else{ //|| rIndex === undefined
+                styleText += "direction:ltr;";
+            }
+            // } else if (dirStr == "rtl" && isRtlLan ) {
+            //     styleText += "direction:rtl;";
+
+            // } else if (dirStr == "ltr" && !isRtlLan ) {
+            //     styleText += "direction:ltr;";
+            // } else if (dirStr == "ltr" && isRtlLan){
+            //     styleText += "direction:ltr;";
+            // }else{
+            //     styleText += "direction:inherit;";
+            // }
+
+            // if (dirStr == "rtl" && !isRtlLan) { //|| rIndex === undefined
+            //     styleText += "direction:ltr;";
+            // } else if (dirStr == "rtl" && isRtlLan) {
+            //     styleText += "direction:rtl;";
+            // } else if (dirStr == "ltr" && !isRtlLan) {
+            //     styleText += "direction:ltr;";
+            // } else if (dirStr == "ltr" && isRtlLan) {
+            //     styleText += "direction:rtl;";
+            // } else {
+            //     styleText += "direction:inherit;";
+            // }
+
+            //     //"direction:" + dirStr + ";";
+            //if (rNodeLength == 1 || rIndex == 0 ){
+            //styleText += "display: table-cell;white-space: nowrap;";
+            //}
             var highlight = getTextByPathList(node, ["a:rPr", "a:highlight"]);
             if (highlight !== undefined) {
-                styleText += "background-color:#" + getSolidFill(highlight) + ";";
-                styleText += "Opacity:" + getColorOpacity(highlight) + ";";
+                styleText += "background-color:#" + getSolidFill(highlight, undefined, undefined, warpObj) + ";";
+                //styleText += "Opacity:" + getColorOpacity(highlight) + ";";
             }
-            ///////////////////////////////////////////
+
+            //letter-spacing:
+            var spcNode = getTextByPathList(node, ["a:rPr", "attrs", "spc"]);
+            if (spcNode === undefined) {
+                spcNode = getTextByPathList(pPrNodeLaout, ["a:defRPr", "attrs", "spc"]);
+                if (spcNode === undefined) {
+                    spcNode = getTextByPathList(pPrNodeMaster, ["a:defRPr", "attrs", "spc"]);
+                }
+            }
+            if (spcNode !== undefined) {
+                var ltrSpc = parseInt(spcNode) / 100; //pt
+                styleText += "letter-spacing: " + ltrSpc + "px;";// + "pt;";
+            }
+
+            //Text Cap Types
+            var capNode = getTextByPathList(node, ["a:rPr", "attrs", "cap"]);
+            if (capNode === undefined) {
+                capNode = getTextByPathList(pPrNodeLaout, ["a:defRPr", "attrs", "cap"]);
+                if (capNode === undefined) {
+                    capNode = getTextByPathList(pPrNodeMaster, ["a:defRPr", "attrs", "cap"]);
+                }
+            }
+            if (capNode == "small" || capNode == "all") {
+                styleText += "text-transform: uppercase";
+            }
+            //styleText += "word-break: break-word;";
+            //console.log("genSpanElement node: ", node, ", capNode: ", capNode, ",pPrNodeLaout: ", pPrNodeLaout, ", pPrNodeMaster: ", pPrNodeMaster, "warpObj:", warpObj);
+
             var cssName = "";
 
             if (styleText in styleTable) {
@@ -7660,29 +9510,140 @@
                     "text": styleText
                 };
             }
+            var linkColorSyle = "";
+            if (fontClrType == "solid" && linkID !== undefined) {
+                linkColorSyle = "style='color: inherit;'";
+            }
 
-            var linkID = getTextByPathList(node, ["a:rPr", "a:hlinkClick", "attrs", "r:id"]);
-            //get link colors : TODO
-            if (linkID !== undefined) {
+            if (linkID !== undefined && linkID != "") {
                 var linkURL = warpObj["slideResObj"][linkID]["target"];
                 linkURL = escapeHtml(linkURL);
-                return "<span class='text-block " + cssName + "'><a href='" + linkURL + "' target='_blank'>" + text.replace(/\s/i, "&nbsp;") + "</a></span>";
+                return openElemnt + " class='text-block " + cssName + "' style='" + text_style + "'><a href='" + linkURL + "' " + linkColorSyle + "  " + linkTooltip + " target='_blank'>" +
+                        text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, "&nbsp;") + "</a>" + closeElemnt;
             } else {
-                return "<span class='text-block " + cssName + "'>" + text.replace(/\s/i, "&nbsp;") + "</span>";
+                return openElemnt + " class='text-block " + cssName + "' style='" + text_style + "'>" + text.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;').replace(/\s/g, "&nbsp;") + closeElemnt;//"</bdi>";
             }
 
         }
 
+        function getPregraphMargn(pNode, idx, type, isBullate, warpObj){
+            if (!isBullate){
+                return ["",0];
+            }
+            var marLStr = "", marRStr = "" , maginVal = 0;
+            var pPrNode = pNode["a:pPr"];
+            var layoutMasterNode = getLayoutAndMasterNode(pNode, idx, type, warpObj);
+            var pPrNodeLaout = layoutMasterNode.nodeLaout;
+            var pPrNodeMaster = layoutMasterNode.nodeMaster;
+            
+            // var lang = getTextByPathList(node, ["a:rPr", "attrs", "lang"]);
+            // var isRtlLan = (lang !== undefined && rtl_langs_array.indexOf(lang) !== -1) ? true : false;
+            //rtl
+            var getRtlVal = getTextByPathList(pPrNode, ["attrs", "rtl"]);
+            if (getRtlVal === undefined) {
+                getRtlVal = getTextByPathList(pPrNodeLaout, ["attrs", "rtl"]);
+                if (getRtlVal === undefined && type != "shape") {
+                    getRtlVal = getTextByPathList(pPrNodeMaster, ["attrs", "rtl"]);
+                }
+            }
+            var isRTL = false;
+            var dirStr = "ltr";
+            if (getRtlVal !== undefined && getRtlVal == "1") {
+                isRTL = true;
+                dirStr = "rtl";
+            }
+
+            //align
+            var alignNode = getTextByPathList(pPrNode, ["attrs", "algn"]); //"l" | "ctr" | "r" | "just" | "justLow" | "dist" | "thaiDist
+            if (alignNode === undefined) {
+                alignNode = getTextByPathList(pPrNodeLaout, ["attrs", "algn"]);
+                if (alignNode === undefined) {
+                    alignNode = getTextByPathList(pPrNodeMaster, ["attrs", "algn"]);
+                }
+            }
+            //indent?
+            var indentNode = getTextByPathList(pPrNode, ["attrs", "indent"]);
+            if (indentNode === undefined) {
+                indentNode = getTextByPathList(pPrNodeLaout, ["attrs", "indent"]);
+                if (indentNode === undefined) {
+                    indentNode = getTextByPathList(pPrNodeMaster, ["attrs", "indent"]);
+                }
+            }
+            var indent = 0;
+            if (indentNode !== undefined) {
+                indent = parseInt(indentNode) * slideFactor;
+            }
+            //
+            //marL
+            var marLNode = getTextByPathList(pPrNode, ["attrs", "marL"]);
+            if (marLNode === undefined) {
+                marLNode = getTextByPathList(pPrNodeLaout, ["attrs", "marL"]);
+                if (marLNode === undefined) {
+                    marLNode = getTextByPathList(pPrNodeMaster, ["attrs", "marL"]);
+                }
+            }
+            var marginLeft = 0;
+            if (marLNode !== undefined) {
+                marginLeft = parseInt(marLNode) * slideFactor;
+            }
+            if ((indentNode !== undefined || marLNode !== undefined)) {
+                //var lvlIndent = defTabSz * lvl;
+
+                if (isRTL) {// && alignNode == "r") {
+                    //marLStr = "margin-right: ";
+                    marLStr = "padding-right: ";
+                } else {
+                    //marLStr = "margin-left: ";
+                    marLStr = "padding-left: ";
+                }
+                if (isBullate) {
+                    maginVal = Math.abs(0 - indent);
+                    marLStr += maginVal + "px;";  // (minus bullate numeric lenght/size - TODO
+                } else {
+                    maginVal = Math.abs(marginLeft + indent);
+                    marLStr += maginVal + "px;";  // (minus bullate numeric lenght/size - TODO
+                }
+            }
+
+            //marR?
+            var marRNode = getTextByPathList(pPrNode, ["attrs", "marR"]);
+            if (marRNode === undefined && marLNode === undefined) {
+                //need to check if this posble - TODO
+                marRNode = getTextByPathList(pPrNodeLaout, ["attrs", "marR"]);
+                if (marRNode === undefined) {
+                    marRNode = getTextByPathList(pPrNodeMaster, ["attrs", "marR"]);
+                }
+            }
+            if (marRNode !== undefined && isBullate) {
+                var marginRight = parseInt(marRNode) * slideFactor;
+                if (isRTL) {// && alignNode == "r") {
+                    //marRStr = "margin-right: ";
+                    marRStr = "padding-right: ";
+                } else {
+                    //marRStr = "margin-left: ";
+                    marRStr = "padding-left: ";
+                }
+                marRStr += Math.abs(0 - indent) + "px;";
+            }
+
+
+            return [marLStr, maginVal];
+        }
+
         function genGlobalCSS() {
             var cssText = "";
+            //console.log("styleTable: ", styleTable)
             for (var key in styleTable) {
                 var tagname = "";
-                if (settings.slideMode && settings.slideType == "revealjs") {
-                    tagname = "section";
-                } else {
-                    tagname = "div";
-                }
-                cssText += tagname + " ." + styleTable[key]["name"] + "{" + styleTable[key]["text"] + "}\n"; //section > div
+                // if (settings.slideMode && settings.slideType == "revealjs") {
+                //     tagname = "section";
+                // } else {
+                //     tagname = "div";
+                // }
+                //ADD suffix
+                cssText += tagname + " ." + styleTable[key]["name"] +
+                    ((styleTable[key]["suffix"]) ? styleTable[key]["suffix"] : "") +
+                    "{" + styleTable[key]["text"] + "}\n"; //section > div
             }
             //cssText += " .slide{margin-bottom: 5px;}\n"; // TODO
 
@@ -7695,7 +9656,6 @@
         }
 
         function genTable(node, warpObj) {
-
             var order = node["attrs"]["order"];
             var tableNode = getTextByPathList(node, ["a:graphic", "a:graphicData", "a:tbl"]);
             var xfrmNode = getTextByPathList(node, ["p:xfrm"]);
@@ -7713,318 +9673,548 @@
             var lastColAttr = getTblPr["attrs"]["lastCol"]; //associated element <a:lastCol> in the table styles
             var bandRowAttr = getTblPr["attrs"]["bandRow"]; //associated element <a:band1H>, <a:band2H> in the table styles
             var bandColAttr = getTblPr["attrs"]["bandCol"]; //associated element <a:band1V>, <a:band2V> in the table styles
-            //console.log(firstColAttr);
+            //console.log("getTblPr: ", getTblPr);
+            var tblStylAttrObj = {
+                isFrstRowAttr: (firstRowAttr !== undefined && firstRowAttr == "1") ? 1 : 0,
+                isFrstColAttr: (firstColAttr !== undefined && firstColAttr == "1") ? 1 : 0,
+                isLstRowAttr: (lastRowAttr !== undefined && lastRowAttr == "1") ? 1 : 0,
+                isLstColAttr: (lastColAttr !== undefined && lastColAttr == "1") ? 1 : 0,
+                isBandRowAttr: (bandRowAttr !== undefined && bandRowAttr == "1") ? 1 : 0,
+                isBandColAttr: (bandColAttr !== undefined && bandColAttr == "1") ? 1 : 0
+            }
+
+            var thisTblStyle;
+            var tbleStyleId = getTblPr["a:tableStyleId"];
+            if (tbleStyleId !== undefined) {
+                var tbleStylList = tableStyles["a:tblStyleLst"]["a:tblStyle"];
+                if (tbleStylList !== undefined) {
+                    if (tbleStylList.constructor === Array) {
+                        for (var k = 0; k < tbleStylList.length; k++) {
+                            if (tbleStylList[k]["attrs"]["styleId"] == tbleStyleId) {
+                                thisTblStyle = tbleStylList[k];
+                            }
+                        }
+                    } else {
+                        if (tbleStylList["attrs"]["styleId"] == tbleStyleId) {
+                            thisTblStyle = tbleStylList;
+                        }
+                    }
+                }
+            }
+            if (thisTblStyle !== undefined) {
+                thisTblStyle["tblStylAttrObj"] = tblStylAttrObj;
+                warpObj["thisTbiStyle"] = thisTblStyle;
+            }
+            var tblStyl = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle"]);
+            var tblBorderStyl = getTextByPathList(tblStyl, ["a:tcBdr"]);
+            var tbl_borders = "";
+            if (tblBorderStyl !== undefined) {
+                tbl_borders = getTableBorders(tblBorderStyl, warpObj);
+            }
+            var tbl_bgcolor = "";
+            var tbl_opacity = 1;
+            var tbl_bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:tblBg", "a:fillRef"]);
+            //console.log( "thisTblStyle:", thisTblStyle, "warpObj:", warpObj)
+            if (tbl_bgFillschemeClr !== undefined) {
+                tbl_bgcolor = getSolidFill(tbl_bgFillschemeClr, undefined, undefined, warpObj);
+            }
+            if (tbl_bgFillschemeClr === undefined) {
+                tbl_bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:fill", "a:solidFill"]);
+                tbl_bgcolor = getSolidFill(tbl_bgFillschemeClr, undefined, undefined, warpObj);
+            }
+            if (tbl_bgcolor !== "") {
+                tbl_bgcolor = "background-color: #" + tbl_bgcolor + ";";
+            }
             ////////////////////////////////////////////////////////////////////////////////////////////
-            var tableHtml = "<table " + tblDir + " style='border-collapse: collapse;" + getPosition(xfrmNode, undefined, undefined) + getSize(xfrmNode, undefined, undefined) + " z-index: " + order + ";'>";
+            var tableHtml = "<table " + tblDir + " style='border-collapse: collapse;" +
+                getPosition(xfrmNode, node, undefined, undefined) +
+                getSize(xfrmNode, undefined, undefined) +
+                " z-index: " + order + ";" +
+                tbl_borders + ";" +
+                tbl_bgcolor + "'>";
 
             var trNodes = tableNode["a:tr"];
-            if (trNodes.constructor === Array) {
+            if (trNodes.constructor !== Array) {
+                trNodes = [trNodes];
+            }
+            //if (trNodes.constructor === Array) {
+                //multi rows
+                var totalrowSpan = 0;
+                var rowSpanAry = [];
                 for (var i = 0; i < trNodes.length; i++) {
                     //////////////rows Style ////////////Amir
                     var rowHeightParam = trNodes[i]["attrs"]["h"];
                     var rowHeight = 0;
                     var rowsStyl = "";
                     if (rowHeightParam !== undefined) {
-                        rowHeight = parseInt(rowHeightParam) * 96 / 914400;
+                        rowHeight = parseInt(rowHeightParam) * slideFactor;
                         rowsStyl += "height:" + rowHeight + "px;";
-                        //tableHtml += "<tr style='height:"+rowHeight+"px;'>";
                     }
+                    var fillColor = "";
+                    var row_borders = "";
+                    var fontClrPr = "";
+                    var fontWeight = "";
+                    var band_1H_fillColor;
+                    var band_2H_fillColor;
 
-                    //get from Theme (tableStyles.xml) TODO 
-                    //get tableStyleId = a:tbl => a:tblPr => a:tableStyleId
-                    var thisTblStyle;
-                    var tbleStyleId = getTblPr["a:tableStyleId"];
-                    if (tbleStyleId !== undefined) {
-                        //get Style from tableStyles.xml by {var tbleStyleId}
-                        //table style object : tableStyles
-                        var tbleStylList = tableStyles["a:tblStyleLst"]["a:tblStyle"];
-                        if (tbleStylList.constructor === Array) {
-                            for (var k = 0; k < tbleStylList.length; k++) {
-                                if (tbleStylList[k]["attrs"]["styleId"] == tbleStyleId) {
-                                    thisTblStyle = tbleStylList[k];
-                                }
+                    if (thisTblStyle !== undefined && thisTblStyle["a:wholeTbl"] !== undefined) {
+                        var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:fill", "a:solidFill"]);
+                        if (bgFillschemeClr !== undefined) {
+                            var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                            if (local_fillColor !== undefined) {
+                                fillColor = local_fillColor;
                             }
-                        } else {
-                            if (tbleStylList["attrs"]["styleId"] == tbleStyleId) {
-                                thisTblStyle = tbleStylList;
+                        }
+                        var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcTxStyle"]);
+                        if (rowTxtStyl !== undefined) {
+                            var local_fontColor = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                            if (local_fontColor !== undefined) {
+                                fontClrPr = local_fontColor;
+                            }
+
+                            var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+                            if (local_fontWeight != "") {
+                                fontWeight = local_fontWeight
                             }
                         }
                     }
-                    //console.log(thisTblStyle);
-                    if (i == 0 && firstRowAttr !== undefined) {
-                        var fillColor = "fff";
-                        var colorOpacity = 1;
-                        if (thisTblStyle["a:firstRow"] !== undefined) {
-                            var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcStyle", "a:fill", "a:solidFill"]);
+
+                    if (i == 0 && tblStylAttrObj["isFrstRowAttr"] == 1 && thisTblStyle !== undefined) {
+
+                        var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcStyle", "a:fill", "a:solidFill"]);
+                        if (bgFillschemeClr !== undefined) {
+                            var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                            if (local_fillColor !== undefined) {
+                                fillColor = local_fillColor;
+                            }
+                        }
+                        var borderStyl = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcStyle", "a:tcBdr"]);
+                        if (borderStyl !== undefined) {
+                            var local_row_borders = getTableBorders(borderStyl, warpObj);
+                            if (local_row_borders != "") {
+                                row_borders = local_row_borders;
+                            }
+                        }
+                        var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcTxStyle"]);
+                        if (rowTxtStyl !== undefined) {
+                            var local_fontClrPr = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                            if (local_fontClrPr !== undefined) {
+                                fontClrPr = local_fontClrPr;
+                            }
+                            var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+                            if (local_fontWeight !== "") {
+                                fontWeight = local_fontWeight;
+                            }
+                        }
+
+                    } else if (i > 0 && tblStylAttrObj["isBandRowAttr"] == 1 && thisTblStyle !== undefined) {
+                        fillColor = "";
+                        row_borders = undefined;
+                        if ((i % 2) == 0 && thisTblStyle["a:band2H"] !== undefined) {
+                            // console.log("i: ", i, 'thisTblStyle["a:band2H"]:', thisTblStyle["a:band2H"])
+                            //check if there is a row bg
+                            var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcStyle", "a:fill", "a:solidFill"]);
                             if (bgFillschemeClr !== undefined) {
-                                fillColor = getSolidFill(bgFillschemeClr);
-                                colorOpacity = getColorOpacity(bgFillschemeClr);
+                                var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                                if (local_fillColor !== "") {
+                                    fillColor = local_fillColor;
+                                    band_2H_fillColor = local_fillColor;
+                                }
                             }
-                            //console.log(thisTblStyle["a:firstRow"])
 
-                            //borders color
-                            //borders Width
-                            var borderStyl = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcStyle", "a:tcBdr"]);
+
+                            var borderStyl = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcStyle", "a:tcBdr"]);
                             if (borderStyl !== undefined) {
-                                var row_borders = getTableBorders(borderStyl);
-                                rowsStyl += row_borders;
+                                var local_row_borders = getTableBorders(borderStyl, warpObj);
+                                if (local_row_borders != "") {
+                                    row_borders = local_row_borders;
+                                }
                             }
-                            //console.log(thisTblStyle["a:firstRow"])
-
-                            //Text Style - TODO
-                            var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:firstRow", "a:tcTxStyle"]);
+                            var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcTxStyle"]);
                             if (rowTxtStyl !== undefined) {
-                                /*
-                            var fontClrPr = getFontColorPr(node, spNode, type, slideMasterTextStyles);
-                            var styleText = 
-                                "color:" + fontClrPr[0] + ";" +
-                                "text-shadow:" + fontClrPr[1] + ";" +
-                                "font-size:" + getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) + ";" + 
-                                "font-family:" + getFontType(node, type, slideMasterTextStyles) + ";" + 
-                                "font-weight:" + getFontBold(node, type, slideMasterTextStyles) + ";" +
-                                "font-style:" + getFontItalic(node, type, slideMasterTextStyles) + ";" +
-                                "text-decoration:" + getFontDecoration(node, type, slideMasterTextStyles) + ";" +
-                                "text-align:" + getTextHorizontalAlign(node, type, slideMasterTextStyles) + ";" +
-                                "vertical-align:" + getTextVerticalAlign(node, type, slideMasterTextStyles) + ";";
-                                */
+                                var local_fontClrPr = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                                if (local_fontClrPr !== undefined) {
+                                    fontClrPr = local_fontClrPr;
+                                }
                             }
 
+                            var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+
+                            if (local_fontWeight !== "") {
+                                fontWeight = local_fontWeight;
+                            }
                         }
-                        rowsStyl += " background-color:#" + fillColor + ";" +
-                            " opacity:" + colorOpacity + ";";
-
-                    } else if (i > 0 && bandRowAttr !== undefined) {
-                        var fillColor = "fff";
-                        var colorOpacity = 1;
-                        if ((i % 2) == 0) {
-                            if (thisTblStyle["a:band2H"] !== undefined) {
-                                //console.log(thisTblStyle["a:band2H"]);
-                                var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcStyle", "a:fill", "a:solidFill"]);
-                                if (bgFillschemeClr !== undefined) {
-                                    fillColor = getSolidFill(bgFillschemeClr);
-                                    colorOpacity = getColorOpacity(bgFillschemeClr);
+                        if ((i % 2) != 0 && thisTblStyle["a:band1H"] !== undefined) {
+                            var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcStyle", "a:fill", "a:solidFill"]);
+                            if (bgFillschemeClr !== undefined) {
+                                var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                                if (local_fillColor !== undefined) {
+                                    fillColor = local_fillColor;
+                                    band_1H_fillColor = local_fillColor;
                                 }
-                                //borders color
-                                //borders Width
-                                var borderStyl = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcStyle", "a:tcBdr"]);
-                                if (borderStyl !== undefined) {
-                                    var row_borders = getTableBorders(borderStyl);
-                                    rowsStyl += row_borders;
+                            }
+                            var borderStyl = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcStyle", "a:tcBdr"]);
+                            if (borderStyl !== undefined) {
+                                var local_row_borders = getTableBorders(borderStyl, warpObj);
+                                if (local_row_borders != "") {
+                                    row_borders = local_row_borders;
                                 }
-                                //console.log(thisTblStyle["a:band2H"])
-
-                                //Text Style - TODO
-                                var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:band2H", "a:tcTxStyle"]);
-                                if (rowTxtStyl !== undefined) {
-
+                            }
+                            var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcTxStyle"]);
+                            if (rowTxtStyl !== undefined) {
+                                var local_fontClrPr = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                                if (local_fontClrPr !== undefined) {
+                                    fontClrPr = local_fontClrPr;
                                 }
-                                //console.log(i,thisTblStyle)
-                            }/*else{
-                                var bgFillschemeClr = thisTblStyle["a:wholeTbl"]["a:tcStyle"]["a:fill"]["a:solidFill"];
-                                if(bgFillschemeClr !==undefined){
-                                    fillColor = getSolidFill(bgFillschemeClr);
-                                    colorOpacity = getColorOpacity(bgFillschemeClr);
-                                }
-                                //borders color
-                                //borders Width
-                                var borderStyl = thisTblStyle["a:wholeTbl"]["a:tcStyle"]["a:tcBdr"];
-                                if(borderStyl !== undefined){
-                                    var row_borders = getTableBorders(borderStyl);
-                                    rowsStyl += row_borders;
-                                }
-                                //console.log(thisTblStyle["a:wholeTbl"])
-                                
-                                //Text Style - TODO
-                                var rowTxtStyl = thisTblStyle["a:wholeTbl"]["a:tcTxStyle"];
-                                if(rowTxtStyl !== undefined){
-                                    
-                                }                        
-                            }*/
-                        } else {
-                            if (thisTblStyle["a:band1H"] !== undefined) {
-                                var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcStyle", "a:fill", "a:solidFill"]);
-                                if (bgFillschemeClr !== undefined) {
-                                    fillColor = getSolidFill(bgFillschemeClr);
-                                    colorOpacity = getColorOpacity(bgFillschemeClr);
-                                }
-                                //borders color
-                                //borders Width
-                                var borderStyl = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcStyle", "a:tcBdr"]);
-                                if (borderStyl !== undefined) {
-                                    var row_borders = getTableBorders(borderStyl);
-                                    rowsStyl += row_borders;
-                                }
-                                //console.log(thisTblStyle["a:band1H"])
-
-                                //Text Style - TODO
-                                var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:band1H", "a:tcTxStyle"]);
-                                if (rowTxtStyl !== undefined) {
-
+                                var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+                                if (local_fontWeight != "") {
+                                    fontWeight = local_fontWeight;
                                 }
                             }
                         }
-                        rowsStyl += " background-color:#" + fillColor + ";" +
-                            " opacity:" + colorOpacity + ";";
+
+                    }
+                    //last row
+                    if (i == (trNodes.length - 1) && tblStylAttrObj["isLstRowAttr"] == 1 && thisTblStyle !== undefined) {
+                        var bgFillschemeClr = getTextByPathList(thisTblStyle, ["a:lastRow", "a:tcStyle", "a:fill", "a:solidFill"]);
+                        if (bgFillschemeClr !== undefined) {
+                            var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                            if (local_fillColor !== undefined) {
+                                fillColor = local_fillColor;
+                            }
+                            // var local_colorOpacity = getColorOpacity(bgFillschemeClr);
+                            // if(local_colorOpacity !== undefined){
+                            //     colorOpacity = local_colorOpacity;
+                            // }
+                        }
+                        var borderStyl = getTextByPathList(thisTblStyle, ["a:lastRow", "a:tcStyle", "a:tcBdr"]);
+                        if (borderStyl !== undefined) {
+                            var local_row_borders = getTableBorders(borderStyl, warpObj);
+                            if (local_row_borders != "") {
+                                row_borders = local_row_borders;
+                            }
+                        }
+                        var rowTxtStyl = getTextByPathList(thisTblStyle, ["a:lastRow", "a:tcTxStyle"]);
+                        if (rowTxtStyl !== undefined) {
+                            var local_fontClrPr = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                            if (local_fontClrPr !== undefined) {
+                                fontClrPr = local_fontClrPr;
+                            }
+
+                            var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+                            if (local_fontWeight !== "") {
+                                fontWeight = local_fontWeight;
+                            }
+                        }
+                    }
+                    rowsStyl += ((row_borders !== undefined) ? row_borders : "");
+                    rowsStyl += ((fontClrPr !== undefined) ? " color: #" + fontClrPr + ";" : "");
+                    rowsStyl += ((fontWeight != "") ? " font-weight:" + fontWeight + ";" : "");
+                    if (fillColor !== undefined && fillColor != "") {
+                        //rowsStyl += "background-color: rgba(" + hexToRgbNew(fillColor) + "," + colorOpacity + ");";
+                        rowsStyl += "background-color: #" + fillColor + ";";
                     }
                     tableHtml += "<tr style='" + rowsStyl + "'>";
                     ////////////////////////////////////////////////
 
                     var tcNodes = trNodes[i]["a:tc"];
-
-                    if (tcNodes.constructor === Array) {
-                        for (var j = 0; j < tcNodes.length; j++) {
-                            var text = genTextBody(tcNodes[j]["a:txBody"], node, undefined, undefined, undefined, warpObj);
-                            var rowSpan = getTextByPathList(tcNodes[j], ["attrs", "rowSpan"]);
-                            var colSpan = getTextByPathList(tcNodes[j], ["attrs", "gridSpan"]);
-                            var vMerge = getTextByPathList(tcNodes[j], ["attrs", "vMerge"]);
-                            var hMerge = getTextByPathList(tcNodes[j], ["attrs", "hMerge"]);
-                            //Cells Style : TODO /////////////Amir
-                            //console.log(tcNodes[j]);
-                            //if(j==0 && ())
-                            var colWidthParam = getColsGrid[j]["attrs"]["w"];
-                            var colStyl = "";
-                            if (colWidthParam !== undefined) {
-                                var colWidth = parseInt(colWidthParam) * 96 / 914400;
-                                colStyl += "width:" + colWidth + "px;"
+                    if (tcNodes !== undefined) {
+                        if (tcNodes.constructor === Array) {
+                            //multi columns
+                            var j = 0;
+                            if (rowSpanAry.length == 0) {
+                                rowSpanAry = Array.apply(null, Array(tcNodes.length)).map(function () { return 0 });
                             }
-                            var getFill = tcNodes[j]["a:tcPr"]["a:solidFill"];
-                            var fillColor = "";
-                            var colorOpacity = 1;
-                            if (getFill !== undefined) {
-                                //console.log(getFill);
-                                fillColor = getSolidFill(getFill);
-                                colorOpacity = getColorOpacity(getFill);
-                            } else {
-                                //get from Theme (tableStyles.xml) TODO 
-                                //get tableStyleId = a:tbl => a:tblPr => a:tableStyleId
-                                var tbleStyleId = getTblPr["a:tableStyleId"];
-                                if (tbleStyleId !== undefined) {
-                                    //get Style from tableStyles.xml by {var tbleStyleId}
-                                    //table style object : tableStyles
-                                    var tbleStylList = tableStyles["a:tblStyleLst"]["a:tblStyle"];
+                            var totalColSpan = 0;
+                            while (j < tcNodes.length) {
+                                if (rowSpanAry[j] == 0 && totalColSpan == 0) {
+                                    var a_sorce;
+                                    //j=0 : first col
+                                    if (j == 0 && tblStylAttrObj["isFrstColAttr"] == 1) {
+                                        a_sorce = "a:firstCol";
+                                        if (tblStylAttrObj["isLstRowAttr"] == 1 && i == (trNodes.length - 1) &&
+                                            getTextByPathList(thisTblStyle, ["a:seCell"]) !== undefined) {
+                                            a_sorce = "a:seCell";
+                                        } else if (tblStylAttrObj["isFrstRowAttr"] == 1 && i == 0 &&
+                                            getTextByPathList(thisTblStyle, ["a:neCell"]) !== undefined) {
+                                            a_sorce = "a:neCell";
+                                        }
+                                    } else if ((j > 0 && tblStylAttrObj["isBandColAttr"] == 1) &&
+                                        !(tblStylAttrObj["isFrstColAttr"] == 1 && i == 0) &&
+                                        !(tblStylAttrObj["isLstRowAttr"] == 1 && i == (trNodes.length - 1)) &&
+                                        j != (tcNodes.length - 1)) {
 
-                                    for (var k = 0; k < tbleStylList.length; k++) {
-                                        if (tbleStylList[k]["attrs"]["styleId"] == tbleStyleId) {
-                                            //console.log(tbleStylList[k]);
+                                        if ((j % 2) != 0) {
+
+                                            var aBandNode = getTextByPathList(thisTblStyle, ["a:band2V"]);
+                                            if (aBandNode === undefined) {
+                                                aBandNode = getTextByPathList(thisTblStyle, ["a:band1V"]);
+                                                if (aBandNode !== undefined) {
+                                                    a_sorce = "a:band2V";
+                                                }
+                                            } else {
+                                                a_sorce = "a:band2V";
+                                            }
+
                                         }
                                     }
-                                }
-                                //console.log(tbleStyleId);
-                            }
-                            if (fillColor != "") {
-                                colStyl += " background-color:#" + fillColor + ";";
-                                colStyl += " opacity" + colorOpacity + ";";
-                            }
-                            //console.log(fillColor);
-                            ////////////////////////////////////
 
+                                    if (j == (tcNodes.length - 1) && tblStylAttrObj["isLstColAttr"] == 1) {
+                                        a_sorce = "a:lastCol";
+                                        if (tblStylAttrObj["isLstRowAttr"] == 1 && i == (trNodes.length - 1) && getTextByPathList(thisTblStyle, ["a:swCell"]) !== undefined) {
+                                            a_sorce = "a:swCell";
+                                        } else if (tblStylAttrObj["isFrstRowAttr"] == 1 && i == 0 && getTextByPathList(thisTblStyle, ["a:nwCell"]) !== undefined) {
+                                            a_sorce = "a:nwCell";
+                                        }
+                                    }
+
+                                    var cellParmAry = getTableCellParams(tcNodes[j], getColsGrid, i , j , thisTblStyle, a_sorce, warpObj)
+                                    var text = cellParmAry[0];
+                                    var colStyl = cellParmAry[1];
+                                    var cssName = cellParmAry[2];
+                                    var rowSpan = cellParmAry[3];
+                                    var colSpan = cellParmAry[4];
+
+
+
+                                    if (rowSpan !== undefined) {
+                                        totalrowSpan++;
+                                        rowSpanAry[j] = parseInt(rowSpan) - 1;
+                                        tableHtml += "<td class='" + cssName + "' data-row='" + i + "," + j + "' rowspan ='" +
+                                            parseInt(rowSpan) + "' style='" + colStyl + "'>" + text + "</td>";
+                                    } else if (colSpan !== undefined) {
+                                        tableHtml += "<td class='" + cssName + "' data-row='" + i + "," + j + "' colspan = '" +
+                                            parseInt(colSpan) + "' style='" + colStyl + "'>" + text + "</td>";
+                                        totalColSpan = parseInt(colSpan) - 1;
+                                    } else {
+                                        tableHtml += "<td class='" + cssName + "' data-row='" + i + "," + j + "' style = '" + colStyl + "'>" + text + "</td>";
+                                    }
+
+                                } else {
+                                    if (rowSpanAry[j] != 0) {
+                                        rowSpanAry[j] -= 1;
+                                    }
+                                    if (totalColSpan != 0) {
+                                        totalColSpan--;
+                                    }
+                                }
+                                j++;
+                            }
+                        } else {
+                            //single column 
+
+                            var a_sorce;
+                            if (tblStylAttrObj["isFrstColAttr"] == 1 && !(tblStylAttrObj["isLstRowAttr"] == 1)) {
+                                a_sorce = "a:firstCol";
+
+                            } else if ((tblStylAttrObj["isBandColAttr"] == 1) && !(tblStylAttrObj["isLstRowAttr"] == 1)) {
+
+                                var aBandNode = getTextByPathList(thisTblStyle, ["a:band2V"]);
+                                if (aBandNode === undefined) {
+                                    aBandNode = getTextByPathList(thisTblStyle, ["a:band1V"]);
+                                    if (aBandNode !== undefined) {
+                                        a_sorce = "a:band2V";
+                                    }
+                                } else {
+                                    a_sorce = "a:band2V";
+                                }
+                            }
+
+                            if (tblStylAttrObj["isLstColAttr"] == 1 && !(tblStylAttrObj["isLstRowAttr"] == 1)) {
+                                a_sorce = "a:lastCol";
+                            }
+
+
+                            var cellParmAry = getTableCellParams(tcNodes, getColsGrid , i , undefined , thisTblStyle, a_sorce, warpObj)
+                            var text = cellParmAry[0];
+                            var colStyl = cellParmAry[1];
+                            var cssName = cellParmAry[2];
+                            var rowSpan = cellParmAry[3];
 
                             if (rowSpan !== undefined) {
-                                tableHtml += "<td rowspan='" + parseInt(rowSpan) + "' style='" + colStyl + "'>" + text + "</td>";
-                            } else if (colSpan !== undefined) {
-                                tableHtml += "<td colspan='" + parseInt(colSpan) + "' style='" + colStyl + "'>" + text + "</td>";
-                            } else if (vMerge === undefined && hMerge === undefined) {
-                                tableHtml += "<td style='" + colStyl + "'>" + text + "</td>";
+                                tableHtml += "<td  class='" + cssName + "' rowspan='" + parseInt(rowSpan) + "' style = '" + colStyl + "'>" + text + "</td>";
+                            } else {
+                                tableHtml += "<td class='" + cssName + "' style='" + colStyl + "'>" + text + "</td>";
                             }
                         }
-                    } else {
-                        var text = genTextBody(tcNodes["a:txBody"], node, undefined, undefined, undefined, warpObj);
-                        //Cells Style : TODO /////////////Amir
-                        var colWidthParam = getColsGrid[0]["attrs"]["w"];
-                        var colStyl = "";
-                        if (colWidthParam !== undefined) {
-                            var colWidth = parseInt(colWidthParam) * 96 / 914400;
-                            colStyl += "width:" + colWidth + "px;"
-                        }
-                        var getFill = tcNodes["a:tcPr"]["a:solidFill"];
-                        var fillColor = "";
-                        var colorOpacity = 1;
-                        if (getFill !== undefined) {
-                            //console.log(getFill);   
-                            fillColor = getSolidFill(getFill);
-                            colorOpacity = getColorOpacity(getFill);
-                        } else {
-                            //get from Theme TODO
-                        }
-                        if (fillColor != "") {
-                            colStyl += " background-color:#" + fillColor + ";"
-                            colStyl += " opacity" + colorOpacity + ";";
-                        }
-                        ////////////////////////////////////
-                        tableHtml += "<td style='" + colStyl + "'>" + text + "</td>";
                     }
                     tableHtml += "</tr>";
                 }
-            } else {
-                //////////////row height ////////////Amir
-                var rowHeightParam = trNodes["attrs"]["h"];
-                var rowHeight = 0;
-                if (rowHeightParam !== undefined) {
-                    rowHeight = parseInt(rowHeightParam) * 96 / 914400;
-                    tableHtml += "<tr style='height:" + rowHeight + "px;'>";
-                } else {
-                    tableHtml += "<tr>";
-                }
-                ////////////////////////////////////////////////
-                var tcNodes = trNodes["a:tc"];
-                if (tcNodes.constructor === Array) {
-                    for (var j = 0; j < tcNodes.length; j++) {
-                        var text = genTextBody(tcNodes[j]["a:txBody"], node, undefined, undefined, undefined, warpObj);
-                        //Cells Style : TODO /////////////Amir
-                        var colWidthParam = getColsGrid[j]["attrs"]["w"];
-                        var colStyl = "";
-                        if (colWidthParam !== undefined) {
-                            var colWidth = parseInt(colWidthParam) * 96 / 914400;
-                            colStyl += "width:" + colWidth + "px;"
-                        }
-                        var getFill = tcNodes[j]["a:tcPr"]["a:solidFill"];
-                        var fillColor = "";
-                        var colorOpacity = 1;
-                        if (getFill !== undefined) {
-                            fillColor = getSolidFill(getFill);
-                            colorOpacity = getColorOpacity(getFill);
-                        } else {
-                            //get from Theme TODO
-                            //get tableStyleId
-                            // a:tbl => a:tblPr => a:tableStyleId
-                        }
-                        if (fillColor != "") {
-                            colStyl += " background-color:#" + fillColor + ";"
-                            colStyl += " opacity" + colorOpacity + ";";
-                        }
-                        ////////////////////////////////////
-                        tableHtml += "<td style='" + colStyl + "'>" + text + "</td>";
-                    }
-                } else {
-                    var text = genTextBody(tcNodes["a:txBody"], node, undefined, undefined, undefined, warpObj);
-                    //Cells Style : TODO /////////////Amir
-                    var colWidthParam = getColsGrid[0]["attrs"]["w"];
-                    var colStyl = "";
-                    if (colWidthParam !== undefined) {
-                        var colWidth = parseInt(colWidthParam) * 96 / 914400;
-                        colStyl += "width:" + colWidth + "px;"
-                    }
-                    var getFill = tcNodes[j]["a:tcPr"]["a:solidFill"];
-                    var fillColor = "";
-                    var colorOpacity = 1;
-                    if (getFill !== undefined) {
-                        //console.log(getFill);
-                        fillColor = getSolidFill(getFill);
-                        colorOpacity = getColorOpacity(getFill);
-                    } else {
-                        //get from Theme TODO
-                    }
-                    if (fillColor != "") {
-                        colStyl += " background-color:#" + fillColor + ";"
-                        colStyl += " opacity" + colorOpacity + ";";
-                    }
-                    ////////////////////////////////////
-                    tableHtml += "<td style='" + colStyl + "'>" + text + "</td>";
-                }
-                tableHtml += "</tr>";
-            }
+                //////////////////////////////////////////////////////////////////////////////////
+            
 
             return tableHtml;
+        }
+        
+        function getTableCellParams(tcNodes, getColsGrid , row_idx , col_idx , thisTblStyle, cellSource, warpObj) {
+            //thisTblStyle["a:band1V"] => thisTblStyle[cellSource]
+            //text, cell-width, cell-borders, 
+            //var text = genTextBody(tcNodes["a:txBody"], tcNodes, undefined, undefined, undefined, undefined, warpObj);//tableStyles
+            var rowSpan = getTextByPathList(tcNodes, ["attrs", "rowSpan"]);
+            var colSpan = getTextByPathList(tcNodes, ["attrs", "gridSpan"]);
+            var vMerge = getTextByPathList(tcNodes, ["attrs", "vMerge"]);
+            var hMerge = getTextByPathList(tcNodes, ["attrs", "hMerge"]);
+            var colStyl = "word-wrap: break-word;";
+            var colWidth;
+            var celFillColor = "";
+            var col_borders = "";
+            var colFontClrPr = "";
+            var colFontWeight = "";
+            var lin_bottm = "",
+                lin_top = "",
+                lin_left = "",
+                lin_right = "",
+                lin_bottom_left_to_top_right = "",
+                lin_top_left_to_bottom_right = "";
+            
+            var colSapnInt = parseInt(colSpan);
+            var total_col_width = 0;
+            if (!isNaN(colSapnInt) && colSapnInt > 1){
+                for (var k = 0; k < colSapnInt ; k++) {
+                    total_col_width += parseInt(getTextByPathList(getColsGrid[col_idx + k], ["attrs", "w"]));
+                }
+            }else{
+                total_col_width = getTextByPathList((col_idx === undefined) ? getColsGrid : getColsGrid[col_idx], ["attrs", "w"]);
+            }
+            
+
+            var text = genTextBody(tcNodes["a:txBody"], tcNodes, undefined, undefined, undefined, undefined, warpObj, total_col_width);//tableStyles
+
+            if (total_col_width != 0 /*&& row_idx == 0*/) {
+                colWidth = parseInt(total_col_width) * slideFactor;
+                colStyl += "width:" + colWidth + "px;";
+            }
+
+            //cell bords
+            lin_bottm = getTextByPathList(tcNodes, ["a:tcPr", "a:lnB"]);
+            if (lin_bottm === undefined && cellSource !== undefined) {
+                if (cellSource !== undefined)
+                    lin_bottm = getTextByPathList(thisTblStyle[cellSource], ["a:tcStyle", "a:tcBdr", "a:bottom", "a:ln"]);
+                if (lin_bottm === undefined) {
+                    lin_bottm = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:tcBdr", "a:bottom", "a:ln"]);
+                }
+            }
+            lin_top = getTextByPathList(tcNodes, ["a:tcPr", "a:lnT"]);
+            if (lin_top === undefined) {
+                if (cellSource !== undefined)
+                    lin_top = getTextByPathList(thisTblStyle[cellSource], ["a:tcStyle", "a:tcBdr", "a:top", "a:ln"]);
+                if (lin_top === undefined) {
+                    lin_top = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:tcBdr", "a:top", "a:ln"]);
+                }
+            }
+            lin_left = getTextByPathList(tcNodes, ["a:tcPr", "a:lnL"]);
+            if (lin_left === undefined) {
+                if (cellSource !== undefined)
+                    lin_left = getTextByPathList(thisTblStyle[cellSource], ["a:tcStyle", "a:tcBdr", "a:left", "a:ln"]);
+                if (lin_left === undefined) {
+                    lin_left = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:tcBdr", "a:left", "a:ln"]);
+                }
+            }
+            lin_right = getTextByPathList(tcNodes, ["a:tcPr", "a:lnR"]);
+            if (lin_right === undefined) {
+                if (cellSource !== undefined)
+                    lin_right = getTextByPathList(thisTblStyle[cellSource], ["a:tcStyle", "a:tcBdr", "a:right", "a:ln"]);
+                if (lin_right === undefined) {
+                    lin_right = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcStyle", "a:tcBdr", "a:right", "a:ln"]);
+                }
+            }
+            lin_bottom_left_to_top_right = getTextByPathList(tcNodes, ["a:tcPr", "a:lnBlToTr"]);
+            lin_top_left_to_bottom_right = getTextByPathList(tcNodes, ["a:tcPr", "a:InTlToBr"]);
+
+            if (lin_bottm !== undefined && lin_bottm != "") {
+                var bottom_line_border = getBorder(lin_bottm, undefined, false, "", warpObj)
+                if (bottom_line_border != "") {
+                    colStyl += "border-bottom:" + bottom_line_border + ";";
+                }
+            }
+            if (lin_top !== undefined && lin_top != "") {
+                var top_line_border = getBorder(lin_top, undefined, false, "", warpObj);
+                if (top_line_border != "") {
+                    colStyl += "border-top: " + top_line_border + ";";
+                }
+            }
+            if (lin_left !== undefined && lin_left != "") {
+                var left_line_border = getBorder(lin_left, undefined, false, "", warpObj)
+                if (left_line_border != "") {
+                    colStyl += "border-left: " + left_line_border + ";";
+                }
+            }
+            if (lin_right !== undefined && lin_right != "") {
+                var right_line_border = getBorder(lin_right, undefined, false, "", warpObj)
+                if (right_line_border != "") {
+                    colStyl += "border-right:" + right_line_border + ";";
+                }
+            }
+
+            //cell fill color custom
+            var getCelFill = getTextByPathList(tcNodes, ["a:tcPr"]);
+            if (getCelFill !== undefined && getCelFill != "") {
+                var cellObj = {
+                    "p:spPr": getCelFill
+                };
+                celFillColor = getShapeFill(cellObj, undefined, false, warpObj, "slide")
+            }
+
+            //cell fill color theme
+            if (celFillColor == "" || celFillColor == "background-color: inherit;") {
+                var bgFillschemeClr;
+                if (cellSource !== undefined)
+                    bgFillschemeClr = getTextByPathList(thisTblStyle, [cellSource, "a:tcStyle", "a:fill", "a:solidFill"]);
+                if (bgFillschemeClr !== undefined) {
+                    var local_fillColor = getSolidFill(bgFillschemeClr, undefined, undefined, warpObj);
+                    if (local_fillColor !== undefined) {
+                        celFillColor = " background-color: #" + local_fillColor + ";";
+                    }
+                }
+            }
+            var cssName = "";
+            if (celFillColor !== undefined && celFillColor != "") {
+                if (celFillColor in styleTable) {
+                    cssName = styleTable[celFillColor]["name"];
+                } else {
+                    cssName = "_tbl_cell_css_" + (Object.keys(styleTable).length + 1);
+                    styleTable[celFillColor] = {
+                        "name": cssName,
+                        "text": celFillColor
+                    };
+                }
+
+            }
+
+            //border
+            // var borderStyl = getTextByPathList(thisTblStyle, [cellSource, "a:tcStyle", "a:tcBdr"]);
+            // if (borderStyl !== undefined) {
+            //     var local_col_borders = getTableBorders(borderStyl, warpObj);
+            //     if (local_col_borders != "") {
+            //         col_borders = local_col_borders;
+            //     }
+            // }
+            // if (col_borders != "") {
+            //     colStyl += col_borders;
+            // }
+
+            //Text style
+            var rowTxtStyl;
+            if (cellSource !== undefined) {
+                rowTxtStyl = getTextByPathList(thisTblStyle, [cellSource, "a:tcTxStyle"]);
+            }
+            // if (rowTxtStyl === undefined) {
+            //     rowTxtStyl = getTextByPathList(thisTblStyle, ["a:wholeTbl", "a:tcTxStyle"]);
+            // }
+            if (rowTxtStyl !== undefined) {
+                var local_fontClrPr = getSolidFill(rowTxtStyl, undefined, undefined, warpObj);
+                if (local_fontClrPr !== undefined) {
+                    colFontClrPr = local_fontClrPr;
+                }
+                var local_fontWeight = ((getTextByPathList(rowTxtStyl, ["attrs", "b"]) == "on") ? "bold" : "");
+                if (local_fontWeight !== "") {
+                    colFontWeight = local_fontWeight;
+                }
+            }
+            colStyl += ((colFontClrPr !== "") ? "color: #" + colFontClrPr + ";" : "");
+            colStyl += ((colFontWeight != "") ? " font-weight:" + colFontWeight + ";" : "");
+
+            return [text, colStyl, cssName, rowSpan, colSpan];
         }
 
         function genChart(node, warpObj) {
@@ -8032,7 +10222,7 @@
             var order = node["attrs"]["order"];
             var xfrmNode = getTextByPathList(node, ["p:xfrm"]);
             var result = "<div id='chart" + chartID + "' class='block content' style='" +
-                getPosition(xfrmNode, undefined, undefined) + getSize(xfrmNode, undefined, undefined) +
+                getPosition(xfrmNode, node, undefined, undefined) + getSize(xfrmNode, undefined, undefined) +
                 " z-index: " + order + ";'></div>";
 
             var rid = node["a:graphic"]["a:graphicData"]["c:chart"]["attrs"]["r:id"];
@@ -8119,7 +10309,7 @@
             return result;
         }
 
-        function genDiagram(node, warpObj) {
+        function genDiagram(node, warpObj, source, sType) {
             //console.log(warpObj)
             //readXmlFile(zip, sldFileName)
             /**files define the diagram:
@@ -8143,73 +10333,100 @@
                 dgmDataFileName = warpObj["slideResObj"][dgmDataFileId].target,
                 dgmLayoutFileName = warpObj["slideResObj"][dgmLayoutFileId].target;
             dgmQuickStyleFileName = warpObj["slideResObj"][dgmQuickStyleFileId].target;
-            //console.log(dgmClrFileName,"\n",dgmDataFileName,"\n",dgmLayoutFileName,"\n",dgmQuickStyleFileName);
+            //console.log("dgmClrFileName: " , dgmClrFileName,", dgmDataFileName: ",dgmDataFileName,", dgmLayoutFileName: ",dgmLayoutFileName,", dgmQuickStyleFileName: ",dgmQuickStyleFileName);
             var dgmClr = readXmlFile(zip, dgmClrFileName);
             var dgmData = readXmlFile(zip, dgmDataFileName);
             var dgmLayout = readXmlFile(zip, dgmLayoutFileName);
             var dgmQuickStyle = readXmlFile(zip, dgmQuickStyleFileName);
             //console.log(dgmClr,dgmData,dgmLayout,dgmQuickStyle)
             ///get drawing#.xml
-            var dgmDrwFileName = "";
-            var dataModelExt = getTextByPathList(dgmData, ["dgm:dataModel", "dgm:extLst", "a:ext", "dsp:dataModelExt", "attrs"]);
-            if (dataModelExt !== undefined) {
-                var dgmDrwFileId = dataModelExt["relId"];
-                dgmDrwFileName = warpObj["slideResObj"][dgmDrwFileId]["target"];
-            }
-            //console.log("dgmDrwFileName: ",dgmDrwFileName);
-            var dgmDrwFile = "";
-            if (dgmDrwFileName != "") {
-                dgmDrwFile = readXmlFile(zip, dgmDrwFileName);
-            }
-            //console.log("dgmDrwFile: ",dgmDrwFile);
-            //processSpNode(node, warpObj)
-            var dgmDrwSpArray = getTextByPathList(dgmDrwFile, ["dsp:drawing", "dsp:spTree", "dsp:sp"]);
+            // var dgmDrwFileName = "";
+            // var dataModelExt = getTextByPathList(dgmData, ["dgm:dataModel", "dgm:extLst", "a:ext", "dsp:dataModelExt", "attrs"]);
+            // if (dataModelExt !== undefined) {
+            //     var dgmDrwFileId = dataModelExt["relId"];
+            //     dgmDrwFileName = warpObj["slideResObj"][dgmDrwFileId]["target"];
+            // }
+            // var dgmDrwFile = "";
+            // if (dgmDrwFileName != "") {
+            //     dgmDrwFile = readXmlFile(zip, dgmDrwFileName);
+            // }
+            // var dgmDrwSpArray = getTextByPathList(dgmDrwFile, ["dsp:drawing", "dsp:spTree", "dsp:sp"]);
+            //var dgmDrwSpArray = getTextByPathList(warpObj["digramFileContent"], ["dsp:drawing", "dsp:spTree", "dsp:sp"]);
+            var dgmDrwSpArray = getTextByPathList(warpObj["digramFileContent"], ["p:drawing", "p:spTree", "p:sp"]);
             var rslt = "";
             if (dgmDrwSpArray !== undefined) {
                 var dgmDrwSpArrayLen = dgmDrwSpArray.length;
                 for (var i = 0; i < dgmDrwSpArrayLen; i++) {
                     var dspSp = dgmDrwSpArray[i];
-                    var dspSpObjToStr = JSON.stringify(dspSp);
-                    var pSpStr = dspSpObjToStr.replace(/dsp:/g, "p:");
-                    var pSpStrToObj = JSON.parse(pSpStr);
-                    //console.log("pSpStrToObj["+i+"]: ",pSpStrToObj);
-                    rslt += processSpNode(pSpStrToObj, warpObj)
-                    //console.log("rslt["+i+"]: ",rslt);
+                    // var dspSpObjToStr = JSON.stringify(dspSp);
+                    // var pSpStr = dspSpObjToStr.replace(/dsp:/g, "p:");
+                    // var pSpStrToObj = JSON.parse(pSpStr);
+                    //console.log("pSpStrToObj[" + i + "]: ", pSpStrToObj);
+                    //rslt += processSpNode(pSpStrToObj, node, warpObj, "diagramBg", sType)
+                    rslt += processSpNode(dspSp, node, warpObj, "diagramBg", sType)
                 }
                 // dgmDrwFile: "dsp:"-> "p:"
             }
 
-            return "<div class='block content' style='" +
-                getPosition(xfrmNode, undefined, undefined) +
+            return "<div class='block diagram-content' style='" +
+                getPosition(xfrmNode, node, undefined, undefined, sType) +
                 getSize(xfrmNode, undefined, undefined) +
                 "'>" + rslt + "</div>";
         }
 
-        function getPosition(slideSpNode, slideLayoutSpNode, slideMasterSpNode) {
-
-            var off = undefined;
+        function getPosition(slideSpNode, pNode, slideLayoutSpNode, slideMasterSpNode, sType) {
+            var off;
             var x = -1, y = -1;
 
             if (slideSpNode !== undefined) {
                 off = slideSpNode["a:off"]["attrs"];
-            } else if (slideLayoutSpNode !== undefined) {
-                off = slideLayoutSpNode["a:off"]["attrs"];
-            } else if (slideMasterSpNode !== undefined) {
-                off = slideMasterSpNode["a:off"]["attrs"];
             }
 
+            if (off === undefined && slideLayoutSpNode !== undefined) {
+                off = slideLayoutSpNode["a:off"]["attrs"];
+            } else if (off === undefined && slideMasterSpNode !== undefined) {
+                off = slideMasterSpNode["a:off"]["attrs"];
+            }
+            var offX = 0, offY = 0;
+            var grpX = 0, grpY = 0;
+            if (sType == "group") {
+
+                var grpXfrmNode = getTextByPathList(pNode, ["p:grpSpPr", "a:xfrm"]);
+                if (xfrmNode !== undefined) {
+                    grpX = parseInt(grpXfrmNode["a:off"]["attrs"]["x"]) * slideFactor;
+                    grpY = parseInt(grpXfrmNode["a:off"]["attrs"]["y"]) * slideFactor;
+                    // var chx = parseInt(grpXfrmNode["a:chOff"]["attrs"]["x"]) * slideFactor;
+                    // var chy = parseInt(grpXfrmNode["a:chOff"]["attrs"]["y"]) * slideFactor;
+                    // var cx = parseInt(grpXfrmNode["a:ext"]["attrs"]["cx"]) * slideFactor;
+                    // var cy = parseInt(grpXfrmNode["a:ext"]["attrs"]["cy"]) * slideFactor;
+                    // var chcx = parseInt(grpXfrmNode["a:chExt"]["attrs"]["cx"]) * slideFactor;
+                    // var chcy = parseInt(grpXfrmNode["a:chExt"]["attrs"]["cy"]) * slideFactor;
+                    // var rotate = parseInt(grpXfrmNode["attrs"]["rot"])
+                }
+            }
+            if (sType == "group-rotate" && pNode["p:grpSpPr"] !== undefined) {
+                var xfrmNode = pNode["p:grpSpPr"]["a:xfrm"];
+                // var ox = parseInt(xfrmNode["a:off"]["attrs"]["x"]) * slideFactor;
+                // var oy = parseInt(xfrmNode["a:off"]["attrs"]["y"]) * slideFactor;
+                var chx = parseInt(xfrmNode["a:chOff"]["attrs"]["x"]) * slideFactor;
+                var chy = parseInt(xfrmNode["a:chOff"]["attrs"]["y"]) * slideFactor;
+
+                offX = chx;
+                offY = chy;
+            }
             if (off === undefined) {
                 return "";
             } else {
-                x = parseInt(off["x"]) * 96 / 914400;
-                y = parseInt(off["y"]) * 96 / 914400;
-                return (isNaN(x) || isNaN(y)) ? "" : "top:" + y + "px; left:" + x + "px;";
+                x = parseInt(off["x"]) * slideFactor;
+                y = parseInt(off["y"]) * slideFactor;
+                // if (type = "body")
+                //     console.log("getPosition: slideSpNode: ", slideSpNode, ", type: ", type, "x: ", x, "offX:", offX, "y:", y, "offY:", offY)
+                return (isNaN(x) || isNaN(y)) ? "" : "top:" + (y - offY + grpY) + "px; left:" + (x - offX + grpX) + "px;";
             }
 
         }
 
         function getSize(slideSpNode, slideLayoutSpNode, slideMasterSpNode) {
-
             var ext = undefined;
             var w = -1, h = -1;
 
@@ -8224,30 +10441,273 @@
             if (ext === undefined) {
                 return "";
             } else {
-                w = parseInt(ext["cx"]) * 96 / 914400;
-                h = parseInt(ext["cy"]) * 96 / 914400;
+                w = parseInt(ext["cx"]) * slideFactor;
+                h = parseInt(ext["cy"]) * slideFactor;
                 return (isNaN(w) || isNaN(h)) ? "" : "width:" + w + "px; height:" + h + "px;";
             }
 
         }
+        function getVerticalMargins(pNode, textBodyNode, type, idx, warpObj) {
+            //margin-top ; 
+            //a:pPr => a:spcBef => a:spcPts (/100) | a:spcPct (/?)
+            //margin-bottom
+            //a:pPr => a:spcAft => a:spcPts (/100) | a:spcPct (/?)
+            //+
+            //a:pPr =>a:lnSpc => a:spcPts (/?) | a:spcPct (/?)
+            //console.log("getVerticalMargins ", pNode, type,idx, warpObj)
+            //var lstStyle = textBodyNode["a:lstStyle"];
+            var lvl = 1
+            var spcBefNode = getTextByPathList(pNode, ["a:pPr", "a:spcBef", "a:spcPts", "attrs", "val"]);
+            var spcAftNode = getTextByPathList(pNode, ["a:pPr", "a:spcAft", "a:spcPts", "attrs", "val"]);
+            var lnSpcNode = getTextByPathList(pNode, ["a:pPr", "a:lnSpc", "a:spcPct", "attrs", "val"]);
+            var lnSpcNodeType = "Pct";
+            if (lnSpcNode === undefined) {
+                lnSpcNode = getTextByPathList(pNode, ["a:pPr", "a:lnSpc", "a:spcPts", "attrs", "val"]);
+                if (lnSpcNode !== undefined) {
+                    lnSpcNodeType = "Pts";
+                }
+            }
+            var lvlNode = getTextByPathList(pNode, ["a:pPr", "attrs", "lvl"]);
+            if (lvlNode !== undefined) {
+                lvl = parseInt(lvlNode) + 1;
+            }
+            var fontSize;
+            if (getTextByPathList(pNode, ["a:r"]) !== undefined) {
+                var fontSizeStr = getFontSize(pNode["a:r"], textBodyNode,undefined, lvl, type, warpObj);
+                if (fontSizeStr != "inherit") {
+                    fontSize = parseInt(fontSizeStr, "px"); //pt
+                }
+            }
+            //var spcBef = "";
+            //console.log("getVerticalMargins 1", fontSizeStr, fontSize, lnSpcNode, parseInt(lnSpcNode) / 100000, spcBefNode, spcAftNode)
+            // if(spcBefNode !== undefined){
+            //     spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "pt;"
+            // }
+            // else{
+            //    //i did not found case with percentage 
+            //     spcBefNode = getTextByPathList(pNode, ["a:pPr", "a:spcBef", "a:spcPct","attrs","val"]);
+            //     if(spcBefNode !== undefined){
+            //         spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "%;"
+            //     }
+            // }
+            //var spcAft = "";
+            // if(spcAftNode !== undefined){
+            //     spcAft = "margin-bottom:" + parseInt(spcAftNode)/100 + "pt;"
+            // }
+            // else{
+            //    //i did not found case with percentage 
+            //     spcAftNode = getTextByPathList(pNode, ["a:pPr", "a:spcAft", "a:spcPct","attrs","val"]);
+            //     if(spcAftNode !== undefined){
+            //         spcBef = "margin-bottom:" + parseInt(spcAftNode)/100 + "%;"
+            //     }
+            // }
+            // if(spcAftNode !== undefined){
+            //     //check in layout and then in master
+            // }
+            var isInLayoutOrMaster = true;
+            if(type == "shape" || type == "textBox"){
+                isInLayoutOrMaster = false;
+            }
+            if (isInLayoutOrMaster && (spcBefNode === undefined || spcAftNode === undefined || lnSpcNode === undefined)) {
+                //check in layout
+                if (idx !== undefined) {
+                    var laypPrNode = getTextByPathList(warpObj, ["slideLayoutTables", "idxTable", idx, "p:txBody", "a:p", (lvl - 1), "a:pPr"]);
 
-        function getHorizontalAlign(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) {
+                    if (spcBefNode === undefined) {
+                        spcBefNode = getTextByPathList(laypPrNode, ["a:spcBef", "a:spcPts", "attrs", "val"]);
+                        // if(spcBefNode !== undefined){
+                        //     spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "pt;"
+                        // } 
+                        // else{
+                        //    //i did not found case with percentage 
+                        //     spcBefNode = getTextByPathList(laypPrNode, ["a:spcBef", "a:spcPct","attrs","val"]);
+                        //     if(spcBefNode !== undefined){
+                        //         spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "%;"
+                        //     }
+                        // }
+                    }
 
+                    if (spcAftNode === undefined) {
+                        spcAftNode = getTextByPathList(laypPrNode, ["a:spcAft", "a:spcPts", "attrs", "val"]);
+                        // if(spcAftNode !== undefined){
+                        //     spcAft = "margin-bottom:" + parseInt(spcAftNode)/100 + "pt;"
+                        // }
+                        // else{
+                        //    //i did not found case with percentage 
+                        //     spcAftNode = getTextByPathList(laypPrNode, ["a:spcAft", "a:spcPct","attrs","val"]);
+                        //     if(spcAftNode !== undefined){
+                        //         spcBef = "margin-bottom:" + parseInt(spcAftNode)/100 + "%;"
+                        //     }
+                        // }
+                    }
+
+                    if (lnSpcNode === undefined) {
+                        lnSpcNode = getTextByPathList(laypPrNode, ["a:lnSpc", "a:spcPct", "attrs", "val"]);
+                        if (lnSpcNode === undefined) {
+                            lnSpcNode = getTextByPathList(laypPrNode, ["a:pPr", "a:lnSpc", "a:spcPts", "attrs", "val"]);
+                            if (lnSpcNode !== undefined) {
+                                lnSpcNodeType = "Pts";
+                            }
+                        }
+                    }
+                }
+
+            }
+            if (isInLayoutOrMaster && (spcBefNode === undefined || spcAftNode === undefined || lnSpcNode === undefined)) {
+                //check in master
+                //slideMasterTextStyles
+                var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
+                var dirLoc = "";
+                var lvl = "a:lvl" + lvl + "pPr";
+                switch (type) {
+                    case "title":
+                    case "ctrTitle":
+                        dirLoc = "p:titleStyle";
+                        break;
+                    case "body":
+                    case "obj":
+                    case "dt":
+                    case "ftr":
+                    case "sldNum":
+                    case "textBox":
+                    // case "shape":
+                        dirLoc = "p:bodyStyle";
+                        break;
+                    case "shape":
+                    //case "textBox":
+                    default:
+                        dirLoc = "p:otherStyle";
+                }
+                // if (type == "shape" || type == "textBox") {
+                //     lvl = "a:lvl1pPr";
+                // }
+                var inLvlNode = getTextByPathList(slideMasterTextStyles, [dirLoc, lvl]);
+                if (inLvlNode !== undefined) {
+                    if (spcBefNode === undefined) {
+                        spcBefNode = getTextByPathList(inLvlNode, ["a:spcBef", "a:spcPts", "attrs", "val"]);
+                        // if(spcBefNode !== undefined){
+                        //     spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "pt;"
+                        // } 
+                        // else{
+                        //    //i did not found case with percentage 
+                        //     spcBefNode = getTextByPathList(inLvlNode, ["a:spcBef", "a:spcPct","attrs","val"]);
+                        //     if(spcBefNode !== undefined){
+                        //         spcBef = "margin-top:" + parseInt(spcBefNode)/100 + "%;"
+                        //     }
+                        // }
+                    }
+
+                    if (spcAftNode === undefined) {
+                        spcAftNode = getTextByPathList(inLvlNode, ["a:spcAft", "a:spcPts", "attrs", "val"]);
+                        // if(spcAftNode !== undefined){
+                        //     spcAft = "margin-bottom:" + parseInt(spcAftNode)/100 + "pt;"
+                        // }
+                        // else{
+                        //    //i did not found case with percentage 
+                        //     spcAftNode = getTextByPathList(inLvlNode, ["a:spcAft", "a:spcPct","attrs","val"]);
+                        //     if(spcAftNode !== undefined){
+                        //         spcBef = "margin-bottom:" + parseInt(spcAftNode)/100 + "%;"
+                        //     }
+                        // }
+                    }
+
+                    if (lnSpcNode === undefined) {
+                        lnSpcNode = getTextByPathList(inLvlNode, ["a:lnSpc", "a:spcPct", "attrs", "val"]);
+                        if (lnSpcNode === undefined) {
+                            lnSpcNode = getTextByPathList(inLvlNode, ["a:pPr", "a:lnSpc", "a:spcPts", "attrs", "val"]);
+                            if (lnSpcNode !== undefined) {
+                                lnSpcNodeType = "Pts";
+                            }
+                        }
+                    }
+                }
+            }
+            var spcBefor = 0, spcAfter = 0, spcLines = 0;
+            var marginTopBottomStr = "";
+            if (spcBefNode !== undefined) {
+                spcBefor = parseInt(spcBefNode) / 100;
+            }
+            if (spcAftNode !== undefined) {
+                spcAfter = parseInt(spcAftNode) / 100;
+            }
+            
+            if (lnSpcNode !== undefined && fontSize !== undefined) {
+                if (lnSpcNodeType == "Pts") {
+                    marginTopBottomStr += "padding-top: " + ((parseInt(lnSpcNode) / 100) - fontSize) + "px;";//+ "pt;";
+                } else {
+                    var fct = parseInt(lnSpcNode) / 100000;
+                    spcLines = fontSize * (fct - 1) - fontSize;// fontSize *
+                    var pTop = (fct > 1) ? spcLines : 0;
+                    var pBottom = (fct > 1) ? fontSize : 0;
+                    // marginTopBottomStr += "padding-top: " + spcLines + "pt;";
+                    // marginTopBottomStr += "padding-bottom: " + pBottom + "pt;";
+                    marginTopBottomStr += "padding-top: " + pBottom + "px;";// + "pt;";
+                    marginTopBottomStr += "padding-bottom: " + spcLines + "px;";// + "pt;";
+                }
+            }
+
+            //if (spcBefNode !== undefined || lnSpcNode !== undefined) {
+            marginTopBottomStr += "margin-top: " + (spcBefor - 1) + "px;";// + "pt;"; //margin-top: + spcLines // minus 1 - to fix space
+            //}
+            if (spcAftNode !== undefined || lnSpcNode !== undefined) {
+                //marginTopBottomStr += "margin-bottom: " + ((spcAfter - fontSize < 0) ? 0 : (spcAfter - fontSize)) + "pt;"; //margin-bottom: + spcLines
+                //marginTopBottomStr += "margin-bottom: " + spcAfter * (1 / 4) + "px;";// + "pt;";
+                marginTopBottomStr += "margin-bottom: " + spcAfter  + "px;";// + "pt;";
+            }
+
+            //console.log("getVerticalMargins 2 fontSize:", fontSize, "lnSpcNode:", lnSpcNode, "spcLines:", spcLines, "spcBefor:", spcBefor, "spcAfter:", spcAfter)
+            //console.log("getVerticalMargins 3 ", marginTopBottomStr, pNode, warpObj)
+
+            //return spcAft + spcBef;
+            return marginTopBottomStr;
+        }
+        function getHorizontalAlign(node, textBodyNode, idx, type, prg_dir, warpObj) {
             var algn = getTextByPathList(node, ["a:pPr", "attrs", "algn"]);
             if (algn === undefined) {
-                algn = getTextByPathList(slideLayoutSpNode, ["p:txBody", "a:p", "a:pPr", "attrs", "algn"]);
-                if (algn === undefined) {
-                    algn = getTextByPathList(slideMasterSpNode, ["p:txBody", "a:p", "a:pPr", "attrs", "algn"]);
+                //var layoutMasterNode = getLayoutAndMasterNode(node, idx, type, warpObj);
+                // var pPrNodeLaout = layoutMasterNode.nodeLaout;
+                // var pPrNodeMaster = layoutMasterNode.nodeMaster;
+                var lvlIdx = 1;
+                var lvlNode = getTextByPathList(node, ["a:pPr", "attrs", "lvl"]);
+                if (lvlNode !== undefined) {
+                    lvlIdx = parseInt(lvlNode) + 1;
+                }
+                var lvlStr = "a:lvl" + lvlIdx + "pPr";
+
+                var lstStyle = textBodyNode["a:lstStyle"];
+                algn = getTextByPathList(lstStyle, [lvlStr, "attrs", "algn"]);
+
+                if (algn === undefined && idx !== undefined ) {
+                    //slidelayout
+                    algn = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:lstStyle", lvlStr, "attrs", "algn"]);
                     if (algn === undefined) {
-                        switch (type) {
-                            case "title":
-                            case "subTitle":
-                            case "ctrTitle":
-                                algn = getTextByPathList(slideMasterTextStyles, ["p:titleStyle", "a:lvl1pPr", "attrs", "alng"]);
-                                break;
-                            default:
-                                algn = getTextByPathList(slideMasterTextStyles, ["p:otherStyle", "a:lvl1pPr", "attrs", "alng"]);
+                        algn = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:p", "a:pPr", "attrs", "algn"]);
+                        if (algn === undefined) {
+                            algn = getTextByPathList(warpObj["slideLayoutTables"]["idxTable"][idx], ["p:txBody", "a:p", (lvlIdx - 1), "a:pPr", "attrs", "algn"]);
                         }
+                    }
+                }
+                if (algn === undefined) {
+                    if (type !== undefined) {
+                        //slidelayout
+                        algn = getTextByPathList(warpObj, ["slideLayoutTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr, "attrs", "algn"]);
+
+                        if (algn === undefined) {
+                            //masterlayout
+                            if (type == "title" || type == "ctrTitle") {
+                                algn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlStr, "attrs", "algn"]);
+                            } else if (type == "body" || type == "obj" || type == "subTitle") {
+                                algn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr, "attrs", "algn"]);
+                            } else if (type == "shape" || type == "diagram") {
+                                algn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:otherStyle", lvlStr, "attrs", "algn"]);
+                            } else if (type == "textBox") {
+                                algn = getTextByPathList(warpObj, ["defaultTextStyle", lvlStr, "attrs", "algn"]);
+                            } else {
+                                algn = getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr, "attrs", "algn"]);
+                            }
+                        }
+                    } else {
+                        algn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr, "attrs", "algn"]);
                     }
                 }
             }
@@ -8259,122 +10719,545 @@
                     return "h-right";
                 }
             }
-            return algn === "ctr" ? "h-mid" : algn === "r" ? "h-right" : "h-left";
+            if (algn !== undefined) {
+                switch (algn) {
+                    case "l":
+                        if (prg_dir == "pregraph-rtl"){
+                            //return "h-right";
+                            return "h-left-rtl";
+                        }else{
+                            return "h-left";
+                        }
+                        break;
+                    case "r":
+                        if (prg_dir == "pregraph-rtl") {
+                            //return "h-left";
+                            return "h-right-rtl";
+                        }else{
+                            return "h-right";
+                        }
+                        break;
+                    case "ctr":
+                        return "h-mid";
+                        break;
+                    case "just":
+                    case "dist":
+                    default:
+                        return "h-" + algn;
+                }
+            }
+            //return algn === "ctr" ? "h-mid" : algn === "r" ? "h-right" : "h-left";
         }
+        function getPregraphDir(node, textBodyNode, idx, type, warpObj) {
+            var rtl = getTextByPathList(node, ["a:pPr", "attrs", "rtl"]);
+            //console.log("getPregraphDir node:", node, "textBodyNode", textBodyNode, "rtl:", rtl, "idx", idx, "type", type, "warpObj", warpObj)
+          
 
-        function getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) {
-
-            // 上中下對齊: X, <a:bodyPr anchor="ctr">, <a:bodyPr anchor="b">
-            var anchor = getTextByPathList(node, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
-            if (anchor === undefined) {
-                anchor = getTextByPathList(slideLayoutSpNode, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
-                if (anchor === undefined) {
-                    anchor = getTextByPathList(slideMasterSpNode, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
+            if (rtl === undefined) {
+                var layoutMasterNode = getLayoutAndMasterNode(node, idx, type, warpObj);
+                var pPrNodeLaout = layoutMasterNode.nodeLaout;
+                var pPrNodeMaster = layoutMasterNode.nodeMaster;
+                rtl = getTextByPathList(pPrNodeLaout, ["attrs", "rtl"]);
+                if (rtl === undefined && type != "shape") {
+                    rtl = getTextByPathList(pPrNodeMaster, ["attrs", "rtl"]);
                 }
             }
 
-            return anchor === "ctr" ? "v-mid" : anchor === "b" ? "v-down" : "v-up";
+            if (rtl == "1") {
+                return "pregraph-rtl";
+            } else if (rtl == "0") {
+                return "pregraph-ltr";
+            }
+            return "pregraph-inherit";
+
+            // var contentDir = getContentDir(type, warpObj);
+            // console.log("getPregraphDir node:", node["a:r"], "rtl:", rtl, "idx", idx, "type", type, "contentDir:", contentDir)
+
+            // if (contentDir == "content"){
+            //     return "pregraph-ltr";
+            // } else if (contentDir == "content-rtl"){ 
+            //     return "pregraph-rtl";
+            // }
+            // return "";
+        }
+        function getVerticalAlign(node, slideLayoutSpNode, slideMasterSpNode, type) {
+
+            //X, <a:bodyPr anchor="ctr">, <a:bodyPr anchor="b">
+            var anchor = getTextByPathList(node, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
+            //console.log("getVerticalAlign anchor:", anchor, "slideLayoutSpNode: ", slideLayoutSpNode)
+            if (anchor === undefined) {
+                //console.log("getVerticalAlign type:", type," node:", node, "slideLayoutSpNode:", slideLayoutSpNode, "slideMasterSpNode:", slideMasterSpNode)
+                anchor = getTextByPathList(slideLayoutSpNode, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
+                if (anchor === undefined) {
+                    anchor = getTextByPathList(slideMasterSpNode, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
+                    if (anchor === undefined) {
+                        //"If this attribute is omitted, then a value of t, or top is implied."
+                        anchor = "t";//getTextByPathList(slideMasterSpNode, ["p:txBody", "a:bodyPr", "attrs", "anchor"]);
+                    }
+                }
+            }
+            //console.log("getVerticalAlign:", node, slideLayoutSpNode, slideMasterSpNode, type, anchor)
+            return (anchor === "ctr")?"v-mid" : ((anchor === "b") ? "v-down" : "v-up");
         }
 
-        function getFontType(node, type, slideMasterTextStyles) {
+        function getContentDir(node, type, warpObj) {
+            return "content";
+            var defRtl = getTextByPathList(node, ["p:txBody", "a:lstStyle", "a:defPPr", "attrs", "rtl"]);
+            if (defRtl !== undefined) {
+                if (defRtl == "1"){
+                    return "content-rtl";
+                } else if (defRtl == "0") {
+                    return "content";
+                }
+            }
+            //var lvl1Rtl = getTextByPathList(node, ["p:txBody", "a:lstStyle", "lvl1pPr", "attrs", "rtl"]);
+            // if (lvl1Rtl !== undefined) {
+            //     if (lvl1Rtl == "1") {
+            //         return "content-rtl";
+            //     } else if (lvl1Rtl == "0") {
+            //         return "content";
+            //     }
+            // }
+            var rtlCol = getTextByPathList(node, ["p:txBody", "a:bodyPr", "attrs", "rtlCol"]);
+            if (rtlCol !== undefined) {
+                if (rtlCol == "1") {
+                    return "content-rtl";
+                } else if (rtlCol == "0") {
+                    return "content";
+                }
+            }
+            //console.log("getContentDir node:", node, "rtlCol:", rtlCol)
+
+            if (type === undefined) {
+                return "content";
+            }
+            var slideMasterTextStyles = warpObj["slideMasterTextStyles"];
+            var dirLoc = "";
+
+            switch (type) {
+                case "title":
+                case "ctrTitle":
+                    dirLoc = "p:titleStyle";
+                    break;
+                case "body":
+                case "dt":
+                case "ftr":
+                case "sldNum":
+                case "textBox":
+                    dirLoc = "p:bodyStyle";
+                    break;
+                case "shape":
+                    dirLoc = "p:otherStyle";
+            }
+            if (slideMasterTextStyles !== undefined && dirLoc !== "") {
+                var dirVal = getTextByPathList(slideMasterTextStyles[dirLoc], ["a:lvl1pPr", "attrs", "rtl"]);
+                if (dirVal == "1") {
+                    return "content-rtl";
+                }
+            } 
+            // else {
+            //     if (type == "textBox") {
+            //         var dirVal = getTextByPathList(warpObj, ["defaultTextStyle", "a:lvl1pPr", "attrs", "rtl"]);
+            //         if (dirVal == "1") {
+            //             return "content-rtl";
+            //         }
+            //     }
+            // }
+            return "content";
+            //console.log("getContentDir() type:", type, "slideMasterTextStyles:", slideMasterTextStyles,"dirNode:",dirVal)
+        }
+
+        function getFontType(node, type, warpObj, pFontStyle) {
             var typeface = getTextByPathList(node, ["a:rPr", "a:latin", "attrs", "typeface"]);
 
             if (typeface === undefined) {
-                var fontSchemeNode = getTextByPathList(themeContent, ["a:theme", "a:themeElements", "a:fontScheme"]);
-                if (type == "title" || type == "subTitle" || type == "ctrTitle") {
-                    typeface = getTextByPathList(fontSchemeNode, ["a:majorFont", "a:latin", "attrs", "typeface"]);
-                } else if (type == "body") {
-                    typeface = getTextByPathList(fontSchemeNode, ["a:minorFont", "a:latin", "attrs", "typeface"]);
-                } else {
-                    typeface = getTextByPathList(fontSchemeNode, ["a:minorFont", "a:latin", "attrs", "typeface"]);
+                var fontIdx = "";
+                var fontGrup = "";
+                if (pFontStyle !== undefined) {
+                    fontIdx = getTextByPathList(pFontStyle, ["attrs", "idx"]);
                 }
+                var fontSchemeNode = getTextByPathList(warpObj["themeContent"], ["a:theme", "a:themeElements", "a:fontScheme"]);
+                if (fontIdx == "") {
+                    if (type == "title" || type == "subTitle" || type == "ctrTitle") {
+                        fontIdx = "major";
+                    } else {
+                        fontIdx = "minor";
+                    }
+                }
+                fontGrup = "a:" + fontIdx + "Font";
+                typeface = getTextByPathList(fontSchemeNode, [fontGrup, "a:latin", "attrs", "typeface"]);
             }
 
             return (typeface === undefined) ? "inherit" : typeface;
         }
 
-        function getFontColorPr(node, spNode, type, slideMasterTextStyles) {
+        function getFontColorPr(node, pNode, lstStyle, pFontStyle, lvl, idx, type, warpObj) {
             //text border using: text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
             //{getFontColor(..) return color} -> getFontColorPr(..) return array[color,textBordr/shadow]
             //https://stackoverflow.com/questions/2570972/css-font-border
             //https://www.w3schools.com/cssref/css3_pr_text-shadow.asp
-            //console.log(node)
+            //themeContent
+            //console.log("getFontColorPr>> type:", type, ", node: ", node)
             var rPrNode = getTextByPathList(node, ["a:rPr"]);
-            var filTyp, color, textBordr;
+            var filTyp, color, textBordr, colorType = "", highlightColor = "";
+            //console.log("getFontColorPr type:", type, ", node: ", node, "pNode:", pNode, "pFontStyle:", pFontStyle)
             if (rPrNode !== undefined) {
                 filTyp = getFillType(rPrNode);
                 if (filTyp == "SOLID_FILL") {
-                    var solidFillNode = getTextByPathList(node, ["a:rPr", "a:solidFill"]);
-                    color = getSolidFill(solidFillNode);
+                    var solidFillNode = rPrNode["a:solidFill"];// getTextByPathList(node, ["a:rPr", "a:solidFill"]);
+                    color = getSolidFill(solidFillNode, undefined, undefined, warpObj);
+                    var highlightNode = rPrNode["a:highlight"];
+                    if (highlightNode !== undefined) {
+                        highlightColor = getSolidFill(highlightNode, undefined, undefined, warpObj);
+                    }
+                    colorType = "solid";
                 } else if (filTyp == "PATTERN_FILL") {
-                    var pattFill = getTextByPathList(node, ["a:rPr", "a:pattFill"]);
-                    color = getPatternFill(pattFill);
-                } else {
-                    var sPstyle = getTextByPathList(spNode, ["p:style", "a:fontRef"]);
-                    if (sPstyle !== undefined) {
-                        color = getSolidFill(sPstyle);
+                    var pattFill = rPrNode["a:pattFill"];// getTextByPathList(node, ["a:rPr", "a:pattFill"]);
+                    color = getPatternFill(pattFill, warpObj);
+                    colorType = "pattern";
+                } else if (filTyp == "PIC_FILL") {
+                    color = getBgPicFill(rPrNode, "slideBg", warpObj, undefined, undefined);
+                    //color = getPicFill("slideBg", rPrNode["a:blipFill"], warpObj);
+                    colorType = "pic";
+                } else if (filTyp == "GRADIENT_FILL") {
+                    var shpFill = rPrNode["a:gradFill"];
+                    color = getGradientFill(shpFill, warpObj);
+                    colorType = "gradient";
+                } 
+            }
+            if (color === undefined && getTextByPathList(lstStyle, ["a:lvl" + lvl + "pPr", "a:defRPr"]) !== undefined) {
+                //lstStyle
+                var lstStyledefRPr = getTextByPathList(lstStyle, ["a:lvl" + lvl + "pPr", "a:defRPr"]);
+                filTyp = getFillType(lstStyledefRPr);
+                if (filTyp == "SOLID_FILL") {
+                    var solidFillNode = lstStyledefRPr["a:solidFill"];// getTextByPathList(node, ["a:rPr", "a:solidFill"]);
+                    color = getSolidFill(solidFillNode, undefined, undefined, warpObj);
+                    var highlightNode = lstStyledefRPr["a:highlight"];
+                    if (highlightNode !== undefined) {
+                        highlightColor = getSolidFill(highlightNode, undefined, undefined, warpObj);
+                    }
+                    colorType = "solid";
+                } else if (filTyp == "PATTERN_FILL") {
+                    var pattFill = lstStyledefRPr["a:pattFill"];// getTextByPathList(node, ["a:rPr", "a:pattFill"]);
+                    color = getPatternFill(pattFill, warpObj);
+                    colorType = "pattern";
+                } else if (filTyp == "PIC_FILL") {
+                    color = getBgPicFill(lstStyledefRPr, "slideBg", warpObj, undefined, undefined);
+                    //color = getPicFill("slideBg", rPrNode["a:blipFill"], warpObj);
+                    colorType = "pic";
+                } else if (filTyp == "GRADIENT_FILL") {
+                    var shpFill = lstStyledefRPr["a:gradFill"];
+                    color = getGradientFill(shpFill, warpObj);
+                    colorType = "gradient";
+                }
+
+            }
+            if (color === undefined) {
+                var sPstyle = getTextByPathList(pNode, ["p:style", "a:fontRef"]);
+                if (sPstyle !== undefined) {
+                    color = getSolidFill(sPstyle, undefined, undefined, warpObj);
+                    if (color !== undefined) {
+                        colorType = "solid";
+                    }
+                    var highlightNode = sPstyle["a:highlight"]; //is "a:highlight" node in 'a:fontRef' ?
+                    if (highlightNode !== undefined) {
+                        highlightColor = getSolidFill(highlightNode, undefined, undefined, warpObj);
                     }
                 }
-                //console.log(node,filTyp,color)
+                if (color === undefined) {
+                    if (pFontStyle !== undefined) {
+                        color = getSolidFill(pFontStyle, undefined, undefined, warpObj);
+                        if (color !== undefined) {
+                            colorType = "solid";
+                        }
+                    }
+                }
             }
-            if (color === undefined || color === "FFF") {
-                color = "#000";
-            } else {
-                color = "#" + color;
+            //console.log("getFontColorPr node", node, "colorType: ", colorType,"color: ",color)
+
+            if (color === undefined) {
+
+                var layoutMasterNode = getLayoutAndMasterNode(pNode, idx, type, warpObj);
+                var pPrNodeLaout = layoutMasterNode.nodeLaout;
+                var pPrNodeMaster = layoutMasterNode.nodeMaster;
+
+                if (pPrNodeLaout !== undefined) {
+                    var defRpRLaout = getTextByPathList(pPrNodeLaout, ["a:defRPr", "a:solidFill"]);
+                    if (defRpRLaout !== undefined) {
+                        color = getSolidFill(defRpRLaout, undefined, undefined, warpObj);
+                        var highlightNode = getTextByPathList(pPrNodeLaout, ["a:defRPr", "a:highlight"]);
+                        if (highlightNode !== undefined) {
+                            highlightColor = getSolidFill(highlightNode, undefined, undefined, warpObj);
+                        }
+                        colorType = "solid";
+                    }
+                }
+                if (color === undefined) {
+
+                    if (pPrNodeMaster !== undefined) {
+                        var defRprMaster = getTextByPathList(pPrNodeMaster, ["a:defRPr", "a:solidFill"]);
+                        if (defRprMaster !== undefined) {
+                            color = getSolidFill(defRprMaster, undefined, undefined, warpObj);
+                            var highlightNode = getTextByPathList(pPrNodeMaster, ["a:defRPr", "a:highlight"]);
+                            if (highlightNode !== undefined) {
+                                highlightColor = getSolidFill(highlightNode, undefined, undefined, warpObj);
+                            }
+                            colorType = "solid";
+                        }
+                    }
+                }
             }
+            var txtEffects = [];
+            var txtEffObj = {}
             //textBordr
             var txtBrdrNode = getTextByPathList(node, ["a:rPr", "a:ln"]);
-            if (txtBrdrNode !== undefined) {
-                var txBrd = getBorder(node, false, "text");
+            var textBordr = "";
+            if (txtBrdrNode !== undefined && txtBrdrNode["a:noFill"] === undefined) {
+                var txBrd = getBorder(node, pNode, false, "text", warpObj);
                 var txBrdAry = txBrd.split(" ");
-                var brdSize = (parseInt(txBrdAry[0].substring(0, txBrdAry[0].indexOf("pt"))) * (4 / 3)) + "px";
+                //var brdSize = (parseInt(txBrdAry[0].substring(0, txBrdAry[0].indexOf("pt")))) + "px";
+                var brdSize = (parseInt(txBrdAry[0].substring(0, txBrdAry[0].indexOf("px")))) + "px";
                 var brdClr = txBrdAry[2];
                 //var brdTyp = txBrdAry[1]; //not in use
-                textBordr = "-" + brdSize + " 0 " + brdClr + ", 0 " + brdSize + " " + brdClr + ", " + brdSize + " 0 " + brdClr + ", 0 -" + brdSize + " " + brdClr + ";"
-                //console.log(node,"txBrd: ",textBordr);
-            } else {
-                textBordr = "none";
+                //console.log("getFontColorPr txBrdAry:", txBrdAry)
+                if (colorType == "solid") {
+                    textBordr = "-" + brdSize + " 0 " + brdClr + ", 0 " + brdSize + " " + brdClr + ", " + brdSize + " 0 " + brdClr + ", 0 -" + brdSize + " " + brdClr;
+                    // if (oShadowStr != "") {
+                    //     textBordr += "," + oShadowStr;
+                    // } else {
+                    //     textBordr += ";";
+                    // }
+                    txtEffects.push(textBordr);
+                } else {
+                    //textBordr = brdSize + " " + brdClr;
+                    txtEffObj.border = brdSize + " " + brdClr;
+                }
             }
-            return [color, textBordr];
+            // else {
+            //     //if no border but exist/not exist shadow
+            //     if (colorType == "solid") {
+            //         textBordr = oShadowStr;
+            //     } else {
+            //         //TODO
+            //     }
+            // }
+            var txtGlowNode = getTextByPathList(node, ["a:rPr", "a:effectLst", "a:glow"]);
+            var oGlowStr = "";
+            if (txtGlowNode !== undefined) {
+                var glowClr = getSolidFill(txtGlowNode, undefined, undefined, warpObj);
+                var rad = (txtGlowNode["attrs"]["rad"]) ? (txtGlowNode["attrs"]["rad"] * slideFactor) : 0;
+                oGlowStr = "0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr +
+                    ", 0 0 " + rad + "px #" + glowClr;
+                if (colorType == "solid") {
+                    txtEffects.push(oGlowStr);
+                } else {
+                    // txtEffObj.glow = {
+                    //     radiuse: rad,
+                    //     color: glowClr
+                    // } 
+                    txtEffects.push(
+                        "drop-shadow(0 0 " + rad / 3 + "px #" + glowClr + ") " +
+                        "drop-shadow(0 0 " + rad * 2 / 3 + "px #" + glowClr + ") " +
+                        "drop-shadow(0 0 " + rad + "px #" + glowClr + ")"
+                    );
+                }
+            }
+            var txtShadow = getTextByPathList(node, ["a:rPr", "a:effectLst", "a:outerShdw"]);
+            var oShadowStr = "";
+            if (txtShadow !== undefined) {
+                //https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/drop-shadow()
+                //https://stackoverflow.com/questions/60468487/css-text-with-linear-gradient-shadow-and-text-outline
+                //https://css-tricks.com/creating-playful-effects-with-css-text-shadows/
+                //https://designshack.net/articles/css/12-fun-css-text-shadows-you-can-copy-and-paste/
+
+                var shadowClr = getSolidFill(txtShadow, undefined, undefined, warpObj);
+                var outerShdwAttrs = txtShadow["attrs"];
+                // algn: "bl"
+                // dir: "2640000"
+                // dist: "38100"
+                // rotWithShape: "0/1" - Specifies whether the shadow rotates with the shape if the shape is rotated.
+                //blurRad (Blur Radius) - Specifies the blur radius of the shadow.
+                //kx (Horizontal Skew) - Specifies the horizontal skew angle.
+                //ky (Vertical Skew) - Specifies the vertical skew angle.
+                //sx (Horizontal Scaling Factor) - Specifies the horizontal scaling slideFactor; negative scaling causes a flip.
+                //sy (Vertical Scaling Factor) - Specifies the vertical scaling slideFactor; negative scaling causes a flip.
+                var algn = outerShdwAttrs["algn"];
+                var dir = (outerShdwAttrs["dir"]) ? (parseInt(outerShdwAttrs["dir"]) / 60000) : 0;
+                var dist = parseInt(outerShdwAttrs["dist"]) * slideFactor;//(px) //* (3 / 4); //(pt)
+                var rotWithShape = outerShdwAttrs["rotWithShape"];
+                var blurRad = (outerShdwAttrs["blurRad"]) ? (parseInt(outerShdwAttrs["blurRad"]) * slideFactor + "px") : "";
+                var sx = (outerShdwAttrs["sx"]) ? (parseInt(outerShdwAttrs["sx"]) / 100000) : 1;
+                var sy = (outerShdwAttrs["sy"]) ? (parseInt(outerShdwAttrs["sy"]) / 100000) : 1;
+                var vx = dist * Math.sin(dir * Math.PI / 180);
+                var hx = dist * Math.cos(dir * Math.PI / 180);
+
+                //console.log("getFontColorPr outerShdwAttrs:", outerShdwAttrs, ", shadowClr:", shadowClr, ", algn: ", algn, ",dir: ", dir, ", dist: ", dist, ",rotWithShape: ", rotWithShape, ", color: ", color)
+
+                if (!isNaN(vx) && !isNaN(hx)) {
+                    oShadowStr = hx + "px " + vx + "px " + blurRad + " #" + shadowClr;// + ";";
+                    if (colorType == "solid") {
+                        txtEffects.push(oShadowStr);
+                    } else {
+
+                        // txtEffObj.oShadow = {
+                        //     hx: hx,
+                        //     vx: vx,
+                        //     radius: blurRad,
+                        //     color: shadowClr
+                        // }
+
+                        //txtEffObj.oShadow = hx + "px " + vx + "px " + blurRad + " #" + shadowClr;
+
+                        txtEffects.push("drop-shadow(" + hx + "px " + vx + "px " + blurRad + " #" + shadowClr + ")");
+                    }
+                }
+                //console.log("getFontColorPr vx:", vx, ", hx: ", hx, ", sx: ", sx, ", sy: ", sy, ",oShadowStr: ", oShadowStr)
+            }
+            //console.log("getFontColorPr>>> color:", color)
+            // if (color === undefined || color === "FFF") {
+            //     color = "#000";
+            // } else {
+            //     color = "" + color;
+            // }
+            var text_effcts = "", txt_effects;
+            if (colorType == "solid") {
+                if (txtEffects.length > 0) {
+                    text_effcts = txtEffects.join(",");
+                }
+                txt_effects = text_effcts + ";"
+            } else {
+                if (txtEffects.length > 0) {
+                    text_effcts = txtEffects.join(" ");
+                }
+                txtEffObj.effcts = text_effcts;
+                txt_effects = txtEffObj
+            }
+            //console.log("getFontColorPr txt_effects:", txt_effects)
+
+            //return [color, textBordr, colorType];
+            return [color, txt_effects, colorType, highlightColor];
         }
-        function getFontSize(node, slideLayoutSpNode, slideMasterSpNode, type, slideMasterTextStyles) {
+        function getFontSize(node, textBodyNode, pFontStyle, lvl, type, warpObj) {
+            // if(type == "sldNum")
+            //console.log("getFontSize node:", node, "lstStyle", lstStyle, "lvl:", lvl, 'type:', type, "warpObj:", warpObj)
+            var lstStyle = (textBodyNode !== undefined)? textBodyNode["a:lstStyle"] : undefined;
+            var lvlpPr = "a:lvl" + lvl + "pPr";
             var fontSize = undefined;
+            var sz, kern;
             if (node["a:rPr"] !== undefined) {
                 fontSize = parseInt(node["a:rPr"]["attrs"]["sz"]) / 100;
             }
-
-            if ((isNaN(fontSize) || fontSize === undefined)) {
-                var sz = getTextByPathList(slideLayoutSpNode, ["p:txBody", "a:lstStyle", "a:lvl1pPr", "a:defRPr", "attrs", "sz"]);
+            if (isNaN(fontSize) || fontSize === undefined && node["a:fld"] !== undefined) {
+                sz = getTextByPathList(node["a:fld"], ["a:rPr", "attrs", "sz"]);
                 fontSize = parseInt(sz) / 100;
+            }
+            if ((isNaN(fontSize) || fontSize === undefined) && node["a:t"] === undefined) {
+                sz = getTextByPathList(node["a:endParaRPr"], [ "attrs", "sz"]);
+                fontSize = parseInt(sz) / 100;
+            }
+            if ((isNaN(fontSize) || fontSize === undefined) && lstStyle !== undefined) {
+                sz = getTextByPathList(lstStyle, [lvlpPr, "a:defRPr", "attrs", "sz"]);
+                fontSize = parseInt(sz) / 100;
+            }
+            //a:spAutoFit
+            var isAutoFit = false;
+            var isKerning = false;
+            if (textBodyNode !== undefined){
+                var spAutoFitNode = getTextByPathList(textBodyNode, ["a:bodyPr", "a:spAutoFit"]);
+                // if (spAutoFitNode === undefined) {
+                //     spAutoFitNode = getTextByPathList(textBodyNode, ["a:bodyPr", "a:normAutofit"]);
+                // }
+                if (spAutoFitNode !== undefined){
+                    isAutoFit = true;
+                    isKerning = true;
+                }
+            }
+            if (isNaN(fontSize) || fontSize === undefined) {
+                // if (type == "shape" || type == "textBox") {
+                //     type = "body";
+                //     lvlpPr = "a:lvl1pPr";
+                // }
+                sz = getTextByPathList(warpObj["slideLayoutTables"], ["typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                fontSize = parseInt(sz) / 100;
+                kern = getTextByPathList(warpObj["slideLayoutTables"], ["typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                if (isKerning && kern !== undefined && !isNaN(fontSize) && (fontSize - parseInt(kern) / 100) > 0){
+                    fontSize = fontSize - parseInt(kern) / 100;
+                }
             }
 
             if (isNaN(fontSize) || fontSize === undefined) {
-                if (type == "title" || type == "subTitle" || type == "ctrTitle") {
-                    var sz = getTextByPathList(slideMasterTextStyles, ["p:titleStyle", "a:lvl1pPr", "a:defRPr", "attrs", "sz"]);
-                } else if (type == "body") {
-                    var sz = getTextByPathList(slideMasterTextStyles, ["p:bodyStyle", "a:lvl1pPr", "a:defRPr", "attrs", "sz"]);
-                } else if (type == "dt" || type == "sldNum") {
-                    var sz = "1200";
-                } else if (type === undefined) {
-                    var sz = getTextByPathList(slideMasterTextStyles, ["p:otherStyle", "a:lvl1pPr", "a:defRPr", "attrs", "sz"]);
-                }
+                // if (type == "shape" || type == "textBox") {
+                //     type = "body";
+                //     lvlpPr = "a:lvl1pPr";
+                // }
+                sz = getTextByPathList(warpObj["slideMasterTables"], ["typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                kern = getTextByPathList(warpObj["slideMasterTables"], ["typeTable", type, "p:txBody", "a:lstStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                if (sz === undefined) {
+                    if (type == "title" || type == "subTitle" || type == "ctrTitle") {
+                        sz = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:titleStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                        kern = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:titleStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                    } else if (type == "body" || type == "obj" || type == "dt" || type == "sldNum" || type === "textBox") {
+                        sz = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:bodyStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                        kern = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:bodyStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                    }
+                    else if (type == "shape") {
+                        //textBox and shape text does not indent
+                        sz = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                        kern = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                        isKerning = false;
+                    }
+
+                    if (sz === undefined) {
+                        sz = getTextByPathList(warpObj["defaultTextStyle"], [lvlpPr, "a:defRPr", "attrs", "sz"]);
+                        kern = (kern === undefined)? getTextByPathList(warpObj["defaultTextStyle"], [lvlpPr, "a:defRPr", "attrs", "kern"]) : undefined;
+                        isKerning = false;
+                    }
+                    //  else if (type === undefined || type == "shape") {
+                    //     sz = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                    //     kern = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                    // } 
+                    // else if (type == "textBox") {
+                    //     sz = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "sz"]);
+                    //     kern = getTextByPathList(warpObj["slideMasterTextStyles"], ["p:otherStyle", lvlpPr, "a:defRPr", "attrs", "kern"]);
+                    // }
+                } 
                 fontSize = parseInt(sz) / 100;
+                if (isKerning && kern !== undefined && !isNaN(fontSize) && ((fontSize - parseInt(kern) / 100) > parseInt(kern) / 100 )) {
+                    fontSize = fontSize - parseInt(kern) / 100;
+                    //fontSize =  parseInt(kern) / 100;
+                }
             }
 
             var baseline = getTextByPathList(node, ["a:rPr", "attrs", "baseline"]);
             if (baseline !== undefined && !isNaN(fontSize)) {
-                fontSize -= 10;
+                var baselineVl = parseInt(baseline) / 100000;
+                //fontSize -= 10; 
+                // fontSize = fontSize * baselineVl;
+                fontSize -= baselineVl;
             }
 
-            return isNaN(fontSize) ? "inherit" : (fontSize + "pt");
+            if (!isNaN(fontSize)){
+                var normAutofit = getTextByPathList(textBodyNode, ["a:bodyPr", "a:normAutofit", "attrs", "fontScale"]);
+                if (normAutofit !== undefined && normAutofit != 0){
+                    //console.log("fontSize", fontSize, "normAutofit: ", normAutofit, normAutofit/100000)
+                    fontSize = Math.round(fontSize * (normAutofit / 100000))
+                }
+            }
+
+            return isNaN(fontSize) ? ((type == "br") ? "initial" : "inherit") : (fontSize * fontSizeFactor + "px");// + "pt");
         }
 
         function getFontBold(node, type, slideMasterTextStyles) {
-            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["b"] === "1") ? "bold" : "initial";
+            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["b"] === "1") ? "bold" : "inherit";
         }
 
         function getFontItalic(node, type, slideMasterTextStyles) {
-            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["i"] === "1") ? "italic" : "normal";
+            return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["i"] === "1") ? "italic" : "inherit";
         }
 
         function getFontDecoration(node, type, slideMasterTextStyles) {
@@ -8391,18 +11274,48 @@
                 } else if (underLine != "none" && strikethrough != "noStrike") {
                     return "underline line-through";
                 } else {
-                    return "initial";
+                    return "inherit";
                 }
             } else {
-                return "initial";
+                return "inherit";
             }
             /////////////////////////////////////////////////////////////////
-            //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["u"] === "sng") ? "underline" : "initial";
+            //return (node["a:rPr"] !== undefined && node["a:rPr"]["attrs"]["u"] === "sng") ? "underline" : "inherit";
         }
         ////////////////////////////////////Amir/////////////////////////////////////
-        function getTextHorizontalAlign(node, type, slideMasterTextStyles) {
+        function getTextHorizontalAlign(node, pNode, type, warpObj) {
+            //console.log("getTextHorizontalAlign: type: ", type, ", node: ", node)
             var getAlgn = getTextByPathList(node, ["a:pPr", "attrs", "algn"]);
-            var align = "initial";
+            if (getAlgn === undefined) {
+                getAlgn = getTextByPathList(pNode, ["a:pPr", "attrs", "algn"]);
+            }
+            if (getAlgn === undefined) {
+                if (type == "title" || type == "ctrTitle" || type == "subTitle") {
+                    var lvlIdx = 1;
+                    var lvlNode = getTextByPathList(pNode, ["a:pPr", "attrs", "lvl"]);
+                    if (lvlNode !== undefined) {
+                        lvlIdx = parseInt(lvlNode) + 1;
+                    }
+                    var lvlStr = "a:lvl" + lvlIdx + "pPr";
+                    getAlgn = getTextByPathList(warpObj, ["slideLayoutTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr, "attrs", "algn"]);
+                    if (getAlgn === undefined) {
+                        getAlgn = getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", lvlStr, "attrs", "algn"]);
+                        if (getAlgn === undefined) {
+                            getAlgn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:titleStyle", lvlStr, "attrs", "algn"]);
+                            if (getAlgn === undefined && type === "subTitle") {
+                                getAlgn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", lvlStr, "attrs", "algn"]);
+                            }
+                        }
+                    }
+                } else if (type == "body") {
+                    getAlgn = getTextByPathList(warpObj, ["slideMasterTextStyles", "p:bodyStyle", "a:lvl1pPr", "attrs", "algn"]);
+                } else {
+                    getAlgn = getTextByPathList(warpObj, ["slideMasterTables", "typeTable", type, "p:txBody", "a:lstStyle", "a:lvl1pPr", "attrs", "algn"]);
+                }
+
+            }
+
+            var align = "inherit";
             if (getAlgn !== undefined) {
                 switch (getAlgn) {
                     case "l":
@@ -8421,7 +11334,7 @@
                         align = "justify";
                         break;
                     default:
-                        align = "initial";
+                        align = "inherit";
                 }
             }
             return align;
@@ -8431,27 +11344,8 @@
             var baseline = getTextByPathList(node, ["a:rPr", "attrs", "baseline"]);
             return baseline === undefined ? "baseline" : (parseInt(baseline) / 1000) + "%";
         }
-        ///////////////////////////////////Amir/////////////////////////////
-        function getTextDirection(node, type, slideMasterTextStyles) {
-            //get lvl
-            var pprLvl = getTextByPathList(node, ["a:pPr", "attrs", "lvl"]);
-            var pprLvlNum = pprLvl === undefined ? 1 : Number(pprLvl) + 1;
-            var lvlNode = "a:lvl" + pprLvlNum + "pPr";
-            var pprAlgn = getTextByPathList(node, ["a:pPr", "attrs", "algn"]);
-            var isDir = getTextByPathList(slideMasterTextStyles, ["p:bodyStyle", lvlNode, "attrs", "rtl"]);
-            //var tmp = getTextByPathList(node, ["a:r", "a:t"]);
-            var dir = "";
-            if (isDir !== undefined) {
-                if (isDir == "1" && (pprAlgn === undefined || pprAlgn == "r")) {
-                    dir = "rtl";
-                } else { //isDir =="0"
-                    dir = "ltr";
-                }
-            }
-            //console.log(tmp,isDir,pprAlgn,dir)
-            return dir;
-        }
-        function getTableBorders(node) {
+
+        function getTableBorders(node, warpObj) {
             var borderStyle = "";
             if (node["a:bottom"] !== undefined) {
                 var obj = {
@@ -8459,7 +11353,7 @@
                         "a:ln": node["a:bottom"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false, "shape");
+                var borders = getBorder(obj, undefined, false, "shape", warpObj);
                 borderStyle += borders.replace("border", "border-bottom");
             }
             if (node["a:top"] !== undefined) {
@@ -8468,7 +11362,7 @@
                         "a:ln": node["a:top"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false, "shape");
+                var borders = getBorder(obj, undefined, false, "shape", warpObj);
                 borderStyle += borders.replace("border", "border-top");
             }
             if (node["a:right"] !== undefined) {
@@ -8477,7 +11371,7 @@
                         "a:ln": node["a:right"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false, "shape");
+                var borders = getBorder(obj, undefined, false, "shape", warpObj);
                 borderStyle += borders.replace("border", "border-right");
             }
             if (node["a:left"] !== undefined) {
@@ -8486,137 +11380,254 @@
                         "a:ln": node["a:left"]["a:ln"]
                     }
                 }
-                var borders = getBorder(obj, false, "shape");
+                var borders = getBorder(obj, undefined, false, "shape", warpObj);
                 borderStyle += borders.replace("border", "border-left");
             }
 
             return borderStyle;
         }
         //////////////////////////////////////////////////////////////////
-        function getBorder(node, isSvgMode, bType) {
-            var cssText, lineNode;
+        function getBorder(node, pNode, isSvgMode, bType, warpObj) {
+            //console.log("getBorder", node, pNode, isSvgMode, bType)
+            var cssText, lineNode, subNodeTxt;
+
             if (bType == "shape") {
                 cssText = "border: ";
                 lineNode = node["p:spPr"]["a:ln"];
+                //subNodeTxt = "p:spPr";
+                //node["p:style"]["a:lnRef"] = 
             } else if (bType == "text") {
                 cssText = "";
                 lineNode = node["a:rPr"]["a:ln"];
-
+                //subNodeTxt = "a:rPr";
             }
 
-            // Border width: 1pt = 12700, default = 0.75pt
-            var borderWidth = parseInt(getTextByPathList(lineNode, ["attrs", "w"])) / 12700;
-            if (isNaN(borderWidth) || borderWidth < 1) {
-                cssText += "1pt ";
-            } else {
-                cssText += borderWidth + "pt ";
+            //var is_noFill = getTextByPathList(node, ["p:spPr", "a:noFill"]);
+            var is_noFill = getTextByPathList(lineNode, ["a:noFill"]);
+            if (is_noFill !== undefined) {
+                return "hidden";
             }
-            // Border type
-            var borderType = getTextByPathList(lineNode, ["a:prstDash", "attrs", "val"]);
-            var strokeDasharray = "0";
-            switch (borderType) {
-                case "solid":
-                    cssText += "solid";
-                    strokeDasharray = "0";
-                    break;
-                case "dash":
-                    cssText += "dashed";
-                    strokeDasharray = "5";
-                    break;
-                case "dashDot":
-                    cssText += "dashed";
-                    strokeDasharray = "5, 5, 1, 5";
-                    break;
-                case "dot":
-                    cssText += "dotted";
-                    strokeDasharray = "1, 5";
-                    break;
-                case "lgDash":
-                    cssText += "dashed";
-                    strokeDasharray = "10, 5";
-                    break;
-                case "lgDashDotDot":
-                    cssText += "dashed";
-                    strokeDasharray = "10, 5, 1, 5, 1, 5";
-                    break;
-                case "sysDash":
-                    cssText += "dashed";
-                    strokeDasharray = "5, 2";
-                    break;
-                case "sysDashDot":
-                    cssText += "dashed";
-                    strokeDasharray = "5, 2, 1, 5";
-                    break;
-                case "sysDashDotDot":
-                    cssText += "dashed";
-                    strokeDasharray = "5, 2, 1, 5, 1, 5";
-                    break;
-                case "sysDot":
-                    cssText += "dotted";
-                    strokeDasharray = "2, 5";
-                    break;
-                case undefined:
-                //console.log(borderType);
-                default:
-                    cssText += "solid";
-                    strokeDasharray = "0";
-            }
-            // Border color
-            var borderColor = getTextByPathList(lineNode, ["a:solidFill", "a:srgbClr", "attrs", "val"]);
-            if (borderColor === undefined) {
-                var schemeClrNode = getTextByPathList(lineNode, ["a:solidFill", "a:schemeClr"]);
-                if (schemeClrNode !== undefined) {
-                    var schemeClr = "a:" + getTextByPathList(schemeClrNode, ["attrs", "val"]);
-                    var borderColor = getSchemeColorFromTheme(schemeClr, undefined);
+
+            //console.log("lineNode: ", lineNode)
+            if (lineNode == undefined) {
+                var lnRefNode = getTextByPathList(node, ["p:style", "a:lnRef"])
+                if (lnRefNode !== undefined){
+                    var lnIdx = getTextByPathList(lnRefNode, ["attrs", "idx"]);
+                    //console.log("lnIdx:", lnIdx, "lnStyleLst:", warpObj["themeContent"]["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:lnStyleLst"]["a:ln"][Number(lnIdx) -1])
+                    lineNode = warpObj["themeContent"]["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:lnStyleLst"]["a:ln"][Number(lnIdx) - 1];
                 }
             }
+            if (lineNode == undefined) {
+                //is table
+                cssText = "";
+                lineNode = node
+            }
 
+            var borderColor;
+            if (lineNode !== undefined) {
+                // Border width: 1pt = 12700, default = 0.75pt
+                var borderWidth = parseInt(getTextByPathList(lineNode, ["attrs", "w"])) / 12700;
+                if (isNaN(borderWidth) || borderWidth < 1) {
+                    cssText += (4/3) + "px ";//"1pt ";
+                } else {
+                    cssText += borderWidth + "px ";// + "pt ";
+                }
+                // Border type
+                var borderType = getTextByPathList(lineNode, ["a:prstDash", "attrs", "val"]);
+                if (borderType === undefined) {
+                    borderType = getTextByPathList(lineNode, ["attrs", "cmpd"]);
+                }
+                var strokeDasharray = "0";
+                switch (borderType) {
+                    case "solid":
+                        cssText += "solid";
+                        strokeDasharray = "0";
+                        break;
+                    case "dash":
+                        cssText += "dashed";
+                        strokeDasharray = "5";
+                        break;
+                    case "dashDot":
+                        cssText += "dashed";
+                        strokeDasharray = "5, 5, 1, 5";
+                        break;
+                    case "dot":
+                        cssText += "dotted";
+                        strokeDasharray = "1, 5";
+                        break;
+                    case "lgDash":
+                        cssText += "dashed";
+                        strokeDasharray = "10, 5";
+                        break;
+                    case "dbl":
+                        cssText += "double";
+                        strokeDasharray = "0";
+                        break;
+                    case "lgDashDotDot":
+                        cssText += "dashed";
+                        strokeDasharray = "10, 5, 1, 5, 1, 5";
+                        break;
+                    case "sysDash":
+                        cssText += "dashed";
+                        strokeDasharray = "5, 2";
+                        break;
+                    case "sysDashDot":
+                        cssText += "dashed";
+                        strokeDasharray = "5, 2, 1, 5";
+                        break;
+                    case "sysDashDotDot":
+                        cssText += "dashed";
+                        strokeDasharray = "5, 2, 1, 5, 1, 5";
+                        break;
+                    case "sysDot":
+                        cssText += "dotted";
+                        strokeDasharray = "2, 5";
+                        break;
+                    case undefined:
+                    //console.log(borderType);
+                    default:
+                        cssText += "solid";
+                        strokeDasharray = "0";
+                }
+                // Border color
+                var fillTyp = getFillType(lineNode);
+                //console.log("getBorder:node : fillTyp", fillTyp)
+                if (fillTyp == "NO_FILL") {
+                    borderColor = isSvgMode ? "none" : "";//"background-color: initial;";
+                } else if (fillTyp == "SOLID_FILL") {
+                    borderColor = getSolidFill(lineNode["a:solidFill"], undefined, undefined, warpObj);
+                } else if (fillTyp == "GRADIENT_FILL") {
+                    borderColor = getGradientFill(lineNode["a:gradFill"], warpObj);
+                    //console.log("shpFill",shpFill,grndColor.color)
+                } else if (fillTyp == "PATTERN_FILL") {
+                    borderColor = getPatternFill(lineNode["a:pattFill"], warpObj);
+                }
+
+            }
+
+            //console.log("getBorder:node : borderColor", borderColor)
             // 2. drawingML namespace
             if (borderColor === undefined) {
-                var schemeClrNode = getTextByPathList(node, ["p:style", "a:lnRef", "a:schemeClr"]);
-                if (schemeClrNode !== undefined) {
-                    var schemeClr = "a:" + getTextByPathList(schemeClrNode, ["attrs", "val"]);
-                    var borderColor = getSchemeColorFromTheme(schemeClr, undefined);
+                //var schemeClrNode = getTextByPathList(node, ["p:style", "a:lnRef", "a:schemeClr"]);
+                // if (schemeClrNode !== undefined) {
+                //     var schemeClr = "a:" + getTextByPathList(schemeClrNode, ["attrs", "val"]);
+                //     var borderColor = getSchemeColorFromTheme(schemeClr, undefined, undefined);
+                // }
+                var lnRefNode = getTextByPathList(node, ["p:style", "a:lnRef"]);
+                //console.log("getBorder: lnRef : ", lnRefNode)
+                if (lnRefNode !== undefined) {
+                    borderColor = getSolidFill(lnRefNode, undefined, undefined, warpObj);
                 }
 
-                if (borderColor !== undefined) {
-                    var shade = getTextByPathList(schemeClrNode, ["a:shade", "attrs", "val"]);
-                    if (shade !== undefined) {
-                        shade = parseInt(shade) / 100000;
-                        var color = new colz.Color("#" + borderColor);
-                        color.setLum(color.hsl.l * shade);
-                        borderColor = color.hex.replace("#", "");
-                    }
-                }
+                // if (borderColor !== undefined) {
+                //     var shade = getTextByPathList(schemeClrNode, ["a:shade", "attrs", "val"]);
+                //     if (shade !== undefined) {
+                //         shade = parseInt(shade) / 10000;
+                //         var color = tinycolor("#" + borderColor);
+                //         borderColor = color.darken(shade).toHex8();//.replace("#", "");
+                //     }
+                // }
 
             }
 
+            //console.log("getBorder: borderColor : ", borderColor)
             if (borderColor === undefined) {
                 if (isSvgMode) {
                     borderColor = "none";
                 } else {
-                    borderColor = "#000";
+                    borderColor = "hidden";
                 }
             } else {
-                borderColor = "#" + borderColor;
+                borderColor = "#" + borderColor; //wrong if not solid fill - TODO
 
             }
-            cssText += " " + borderColor + " ";
-
-
+            cssText += " " + borderColor + " ";//wrong if not solid fill - TODO
 
             if (isSvgMode) {
                 return { "color": borderColor, "width": borderWidth, "type": borderType, "strokeDasharray": strokeDasharray };
             } else {
                 return cssText + ";";
             }
+            // } else {
+            //     if (isSvgMode) {
+            //         return { "color": 'none', "width": '0', "type": 'none', "strokeDasharray": '0' };
+            //     } else {
+            //         return "hidden";
+            //     }
+            // }
         }
+        function getBackground(warpObj, slideSize, index) {
+            //var rslt = "";
+            var slideContent = warpObj["slideContent"];
+            var slideLayoutContent = warpObj["slideLayoutContent"];
+            var slideMasterContent = warpObj["slideMasterContent"];
 
-        function getSlideBackgroundFill(slideContent, slideLayoutContent, slideMasterContent, warpObj) {
-            //console.log(slideContent)
+            var nodesSldLayout = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:cSld", "p:spTree"]);
+            var nodesSldMaster = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:cSld", "p:spTree"]);
+            // console.log("slideContent : ", slideContent)
+            // console.log("slideLayoutContent : ", slideLayoutContent)
+            // console.log("slideMasterContent : ", slideMasterContent)
+            //console.log("warpObj : ", warpObj)
+            var showMasterSp = getTextByPathList(slideLayoutContent, ["p:sldLayout", "attrs", "showMasterSp"]);
+            //console.log("slideLayoutContent : ", slideLayoutContent, ", showMasterSp: ", showMasterSp)
+            var bgColor = getSlideBackgroundFill(warpObj, index);
+            var result = "<div class='slide-background-" + index + "' style='width:" + slideSize.width + "px; height:" + slideSize.height + "px;" + bgColor + "'>"
+            var node_ph_type_ary = [];
+            if (nodesSldLayout !== undefined) {
+                for (var nodeKey in nodesSldLayout) {
+                    if (nodesSldLayout[nodeKey].constructor === Array) {
+                        for (var i = 0; i < nodesSldLayout[nodeKey].length; i++) {
+                            var ph_type = getTextByPathList(nodesSldLayout[nodeKey][i], ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                            // if (ph_type !== undefined && ph_type != "pic") {
+                            //     node_ph_type_ary.push(ph_type);
+                            // }
+                            if (ph_type != "pic") {
+                                result += processNodesInSlide(nodeKey, nodesSldLayout[nodeKey][i], nodesSldLayout, warpObj, "slideLayoutBg"); //slideLayoutBg , slideMasterBg
+                            }
+                        }
+                    } else {
+                        var ph_type = getTextByPathList(nodesSldLayout[nodeKey], ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                        // if (ph_type !== undefined && ph_type != "pic") {
+                        //     node_ph_type_ary.push(ph_type);
+                        // }
+                        if (ph_type != "pic") {
+                            result += processNodesInSlide(nodeKey, nodesSldLayout[nodeKey], nodesSldLayout, warpObj, "slideLayoutBg"); //slideLayoutBg, slideMasterBg
+                        }
+                    }
+                }
+            }
+            if (nodesSldMaster !== undefined && (showMasterSp == "1" || showMasterSp === undefined)) {
+                for (var nodeKey in nodesSldMaster) {
+                    if (nodesSldMaster[nodeKey].constructor === Array) {
+                        for (var i = 0; i < nodesSldMaster[nodeKey].length; i++) {
+                            var ph_type = getTextByPathList(nodesSldMaster[nodeKey][i], ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                            //if (node_ph_type_ary.indexOf(ph_type) > -1) {
+                            result += processNodesInSlide(nodeKey, nodesSldMaster[nodeKey][i], nodesSldMaster, warpObj, "slideMasterBg"); //slideLayoutBg , slideMasterBg
+                            //}
+                        }
+                    } else {
+                        var ph_type = getTextByPathList(nodesSldMaster[nodeKey], ["p:nvSpPr", "p:nvPr", "p:ph", "attrs", "type"]);
+                        //if (node_ph_type_ary.indexOf(ph_type) > -1) {
+                        result += processNodesInSlide(nodeKey, nodesSldMaster[nodeKey], nodesSldMaster, warpObj, "slideMasterBg"); //slideLayoutBg, slideMasterBg
+                        //}
+                    }
+                }
+            }
+            return result;
+
+        }
+        function getSlideBackgroundFill(warpObj, index) {
+            var slideContent = warpObj["slideContent"];
+            var slideLayoutContent = warpObj["slideLayoutContent"];
+            var slideMasterContent = warpObj["slideMasterContent"];
+
+            //console.log("slideContent: ", slideContent)
+            //console.log("slideLayoutContent: ", slideLayoutContent)
+            //console.log("slideMasterContent: ", slideMasterContent)
             //getFillType(node)
             var bgPr = getTextByPathList(slideContent, ["p:sld", "p:cSld", "p:bg", "p:bgPr"]);
             var bgRef = getTextByPathList(slideContent, ["p:sld", "p:cSld", "p:bg", "p:bgRef"]);
+            //console.log("slideContent >> bgPr: ", bgPr, ", bgRef: ", bgRef)
             var bgcolor;
             if (bgPr !== undefined) {
                 //bgcolor = "background-color: blue;";
@@ -8624,27 +11635,56 @@
 
                 if (bgFillTyp == "SOLID_FILL") {
                     var sldFill = bgPr["a:solidFill"];
-                    var bgColor = getSolidFill(sldFill);
-                    var sldTint = getColorOpacity(sldFill);
-                    bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+                    var clrMapOvr;
+                    var sldClrMapOvr = getTextByPathList(slideContent, ["p:sld", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                    if (sldClrMapOvr !== undefined) {
+                        clrMapOvr = sldClrMapOvr;
+                    } else {
+                        var sldClrMapOvr = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                        if (sldClrMapOvr !== undefined) {
+                            clrMapOvr = sldClrMapOvr;
+                        } else {
+                            clrMapOvr = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:clrMap", "attrs"]);
+                        }
+
+                    }
+                    var sldBgClr = getSolidFill(sldFill, clrMapOvr, undefined, warpObj);
+                    //var sldTint = getColorOpacity(sldFill);
+                    //console.log("bgColor: ", bgColor)
+                    //bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+                    bgcolor = "background: #" + sldBgClr + ";";
 
                 } else if (bgFillTyp == "GRADIENT_FILL") {
-                    bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent);
+                    bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent, warpObj);
                 } else if (bgFillTyp == "PIC_FILL") {
-                    bgcolor = getBgPicFill(bgPr, "slideBg", warpObj);
+                    //console.log("PIC_FILL - ", bgFillTyp, bgPr, warpObj);
+                    bgcolor = getBgPicFill(bgPr, "slideBg", warpObj, undefined, index);
 
                 }
                 //console.log(slideContent,slideMasterContent,color_ary,tint_ary,rot,bgcolor)
             } else if (bgRef !== undefined) {
                 //console.log("slideContent",bgRef)
-                var phClr;
-                if (bgRef["a:srgbClr"] !== undefined) {
-                    phClr = getTextByPathList(bgRef, ["a:srgbClr", "attrs", "val"]); //#...
-                } else if (bgRef["a:schemeClr"] !== undefined) { //a:schemeClr
-                    var schemeClr = getTextByPathList(bgRef, ["a:schemeClr", "attrs", "val"]);
-                    phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent); //#...
-                    //console.log("schemeClr",schemeClr,"phClr=",phClr)
+                var clrMapOvr;
+                var sldClrMapOvr = getTextByPathList(slideContent, ["p:sld", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                if (sldClrMapOvr !== undefined) {
+                    clrMapOvr = sldClrMapOvr;
+                } else {
+                    var sldClrMapOvr = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                    if (sldClrMapOvr !== undefined) {
+                        clrMapOvr = sldClrMapOvr;
+                    } else {
+                        clrMapOvr = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:clrMap", "attrs"]);
+                    }
+
                 }
+                var phClr = getSolidFill(bgRef, clrMapOvr, undefined, warpObj);
+
+                // if (bgRef["a:srgbClr"] !== undefined) {
+                //     phClr = getTextByPathList(bgRef, ["a:srgbClr", "attrs", "val"]); //#...
+                // } else if (bgRef["a:schemeClr"] !== undefined) { //a:schemeClr
+                //     var schemeClr = getTextByPathList(bgRef, ["a:schemeClr", "attrs", "val"]);
+                //     phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent, undefined); //#...
+                // }
                 var idx = Number(bgRef["attrs"]["idx"]);
 
 
@@ -8658,7 +11698,8 @@
                     //bgFillStyleLst  in themeContent
                     //themeContent["a:fmtScheme"]["a:bgFillStyleLst"]
                     var trueIdx = idx - 1000;
-                    var bgFillLst = themeContent["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
+                    // themeContent["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
+                    var bgFillLst = warpObj["themeContent"]["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
                     var sortblAry = [];
                     Object.keys(bgFillLst).forEach(function (key) {
                         var bgFillLstTyp = bgFillLst[key];
@@ -8668,12 +11709,18 @@
                                     var obj = {};
                                     obj[key] = bgFillLstTyp[i];
                                     obj["idex"] = bgFillLstTyp[i]["attrs"]["order"];
+                                    obj["attrs"] = {
+                                        "order": bgFillLstTyp[i]["attrs"]["order"]
+                                    }
                                     sortblAry.push(obj)
                                 }
                             } else {
                                 var obj = {};
                                 obj[key] = bgFillLstTyp;
                                 obj["idex"] = bgFillLstTyp["attrs"]["order"];
+                                obj["attrs"] = {
+                                    "order": bgFillLstTyp["attrs"]["order"]
+                                }
                                 sortblAry.push(obj)
                             }
                         }
@@ -8686,68 +11733,149 @@
                     var bgFillTyp = getFillType(bgFillLstIdx);
                     if (bgFillTyp == "SOLID_FILL") {
                         var sldFill = bgFillLstIdx["a:solidFill"];
-                        //var sldBgColor = getSolidFill(sldFill);
-                        var sldTint = getColorOpacity(sldFill);
-                        bgcolor = "background: rgba(" + hexToRgbNew(phClr) + "," + sldTint + ");";
+                        var sldBgClr = getSolidFill(sldFill, clrMapOvr, undefined, warpObj);
+                        //var sldTint = getColorOpacity(sldFill);
+                        //bgcolor = "background: rgba(" + hexToRgbNew(phClr) + "," + sldTint + ");";
+                        bgcolor = "background: #" + sldBgClr + ";";
                         //console.log("slideMasterContent - sldFill",sldFill)
                     } else if (bgFillTyp == "GRADIENT_FILL") {
-                        bgcolor = getBgGradientFill(bgFillLstIdx, phClr, slideMasterContent);
+                        bgcolor = getBgGradientFill(bgFillLstIdx, phClr, slideMasterContent, warpObj);
+                    } else {
+                        console.log(bgFillTyp)
                     }
                 }
 
-            } else {
+            }
+            else {
                 bgPr = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:cSld", "p:bg", "p:bgPr"]);
                 bgRef = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:cSld", "p:bg", "p:bgRef"]);
-                //console.log("slideLayoutContent",bgPr,bgRef)
+                //console.log("slideLayoutContent >> bgPr: ", bgPr, ", bgRef: ", bgRef)
+                var clrMapOvr;
+                var sldClrMapOvr = getTextByPathList(slideLayoutContent, ["p:sldLayout", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                if (sldClrMapOvr !== undefined) {
+                    clrMapOvr = sldClrMapOvr;
+                } else {
+                    clrMapOvr = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:clrMap", "attrs"]);
+                }
                 if (bgPr !== undefined) {
                     var bgFillTyp = getFillType(bgPr);
                     if (bgFillTyp == "SOLID_FILL") {
                         var sldFill = bgPr["a:solidFill"];
-                        var bgColor = getSolidFill(sldFill);
-                        var sldTint = getColorOpacity(sldFill);
-                        bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+
+                        var sldBgClr = getSolidFill(sldFill, clrMapOvr, undefined, warpObj);
+                        //var sldTint = getColorOpacity(sldFill);
+                        // bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+                        bgcolor = "background: #" + sldBgClr + ";";
                     } else if (bgFillTyp == "GRADIENT_FILL") {
-                        bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent);
+                        bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent, warpObj);
                     } else if (bgFillTyp == "PIC_FILL") {
-                        bgcolor = getBgPicFill(bgPr, "layoutBg", warpObj);
+                        bgcolor = getBgPicFill(bgPr, "slideLayoutBg", warpObj, undefined, index);
 
                     }
                     //console.log("slideLayoutContent",bgcolor)
                 } else if (bgRef !== undefined) {
-                    bgcolor = "background: red;";
+                    console.log("slideLayoutContent: bgRef", bgRef)
+                    //bgcolor = "background: white;";
+                    var phClr = getSolidFill(bgRef, clrMapOvr, undefined, warpObj);
+                    var idx = Number(bgRef["attrs"]["idx"]);
+                    //console.log("phClr=", phClr, "idx=", idx)
+
+                    if (idx == 0 || idx == 1000) {
+                        //no background
+                    } else if (idx > 0 && idx < 1000) {
+                        //fillStyleLst in themeContent
+                        //themeContent["a:fmtScheme"]["a:fillStyleLst"]
+                        //bgcolor = "background: red;";
+                    } else if (idx > 1000) {
+                        //bgFillStyleLst  in themeContent
+                        //themeContent["a:fmtScheme"]["a:bgFillStyleLst"]
+                        var trueIdx = idx - 1000;
+                        var bgFillLst = warpObj["themeContent"]["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
+                        var sortblAry = [];
+                        Object.keys(bgFillLst).forEach(function (key) {
+                            //console.log("cubicBezTo[" + key + "]:");
+                            var bgFillLstTyp = bgFillLst[key];
+                            if (key != "attrs") {
+                                if (bgFillLstTyp.constructor === Array) {
+                                    for (var i = 0; i < bgFillLstTyp.length; i++) {
+                                        var obj = {};
+                                        obj[key] = bgFillLstTyp[i];
+                                        obj["idex"] = bgFillLstTyp[i]["attrs"]["order"];
+                                        obj["attrs"] = {
+                                            "order": bgFillLstTyp[i]["attrs"]["order"]
+                                        }
+                                        sortblAry.push(obj)
+                                    }
+                                } else {
+                                    var obj = {};
+                                    obj[key] = bgFillLstTyp;
+                                    obj["idex"] = bgFillLstTyp["attrs"]["order"];
+                                    obj["attrs"] = {
+                                        "order": bgFillLstTyp["attrs"]["order"]
+                                    }
+                                    sortblAry.push(obj)
+                                }
+                            }
+                        });
+                        var sortByOrder = sortblAry.slice(0);
+                        sortByOrder.sort(function (a, b) {
+                            return a.idex - b.idex;
+                        });
+                        var bgFillLstIdx = sortByOrder[trueIdx - 1];
+                        var bgFillTyp = getFillType(bgFillLstIdx);
+                        if (bgFillTyp == "SOLID_FILL") {
+                            var sldFill = bgFillLstIdx["a:solidFill"];
+                            //console.log("sldFill: ", sldFill)
+                            //var sldTint = getColorOpacity(sldFill);
+                            //bgcolor = "background: rgba(" + hexToRgbNew(phClr) + "," + sldTint + ");";
+                            var sldBgClr = getSolidFill(sldFill, clrMapOvr, phClr, warpObj);
+                            //console.log("bgcolor: ", bgcolor)
+                            bgcolor = "background: #" + sldBgClr + ";";
+                        } else if (bgFillTyp == "GRADIENT_FILL") {
+                            //console.log("GRADIENT_FILL: ", bgFillLstIdx, phClr)
+                            bgcolor = getBgGradientFill(bgFillLstIdx, phClr, slideMasterContent, warpObj);
+                        } else if (bgFillTyp == "PIC_FILL") {
+                            //theme rels
+                            //console.log("PIC_FILL - ", bgFillTyp, bgFillLstIdx, bgFillLst, warpObj);
+                            bgcolor = getBgPicFill(bgFillLstIdx, "themeBg", warpObj, phClr, index);
+                        } else {
+                            console.log(bgFillTyp)
+                        }
+                    }
                 } else {
                     bgPr = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:cSld", "p:bg", "p:bgPr"]);
                     bgRef = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:cSld", "p:bg", "p:bgRef"]);
 
-                    //console.log("bgRef",bgRef["a:schemeClr"]["attrs"]["val"])
+                    var clrMap = getTextByPathList(slideMasterContent, ["p:sldMaster", "p:clrMap", "attrs"]);
+                    //console.log("slideMasterContent >> bgPr: ", bgPr, ", bgRef: ", bgRef)
                     if (bgPr !== undefined) {
                         var bgFillTyp = getFillType(bgPr);
                         if (bgFillTyp == "SOLID_FILL") {
                             var sldFill = bgPr["a:solidFill"];
-                            var bgColor = getSolidFill(sldFill);
-                            var sldTint = getColorOpacity(sldFill);
-                            bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+                            var sldBgClr = getSolidFill(sldFill, clrMap, undefined, warpObj);
+                            // var sldTint = getColorOpacity(sldFill);
+                            // bgcolor = "background: rgba(" + hexToRgbNew(bgColor) + "," + sldTint + ");";
+                            bgcolor = "background: #" + sldBgClr + ";";
                         } else if (bgFillTyp == "GRADIENT_FILL") {
-                            bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent);
+                            bgcolor = getBgGradientFill(bgPr, undefined, slideMasterContent, warpObj);
                         } else if (bgFillTyp == "PIC_FILL") {
-                            bgcolor = getBgPicFill(bgPr, "masterBg", warpObj);
+                            bgcolor = getBgPicFill(bgPr, "slideMasterBg", warpObj, undefined, index);
                         }
                     } else if (bgRef !== undefined) {
                         //var obj={
                         //    "a:solidFill": bgRef
                         //}
-                        //var phClr = getSolidFill(bgRef);
-                        var phClr;
-                        if (bgRef["a:srgbClr"] !== undefined) {
-                            phClr = getTextByPathList(bgRef, ["a:srgbClr", "attrs", "val"]); //#...
-                        } else if (bgRef["a:schemeClr"] !== undefined) { //a:schemeClr
-                            var schemeClr = getTextByPathList(bgRef, ["a:schemeClr", "attrs", "val"]);
+                        var phClr = getSolidFill(bgRef, clrMap, undefined, warpObj);
+                        // var phClr;
+                        // if (bgRef["a:srgbClr"] !== undefined) {
+                        //     phClr = getTextByPathList(bgRef, ["a:srgbClr", "attrs", "val"]); //#...
+                        // } else if (bgRef["a:schemeClr"] !== undefined) { //a:schemeClr
+                        //     var schemeClr = getTextByPathList(bgRef, ["a:schemeClr", "attrs", "val"]);
 
-                            phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent); //#...
-                            //console.log("phClr",phClr)
-                        }
+                        //     phClr = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent, undefined); //#...
+                        // }
                         var idx = Number(bgRef["attrs"]["idx"]);
-                        //console.log("phClr=",phClr,"idx=",idx)
+                        //console.log("phClr=", phClr, "idx=", idx)
 
                         if (idx == 0 || idx == 1000) {
                             //no background
@@ -8759,10 +11887,10 @@
                             //bgFillStyleLst  in themeContent
                             //themeContent["a:fmtScheme"]["a:bgFillStyleLst"]
                             var trueIdx = idx - 1000;
-                            var bgFillLst = themeContent["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
+                            var bgFillLst = warpObj["themeContent"]["a:theme"]["a:themeElements"]["a:fmtScheme"]["a:bgFillStyleLst"];
                             var sortblAry = [];
                             Object.keys(bgFillLst).forEach(function (key) {
-                                //console.log("cubicBezTo["+key+"]:");
+                                //console.log("cubicBezTo[" + key + "]:");
                                 var bgFillLstTyp = bgFillLst[key];
                                 if (key != "attrs") {
                                     if (bgFillLstTyp.constructor === Array) {
@@ -8770,12 +11898,18 @@
                                             var obj = {};
                                             obj[key] = bgFillLstTyp[i];
                                             obj["idex"] = bgFillLstTyp[i]["attrs"]["order"];
+                                            obj["attrs"] = {
+                                                "order": bgFillLstTyp[i]["attrs"]["order"]
+                                            }
                                             sortblAry.push(obj)
                                         }
                                     } else {
                                         var obj = {};
                                         obj[key] = bgFillLstTyp;
                                         obj["idex"] = bgFillLstTyp["attrs"]["order"];
+                                        obj["attrs"] = {
+                                            "order": bgFillLstTyp["attrs"]["order"]
+                                        }
                                         sortblAry.push(obj)
                                     }
                                 }
@@ -8786,13 +11920,22 @@
                             });
                             var bgFillLstIdx = sortByOrder[trueIdx - 1];
                             var bgFillTyp = getFillType(bgFillLstIdx);
-                            //console.log("bgFillLstIdx",bgFillLstIdx);
+                            //console.log("bgFillLstIdx: ", bgFillLstIdx, ", bgFillTyp: ", bgFillTyp, ", phClr: ", phClr);
                             if (bgFillTyp == "SOLID_FILL") {
                                 var sldFill = bgFillLstIdx["a:solidFill"];
-                                var sldTint = getColorOpacity(sldFill);
-                                bgcolor = "background: rgba(" + hexToRgbNew(phClr) + "," + sldTint + ");";
+                                //console.log("sldFill: ", sldFill)
+                                //var sldTint = getColorOpacity(sldFill);
+                                //bgcolor = "background: rgba(" + hexToRgbNew(phClr) + "," + sldTint + ");";
+                                var sldBgClr = getSolidFill(sldFill, clrMap, phClr, warpObj);
+                                //console.log("bgcolor: ", bgcolor)
+                                bgcolor = "background: #" + sldBgClr + ";";
                             } else if (bgFillTyp == "GRADIENT_FILL") {
-                                bgcolor = getBgGradientFill(bgFillLstIdx, phClr, slideMasterContent);
+                                //console.log("GRADIENT_FILL: ", bgFillLstIdx, phClr)
+                                bgcolor = getBgGradientFill(bgFillLstIdx, phClr, slideMasterContent, warpObj);
+                            } else if (bgFillTyp == "PIC_FILL") {
+                                //theme rels
+                                // console.log("PIC_FILL - ", bgFillTyp, bgFillLstIdx, bgFillLst, warpObj);
+                                bgcolor = getBgPicFill(bgFillLstIdx, "themeBg", warpObj, phClr, index);
                             } else {
                                 console.log(bgFillTyp)
                             }
@@ -8801,116 +11944,251 @@
                 }
             }
 
-            //console.log("bgcolor: ",bgcolor)   
+            //console.log("bgcolor: ", bgcolor)
             return bgcolor;
         }
-        function getBgGradientFill(bgPr, phClr, slideMasterContent) {
+        function getBgGradientFill(bgPr, phClr, slideMasterContent, warpObj) {
             var bgcolor = "";
             if (bgPr !== undefined) {
                 var grdFill = bgPr["a:gradFill"];
                 var gsLst = grdFill["a:gsLst"]["a:gs"];
-                var startColorNode, endColorNode;
+                //var startColorNode, endColorNode;
                 var color_ary = [];
-                var tint_ary = [];
+                var pos_ary = [];
+                //var tint_ary = [];
                 for (var i = 0; i < gsLst.length; i++) {
                     var lo_tint;
                     var lo_color = "";
-                    if (gsLst[i]["a:srgbClr"] !== undefined) {
-                        if (phClr === undefined) {
-                            lo_color = getTextByPathList(gsLst[i], ["a:srgbClr", "attrs", "val"]); //#...
-                        }
-                        lo_tint = getTextByPathList(gsLst[i], ["a:srgbClr", "a:tint", "attrs", "val"]);
-                    } else if (gsLst[i]["a:schemeClr"] !== undefined) { //a:schemeClr
-                        if (phClr === undefined) {
-                            var schemeClr = getTextByPathList(gsLst[i], ["a:schemeClr", "attrs", "val"]);
-                            lo_color = getSchemeColorFromTheme("a:" + schemeClr, slideMasterContent); //#...
-                        }
-                        lo_tint = getTextByPathList(gsLst[i], ["a:schemeClr", "a:tint", "attrs", "val"]);
-                        //console.log("schemeClr",schemeClr,slideMasterContent)
+                    var lo_color = getSolidFill(gsLst[i], slideMasterContent["p:sldMaster"]["p:clrMap"]["attrs"], phClr, warpObj);
+                    var pos = getTextByPathList(gsLst[i], ["attrs", "pos"])
+                    //console.log("pos: ", pos)
+                    if (pos !== undefined) {
+                        pos_ary[i] = pos / 1000 + "%";
+                    } else {
+                        pos_ary[i] = "";
                     }
-                    //console.log("lo_color",lo_color)
-                    color_ary[i] = lo_color;
-                    tint_ary[i] = (lo_tint !== undefined) ? parseInt(lo_tint) / 100000 : 1;
+                    //console.log("lo_color", lo_color)
+                    color_ary[i] = "#" + lo_color;
+                    //tint_ary[i] = (lo_tint !== undefined) ? parseInt(lo_tint) / 100000 : 1;
                 }
                 //get rot
                 var lin = grdFill["a:lin"];
                 var rot = 90;
                 if (lin !== undefined) {
-                    rot = angleToDegrees(lin["attrs"]["ang"]) + 90;
+                    rot = angleToDegrees(lin["attrs"]["ang"]);// + 270;
+                    //console.log("rot: ", rot)
+                    rot = rot + 90;
                 }
                 bgcolor = "background: linear-gradient(" + rot + "deg,";
                 for (var i = 0; i < gsLst.length; i++) {
                     if (i == gsLst.length - 1) {
-                        if (phClr === undefined) {
-                            bgcolor += "rgba(" + hexToRgbNew(color_ary[i]) + "," + tint_ary[i] + ")" + ");";
-                        } else {
-                            bgcolor += "rgba(" + hexToRgbNew(phClr) + "," + tint_ary[i] + ")" + ");";
-                        }
+                        //if (phClr === undefined) {
+                        //bgcolor += "rgba(" + hexToRgbNew(color_ary[i]) + "," + tint_ary[i] + ")" + ");";
+                        bgcolor += color_ary[i] + " " + pos_ary[i] + ");";
+                        //} else {
+                        //bgcolor += "rgba(" + hexToRgbNew(phClr) + "," + tint_ary[i] + ")" + ");";
+                        // bgcolor += "" + phClr + ";";;
+                        //}
                     } else {
-                        if (phClr === undefined) {
-                            bgcolor += "rgba(" + hexToRgbNew(color_ary[i]) + "," + tint_ary[i] + ")" + ", ";
-                        } else {
-                            bgcolor += "rgba(" + hexToRgbNew(phClr) + "," + tint_ary[i] + ")" + ", ";
-                        }
+                        //if (phClr === undefined) {
+                        //bgcolor += "rgba(" + hexToRgbNew(color_ary[i]) + "," + tint_ary[i] + ")" + ", ";
+                        bgcolor += color_ary[i] + " " + pos_ary[i] + ", ";;
+                        //} else {
+                        //bgcolor += "rgba(" + hexToRgbNew(phClr) + "," + tint_ary[i] + ")" + ", ";
+                        // bgcolor += phClr + ", ";
+                        //}
                     }
                 }
             } else {
-                if (phClr === undefined) {
-                    bgcolor = "rgba(" + hexToRgbNew(phClr) + ",0);";
+                if (phClr !== undefined) {
+                    //bgcolor = "rgba(" + hexToRgbNew(phClr) + ",0);";
+                    //bgcolor = phClr + ");";
+                    bgcolor = "background: #" + phClr + ";";
                 }
             }
             return bgcolor;
         }
-        function getBgPicFill(bgPr, sorce, warpObj) {
+        function getBgPicFill(bgPr, sorce, warpObj, phClr, index) {
+            //console.log("getBgPicFill bgPr", bgPr)
             var bgcolor;
             var picFillBase64 = getPicFill(sorce, bgPr["a:blipFill"], warpObj);
             var ordr = bgPr["attrs"]["order"];
+            var aBlipNode = bgPr["a:blipFill"]["a:blip"];
+            //a:duotone
+            var duotone = getTextByPathList(aBlipNode, ["a:duotone"]);
+            if (duotone !== undefined) {
+                //console.log("pic duotone: ", duotone)
+                var clr_ary = [];
+                // duotone.forEach(function (clr) {
+                //     console.log("pic duotone clr: ", clr)
+                // }) 
+                Object.keys(duotone).forEach(function (clr_type) {
+                    //console.log("pic duotone clr: clr_type: ", clr_type, duotone[clr_type])
+                    if (clr_type != "attrs") {
+                        var obj = {};
+                        obj[clr_type] = duotone[clr_type];
+                        clr_ary.push(getSolidFill(obj, undefined, phClr, warpObj));
+                    }
+                    // Object.keys(duotone[clr_type]).forEach(function (clr) {
+                    //     if (clr != "order") {
+                    //         var obj = {};
+                    //         obj[clr_type] = duotone[clr_type][clr];
+                    //         clr_ary.push(getSolidFill(obj, undefined, phClr, warpObj));
+                    //     }
+                    // })
+                })
+                //console.log("pic duotone clr_ary: ", clr_ary);
+                //filter: url(file.svg#filter-element-id)
+                //https://codepen.io/bhenbe/pen/QEZOvd
+                //https://www.w3schools.com/cssref/css3_pr_filter.asp
+
+                // var color1 = clr_ary[0];
+                // var color2 = clr_ary[1];
+                // var cssName = "";
+
+                // var styleText_before_after = "content: '';" +
+                //     "display: block;" +
+                //     "width: 100%;" +
+                //     "height: 100%;" +
+                //     // "z-index: 1;" +
+                //     "position: absolute;" +
+                //     "top: 0;" +
+                //     "left: 0;";
+
+                // var cssName = "slide-background-" + index + "::before," + " .slide-background-" + index + "::after";
+                // styleTable[styleText_before_after] = {
+                //     "name": cssName,
+                //     "text": styleText_before_after
+                // };
+
+
+                // var styleText_after = "background-color: #" + clr_ary[1] + ";" +
+                //     "mix-blend-mode: darken;";
+
+                // cssName = "slide-background-" + index + "::after";
+                // styleTable[styleText_after] = {
+                //     "name": cssName,
+                //     "text": styleText_after
+                // };
+
+                // var styleText_before = "background-color: #" + clr_ary[0] + ";" +
+                //     "mix-blend-mode: lighten;";
+
+                // cssName = "slide-background-" + index + "::before";
+                // styleTable[styleText_before] = {
+                //     "name": cssName,
+                //     "text": styleText_before
+                // };
+
+            }
+            //a:alphaModFix
+            var aphaModFixNode = getTextByPathList(aBlipNode, ["a:alphaModFix", "attrs"])
+            var imgOpacity = "";
+            if (aphaModFixNode !== undefined && aphaModFixNode["amt"] !== undefined && aphaModFixNode["amt"] != "") {
+                var amt = parseInt(aphaModFixNode["amt"]) / 100000;
+                //var opacity = amt;
+                imgOpacity = "opacity:" + amt + ";";
+
+            }
+            //a:tile
+
+            var tileNode = getTextByPathList(bgPr, ["a:blipFill", "a:tile", "attrs"])
+            var prop_style = "";
+            if (tileNode !== undefined && tileNode["sx"] !== undefined) {
+                var sx = (parseInt(tileNode["sx"]) / 100000);
+                var sy = (parseInt(tileNode["sy"]) / 100000);
+                var tx = (parseInt(tileNode["tx"]) / 100000);
+                var ty = (parseInt(tileNode["ty"]) / 100000);
+                var algn = tileNode["algn"]; //tl(top left),t(top), tr(top right), l(left), ctr(center), r(right), bl(bottom left), b(bottm) , br(bottom right)
+                var flip = tileNode["flip"]; //none,x,y ,xy
+
+                prop_style += "background-repeat: round;"; //repeat|repeat-x|repeat-y|no-repeat|space|round|initial|inherit;
+                //prop_style += "background-size: 300px 100px;"; size (w,h,sx, sy) -TODO
+                //prop_style += "background-position: 50% 40%;"; //offset (tx, ty) -TODO
+            }
             //a:srcRect
             //a:stretch => a:fillRect =>attrs (l:-17000, r:-17000)
-            bgcolor = "background-image: url(" + picFillBase64 + ");  z-index: " + ordr + ";";
+            var stretch = getTextByPathList(bgPr, ["a:blipFill", "a:stretch"]);
+            if (stretch !== undefined) {
+                var fillRect = getTextByPathList(stretch, ["a:fillRect", "attrs"]);
+                //console.log("getBgPicFill=>bgPr: ", bgPr)
+                // var top = fillRect["t"], right = fillRect["r"], bottom = fillRect["b"], left = fillRect["l"];
+                prop_style += "background-repeat: no-repeat;";
+                prop_style += "background-position: center;";
+                if (fillRect !== undefined) {
+                    //prop_style += "background-size: contain, cover;";
+                    prop_style += "background-size:  100% 100%;;";
+                }
+            }
+            bgcolor = "background: url(" + picFillBase64 + ");  z-index: " + ordr + ";" + prop_style + imgOpacity;
+
             return bgcolor;
         }
-        function hexToRgbNew(hex) {
-            var arrBuff = new ArrayBuffer(4);
-            var vw = new DataView(arrBuff);
-            vw.setUint32(0, parseInt(hex, 16), false);
-            var arrByte = new Uint8Array(arrBuff);
-
-            return arrByte[1] + "," + arrByte[2] + "," + arrByte[3];
-        }
-        function getShapeFill(node, isSvgMode, warpObj) {
+        // function hexToRgbNew(hex) {
+        //     var arrBuff = new ArrayBuffer(4);
+        //     var vw = new DataView(arrBuff);
+        //     vw.setUint32(0, parseInt(hex, 16), false);
+        //     var arrByte = new Uint8Array(arrBuff);
+        //     return arrByte[1] + "," + arrByte[2] + "," + arrByte[3];
+        // }
+        function getShapeFill(node, pNode, isSvgMode, warpObj, source) {
 
             // 1. presentationML
             // p:spPr/ [a:noFill, solidFill, gradFill, blipFill, pattFill, grpFill]
             // From slide
             //Fill Type:
-            //console.log("ShapeFill: ", node)
+            //console.log("getShapeFill ShapeFill: ", node, ", isSvgMode; ", isSvgMode)
             var fillType = getFillType(getTextByPathList(node, ["p:spPr"]));
+            //var noFill = getTextByPathList(node, ["p:spPr", "a:noFill"]);
             var fillColor;
             if (fillType == "NO_FILL") {
-                return isSvgMode ? "none" : "background-color: initial;";
+                return isSvgMode ? "none" : "";//"background-color: initial;";
             } else if (fillType == "SOLID_FILL") {
                 var shpFill = node["p:spPr"]["a:solidFill"];
-                fillColor = getSolidFill(shpFill);
+                fillColor = getSolidFill(shpFill, undefined, undefined, warpObj);
             } else if (fillType == "GRADIENT_FILL") {
                 var shpFill = node["p:spPr"]["a:gradFill"];
-                // fillColor = getSolidFill(shpFill);
-                fillColor = getGradientFill(shpFill);
+                fillColor = getGradientFill(shpFill, warpObj);
                 //console.log("shpFill",shpFill,grndColor.color)
             } else if (fillType == "PATTERN_FILL") {
                 var shpFill = node["p:spPr"]["a:pattFill"];
-                fillColor = getPatternFill(shpFill);
+                fillColor = getPatternFill(shpFill, warpObj);
             } else if (fillType == "PIC_FILL") {
                 var shpFill = node["p:spPr"]["a:blipFill"];
-                fillColor = getPicFill("slideBg", shpFill, warpObj);
+                fillColor = getPicFill(source, shpFill, warpObj);
             }
+            //console.log("getShapeFill ShapeFill: ", node, ", isSvgMode; ", isSvgMode, ", fillType: ", fillType, ", fillColor: ", fillColor, ", source: ", source)
 
 
             // 2. drawingML namespace
             if (fillColor === undefined) {
                 var clrName = getTextByPathList(node, ["p:style", "a:fillRef"]);
-                fillColor = getSolidFill(clrName);
+                var idx = parseInt(getTextByPathList(node, ["p:style", "a:fillRef", "attrs", "idx"]));
+                if (idx == 0 || idx == 1000) {
+                    //no fill
+                    return isSvgMode ? "none" : "";
+                } else if (idx > 0 && idx < 1000) {
+                    // <a:fillStyleLst> fill
+                } else if (idx > 1000) {
+                    //<a:bgFillStyleLst>
+                }
+                fillColor = getSolidFill(clrName, undefined, undefined, warpObj);
             }
+            // 3. is group fill
+            if (fillColor === undefined) {
+                var grpFill = getTextByPathList(node, ["p:spPr", "a:grpFill"]);
+                if (grpFill !== undefined) {
+                    //fillColor = getSolidFill(clrName, undefined, undefined, undefined, warpObj);
+                    //get parent fill style - TODO
+                    //console.log("ShapeFill: grpFill: ", grpFill, ", pNode: ", pNode)
+                    var grpShpFill = pNode["p:grpSpPr"];
+                    var spShpNode = { "p:spPr": grpShpFill }
+                    return getShapeFill(spShpNode, node, isSvgMode, warpObj, source);
+                } else if (fillType == "NO_FILL") {
+                    return isSvgMode ? "none" : "";
+                }
+            }
+            //console.log("ShapeFill: fillColor: ", fillColor, ", fillType; ", fillType)
 
             if (fillColor !== undefined) {
                 if (fillType == "GRADIENT_FILL") {
@@ -8924,9 +12202,9 @@
                         var bgcolor = "background: linear-gradient(" + rot + "deg,";
                         for (var i = 0; i < colorAry.length; i++) {
                             if (i == colorAry.length - 1) {
-                                bgcolor += colorAry[i] + ");";
+                                bgcolor += "#" + colorAry[i] + ");";
                             } else {
-                                bgcolor += colorAry[i] + ", ";
+                                bgcolor += "#" + colorAry[i] + ", ";
                             }
 
                         }
@@ -8939,10 +12217,28 @@
 
                         return "background-image:url(" + fillColor + ");";
                     }
+                } else if (fillType == "PATTERN_FILL") {
+                    /////////////////////////////////////////////////////////////Need to check -----------TODO
+                    // if (isSvgMode) {
+                    //     var color = tinycolor(fillColor);
+                    //     fillColor = color.toRgbString();
+
+                    //     return fillColor;
+                    // } else {
+                    var bgPtrn = "", bgSize = "", bgPos = "";
+                    bgPtrn = fillColor[0];
+                    if (fillColor[1] !== null && fillColor[1] !== undefined && fillColor[1] != "") {
+                        bgSize = " background-size:" + fillColor[1] + ";";
+                    }
+                    if (fillColor[2] !== null && fillColor[2] !== undefined && fillColor[2] != "") {
+                        bgPos = " background-position:" + fillColor[2] + ";";
+                    }
+                    return "background: " + bgPtrn + ";" + bgSize + bgPos;
+                    //}
                 } else {
                     if (isSvgMode) {
-                        var color = new colz.Color(fillColor);
-                        fillColor = color.rgb.toString();
+                        var color = tinycolor(fillColor);
+                        fillColor = color.toRgbString();
 
                         return fillColor;
                     } else {
@@ -8954,7 +12250,7 @@
                 if (isSvgMode) {
                     return "none";
                 } else {
-                    return "background-color: initial;";
+                    return "background-color: inherit;";
                 }
 
             }
@@ -8984,40 +12280,22 @@
             if (node["a:blipFill"] !== undefined) {
                 fillType = "PIC_FILL";
             }
+            if (node["a:grpFill"] !== undefined) {
+                fillType = "GROUP_FILL";
+            }
+
 
             return fillType;
         }
-        function getGradientFill(node) {
+        function getGradientFill(node, warpObj) {
+            //console.log("getGradientFill: node", node)
             var gsLst = node["a:gsLst"]["a:gs"];
             //get start color
             var color_ary = [];
             var tint_ary = [];
             for (var i = 0; i < gsLst.length; i++) {
                 var lo_tint;
-                var lo_color = getSolidFill(gsLst[i]);
-                if (gsLst[i]["a:srgbClr"] !== undefined) {
-                    var lumMod = parseInt(getTextByPathList(node, ["a:srgbClr", "a:lumMod", "attrs", "val"])) / 100000;
-                    var lumOff = parseInt(getTextByPathList(node, ["a:srgbClr", "a:lumOff", "attrs", "val"])) / 100000;
-                    if (isNaN(lumMod)) {
-                        lumMod = 1.0;
-                    }
-                    if (isNaN(lumOff)) {
-                        lumOff = 0;
-                    }
-                    //console.log([lumMod, lumOff]);
-                    lo_color = applyLumModify(lo_color, lumMod, lumOff);
-                } else if (gsLst[i]["a:schemeClr"] !== undefined) { //a:schemeClr
-                    var lumMod = parseInt(getTextByPathList(gsLst[i], ["a:schemeClr", "a:lumMod", "attrs", "val"])) / 100000;
-                    var lumOff = parseInt(getTextByPathList(gsLst[i], ["a:schemeClr", "a:lumOff", "attrs", "val"])) / 100000;
-                    if (isNaN(lumMod)) {
-                        lumMod = 1.0;
-                    }
-                    if (isNaN(lumOff)) {
-                        lumOff = 0;
-                    }
-                    //console.log([lumMod, lumOff]);
-                    lo_color = applyLumModify(lo_color, lumMod, lumOff);
-                }
+                var lo_color = getSolidFill(gsLst[i], undefined, undefined, warpObj);
                 //console.log("lo_color",lo_color)
                 color_ary[i] = lo_color;
             }
@@ -9040,82 +12318,767 @@
             var img;
             var rId = node["a:blip"]["attrs"]["r:embed"];
             var imgPath;
-            if (type == "slideBg") {
+            //console.log("getPicFill(...) rId: ", rId, ", warpObj: ", warpObj, ", type: ", type)
+            if (type == "slideBg" || type == "slide") {
                 imgPath = getTextByPathList(warpObj, ["slideResObj", rId, "target"]);
-            } else if (type == "layoutBg") {
+            } else if (type == "slideLayoutBg") {
                 imgPath = getTextByPathList(warpObj, ["layoutResObj", rId, "target"]);
-            } else if (type == "masterBg") {
+            } else if (type == "slideMasterBg") {
                 imgPath = getTextByPathList(warpObj, ["masterResObj", rId, "target"]);
+            } else if (type == "themeBg") {
+                imgPath = getTextByPathList(warpObj, ["themeResObj", rId, "target"]);
+            } else if (type == "diagramBg") {
+                imgPath = getTextByPathList(warpObj, ["diagramResObj", rId, "target"]);
             }
-            imgPath = escapeHtml(imgPath);
-
             if (imgPath === undefined) {
                 return undefined;
             }
-            var imgExt = imgPath.split(".").pop();
-            if (imgExt == "xml") {
-                return undefined;
+            img = getTextByPathList(warpObj, ["loaded-images", imgPath]); //, type, rId
+            if (img === undefined) {
+                imgPath = escapeHtml(imgPath);
+
+
+                var imgExt = imgPath.split(".").pop();
+                if (imgExt == "xml") {
+                    return undefined;
+                }
+                var imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
+                var imgMimeType = getMimeType(imgExt);
+                img = "data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer);
+                //warpObj["loaded-images"][imgPath] = img; //"defaultTextStyle": defaultTextStyle,
+                setTextByPathList(warpObj, ["loaded-images", imgPath], img); //, type, rId
             }
-            var imgArrayBuffer = warpObj["zip"].file(imgPath).asArrayBuffer();
-            var imgMimeType = getMimeType(imgExt);
-            img = "data:" + imgMimeType + ";base64," + base64ArrayBuffer(imgArrayBuffer);
             return img;
         }
-        function getPatternFill(node) {
-            var color = "";
+        function getPatternFill(node, warpObj) {
+            //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Images/Using_CSS_gradients
+            //https://cssgradient.io/blog/css-gradient-text/
+            //https://css-tricks.com/background-patterns-simplified-by-conic-gradients/
+            //https://stackoverflow.com/questions/6705250/how-to-get-a-pattern-into-a-written-text-via-css
+            //https://stackoverflow.com/questions/14072142/striped-text-in-css
+            //https://css-tricks.com/stripes-css/
+            //https://yuanchuan.dev/gradient-shapes/
+            var fgColor = "", bgColor = "", prst = "";
+            var bgClr = node["a:bgClr"];
             var fgClr = node["a:fgClr"];
-            color = getSolidFill(fgClr);
-            return color;
+            prst = node["attrs"]["prst"];
+            fgColor = getSolidFill(fgClr, undefined, undefined, warpObj);
+            bgColor = getSolidFill(bgClr, undefined, undefined, warpObj);
+            //var angl_ary = getAnglefromParst(prst);
+            //var ptrClr = "repeating-linear-gradient(" + angl + "deg,  #" + bgColor + ",#" + fgColor + " 2px);"
+            //linear-gradient(0deg, black 10 %, transparent 10 %, transparent 90 %, black 90 %, black), 
+            //linear-gradient(90deg, black 10 %, transparent 10 %, transparent 90 %, black 90 %, black);
+            var linear_gradient = getLinerGrandient(prst, bgColor, fgColor);
+            //console.log("getPatternFill: node:", node, ", prst: ", prst, ", fgColor: ", fgColor, ", bgColor:", bgColor, ', linear_gradient: ', linear_gradient)
+            return linear_gradient;
         }
 
-        function getSolidFill(node) {
+        function getLinerGrandient(prst, bgColor, fgColor) {
+            // dashDnDiag (Dashed Downward Diagonal)-V
+            // dashHorz (Dashed Horizontal)-V
+            // dashUpDiag(Dashed Upward DIagonal)-V
+            // dashVert(Dashed Vertical)-V
+            // diagBrick(Diagonal Brick)-V
+            // divot(Divot)-VX
+            // dkDnDiag(Dark Downward Diagonal)-V
+            // dkHorz(Dark Horizontal)-V
+            // dkUpDiag(Dark Upward Diagonal)-V
+            // dkVert(Dark Vertical)-V
+            // dotDmnd(Dotted Diamond)-VX
+            // dotGrid(Dotted Grid)-V
+            // horzBrick(Horizontal Brick)-V
+            // lgCheck(Large Checker Board)-V
+            // lgConfetti(Large Confetti)-V
+            // lgGrid(Large Grid)-V
+            // ltDnDiag(Light Downward Diagonal)-V
+            // ltHorz(Light Horizontal)-V
+            // ltUpDiag(Light Upward Diagonal)-V
+            // ltVert(Light Vertical)-V
+            // narHorz(Narrow Horizontal)-V
+            // narVert(Narrow Vertical)-V
+            // openDmnd(Open Diamond)-V
+            // pct10(10 %)-V
+            // pct20(20 %)-V
+            // pct25(25 %)-V
+            // pct30(30 %)-V
+            // pct40(40 %)-V
+            // pct5(5 %)-V
+            // pct50(50 %)-V
+            // pct60(60 %)-V
+            // pct70(70 %)-V
+            // pct75(75 %)-V
+            // pct80(80 %)-V
+            // pct90(90 %)-V
+            // smCheck(Small Checker Board) -V
+            // smConfetti(Small Confetti)-V
+            // smGrid(Small Grid) -V
+            // solidDmnd(Solid Diamond)-V
+            // sphere(Sphere)-V
+            // trellis(Trellis)-VX
+            // wave(Wave)-V
+            // wdDnDiag(Wide Downward Diagonal)-V
+            // wdUpDiag(Wide Upward Diagonal)-V
+            // weave(Weave)-V
+            // zigZag(Zig Zag)-V
+            // shingle(Shingle)-V
+            // plaid(Plaid)-V
+            // cross (Cross)
+            // diagCross(Diagonal Cross)
+            // dnDiag(Downward Diagonal)
+            // horz(Horizontal)
+            // upDiag(Upward Diagonal)
+            // vert(Vertical)
+            switch (prst) {
+                case "smGrid":
+                    return ["linear-gradient(to right,  #" + fgColor + " -1px, transparent 1px ), " +
+                        "linear-gradient(to bottom,  #" + fgColor + " -1px, transparent 1px)  #" + bgColor + ";", "4px 4px"];
+                    break
+                case "dotGrid":
+                    return ["linear-gradient(to right,  #" + fgColor + " -1px, transparent 1px ), " +
+                        "linear-gradient(to bottom,  #" + fgColor + " -1px, transparent 1px)  #" + bgColor + ";", "8px 8px"];
+                    break
+                case "lgGrid":
+                    return ["linear-gradient(to right,  #" + fgColor + " -1px, transparent 1.5px ), " +
+                        "linear-gradient(to bottom,  #" + fgColor + " -1px, transparent 1.5px)  #" + bgColor + ";", "8px 8px"];
+                    break
+                case "wdUpDiag":
+                    //return ["repeating-linear-gradient(-45deg,  #" + bgColor + ", #" + bgColor + " 1px,#" + fgColor + " 5px);"];
+                    return ["repeating-linear-gradient(-45deg, transparent 1px , transparent 4px, #" + fgColor + " 7px)" + "#" + bgColor + ";"];
+                    // return ["linear-gradient(45deg, transparent 0%, transparent calc(50% - 1px),  #" + fgColor + " 50%, transparent calc(50% + 1px),  transparent 100%) " +
+                    //     "#" + bgColor + ";", "6px 6px"];
+                    break
+                case "dkUpDiag":
+                    return ["repeating-linear-gradient(-45deg, transparent 1px , #" + bgColor + " 5px)" + "#" + fgColor + ";"];
+                    break
+                case "ltUpDiag":
+                    return ["repeating-linear-gradient(-45deg, transparent 1px , transparent 2px, #" + fgColor + " 4px)" + "#" + bgColor + ";"];
+                    break
+                case "wdDnDiag":
+                    return ["repeating-linear-gradient(45deg, transparent 1px , transparent 4px, #" + fgColor + " 7px)" + "#" + bgColor + ";"];
+                    break
+                case "dkDnDiag":
+                    return ["repeating-linear-gradient(45deg, transparent 1px , #" + bgColor + " 5px)" + "#" + fgColor + ";"];
+                    break
+                case "ltDnDiag":
+                    return ["repeating-linear-gradient(45deg, transparent 1px , transparent 2px, #" + fgColor + " 4px)" + "#" + bgColor + ";"];
+                    break
+                case "dkHorz":
+                    return ["repeating-linear-gradient(0deg, transparent 1px , transparent 2px, #" + bgColor + " 7px)" + "#" + fgColor + ";"];
+                    break
+                case "ltHorz":
+                    return ["repeating-linear-gradient(0deg, transparent 1px , transparent 5px, #" + fgColor + " 7px)" + "#" + bgColor + ";"];
+                    break
+                case "narHorz":
+                    return ["repeating-linear-gradient(0deg, transparent 1px , transparent 2px, #" + fgColor + " 4px)" + "#" + bgColor + ";"];
+                    break
+                case "dkVert":
+                    return ["repeating-linear-gradient(90deg, transparent 1px , transparent 2px, #" + bgColor + " 7px)" + "#" + fgColor + ";"];
+                    break
+                case "ltVert":
+                    return ["repeating-linear-gradient(90deg, transparent 1px , transparent 5px, #" + fgColor + " 7px)" + "#" + bgColor + ";"];
+                    break
+                case "narVert":
+                    return ["repeating-linear-gradient(90deg, transparent 1px , transparent 2px, #" + fgColor + " 4px)" + "#" + bgColor + ";"];
+                    break
+                case "lgCheck":
+                case "smCheck":
+                    var size = "";
+                    var pos = "";
+                    if (prst == "lgCheck") {
+                        size = "8px 8px";
+                        pos = "0 0, 4px 4px, 4px 4px, 8px 8px";
+                    } else {
+                        size = "4px 4px";
+                        pos = "0 0, 2px 2px, 2px 2px, 4px 4px";
+                    }
+                    return ["linear-gradient(45deg,  #" + fgColor + " 25%, transparent 0, transparent 75%,  #" + fgColor + " 0), " +
+                        "linear-gradient(45deg,  #" + fgColor + " 25%, transparent 0, transparent 75%,  #" + fgColor + " 0) " +
+                        "#" + bgColor + ";", size, pos];
+                    break
+                // case "smCheck":
+                //     return ["linear-gradient(45deg, transparent 0%, transparent calc(50% - 0.5px),  #" + fgColor + " 50%, transparent calc(50% + 0.5px),  transparent 100%), " +
+                //         "linear-gradient(-45deg, transparent 0%, transparent calc(50% - 0.5px) , #" + fgColor + " 50%, transparent calc(50% + 0.5px),  transparent 100%)  " +
+                //         "#" + bgColor + ";", "4px 4px"];
+                //     break 
+
+                case "dashUpDiag":
+                    return ["repeating-linear-gradient(152deg, #" + fgColor + ", #" + fgColor + " 5% , transparent 0, transparent 70%)" +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "dashDnDiag":
+                    return ["repeating-linear-gradient(45deg, #" + fgColor + ", #" + fgColor + " 5% , transparent 0, transparent 70%)" +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "diagBrick":
+                    return ["linear-gradient(45deg, transparent 15%,  #" + fgColor + " 30%, transparent 30%), " +
+                        "linear-gradient(-45deg, transparent 15%,  #" + fgColor + " 30%, transparent 30%), " +
+                        "linear-gradient(-45deg, transparent 65%,  #" + fgColor + " 80%, transparent 0) " +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "horzBrick":
+                    return ["linear-gradient(335deg, #" + bgColor + " 1.6px, transparent 1.6px), " +
+                        "linear-gradient(155deg, #" + bgColor + " 1.6px, transparent 1.6px), " +
+                        "linear-gradient(335deg, #" + bgColor + " 1.6px, transparent 1.6px), " +
+                        "linear-gradient(155deg, #" + bgColor + " 1.6px, transparent 1.6px) " +
+                        "#" + fgColor + ";", "4px 4px", "0 0.15px, 0.3px 2.5px, 2px 2.15px, 2.35px 0.4px"];
+                    break
+
+                case "dashVert":
+                    return ["linear-gradient(0deg,  #" + bgColor + " 30%, transparent 30%)," +
+                        "linear-gradient(90deg,transparent, transparent 40%, #" + fgColor + " 40%, #" + fgColor + " 60% , transparent 60%)" +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "dashHorz":
+                    return ["linear-gradient(90deg,  #" + bgColor + " 30%, transparent 30%)," +
+                        "linear-gradient(0deg,transparent, transparent 40%, #" + fgColor + " 40%, #" + fgColor + " 60% , transparent 60%)" +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "solidDmnd":
+                    return ["linear-gradient(135deg,  #" + fgColor + " 25%, transparent 25%), " +
+                        "linear-gradient(225deg,  #" + fgColor + " 25%, transparent 25%), " +
+                        "linear-gradient(315deg,  #" + fgColor + " 25%, transparent 25%), " +
+                        "linear-gradient(45deg,  #" + fgColor + " 25%, transparent 25%) " +
+                        "#" + bgColor + ";", "8px 8px"];
+                    break
+                case "openDmnd":
+                    return ["linear-gradient(45deg, transparent 0%, transparent calc(50% - 0.5px),  #" + fgColor + " 50%, transparent calc(50% + 0.5px),  transparent 100%), " +
+                        "linear-gradient(-45deg, transparent 0%, transparent calc(50% - 0.5px) , #" + fgColor + " 50%, transparent calc(50% + 0.5px),  transparent 100%) " +
+                        "#" + bgColor + ";", "8px 8px"];
+                    break
+
+                case "dotDmnd":
+                    return ["radial-gradient(#" + fgColor + " 15%, transparent 0), " +
+                        "radial-gradient(#" + fgColor + " 15%, transparent 0) " +
+                        "#" + bgColor + ";", "4px 4px", "0 0, 2px 2px"];
+                    break
+                case "zigZag":
+                case "wave":
+                    var size = "";
+                    if (prst == "zigZag") size = "0";
+                    else size = "1px";
+                    return ["linear-gradient(135deg,  #" + fgColor + " 25%, transparent 25%) 50px " + size + ", " +
+                        "linear-gradient(225deg,  #" + fgColor + " 25%, transparent 25%) 50px " + size + ", " +
+                        "linear-gradient(315deg,  #" + fgColor + " 25%, transparent 25%), " +
+                        "linear-gradient(45deg,  #" + fgColor + " 25%, transparent 25%) " +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "lgConfetti":
+                case "smConfetti":
+                    var size = "";
+                    if (prst == "lgConfetti") size = "4px 4px";
+                    else size = "2px 2px";
+                    return ["linear-gradient(135deg,  #" + fgColor + " 25%, transparent 25%) 50px 1px, " +
+                        "linear-gradient(225deg,  #" + fgColor + " 25%, transparent 25%), " +
+                        "linear-gradient(315deg,  #" + fgColor + " 25%, transparent 25%) 50px 1px , " +
+                        "linear-gradient(45deg,  #" + fgColor + " 25%, transparent 25%) " +
+                        "#" + bgColor + ";", size];
+                    break
+                // case "weave":
+                //     return ["linear-gradient(45deg,  #" + bgColor + " 5%, transparent 25%) 50px 0, " +
+                //         "linear-gradient(135deg,  #" + bgColor + " 25%, transparent 25%) 50px 0, " +
+                //         "linear-gradient(45deg,  #" + bgColor + " 25%, transparent 25%) " +
+                //         "#" + fgColor + ";", "4px 4px"];
+                //     //background: linear-gradient(45deg, #dca 12%, transparent 0, transparent 88%, #dca 0),
+                //     //linear-gradient(135deg, transparent 37 %, #a85 0, #a85 63 %, transparent 0),
+                //     //linear-gradient(45deg, transparent 37 %, #dca 0, #dca 63 %, transparent 0) #753;
+                //     // background-size: 25px 25px;
+                //     break;
+
+                case "plaid":
+                    return ["linear-gradient(0deg, transparent, transparent 25%, #" + fgColor + "33 25%, #" + fgColor + "33 50%)," +
+                        "linear-gradient(90deg, transparent, transparent 25%, #" + fgColor + "66 25%, #" + fgColor + "66 50%) " +
+                        "#" + bgColor + ";", "4px 4px"];
+                    /**
+                        background-color: #6677dd;
+                        background-image: 
+                        repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(255, 255, 255, 0.2) 35px, rgba(255, 255, 255, 0.2) 70px), 
+                        repeating-linear-gradient(90deg, transparent, transparent 35px, rgba(255,255,255,0.4) 35px, rgba(255,255,255,0.4) 70px);
+                     */
+                    break;
+                case "sphere":
+                    return ["radial-gradient(#" + fgColor + " 50%, transparent 50%)," +
+                        "#" + bgColor + ";", "4px 4px"];
+                    break
+                case "weave":
+                case "shingle":
+                    return ["linear-gradient(45deg, #" + bgColor + " 1.31px , #" + fgColor + " 1.4px, #" + fgColor + " 1.5px, transparent 1.5px, transparent 4.2px, #" + fgColor + " 4.2px, #" + fgColor + " 4.3px, transparent 4.31px), " +
+                        "linear-gradient(-45deg,  #" + bgColor + " 1.31px , #" + fgColor + " 1.4px, #" + fgColor + " 1.5px, transparent 1.5px, transparent 4.2px, #" + fgColor + " 4.2px, #" + fgColor + " 4.3px, transparent 4.31px) 0 4px, " +
+                        "#" + bgColor + ";", "4px 8px"];
+                    break
+                //background:
+                //linear-gradient(45deg, #708090 1.31px, #d9ecff 1.4px, #d9ecff 1.5px, transparent 1.5px, transparent 4.2px, #d9ecff 4.2px, #d9ecff 4.3px, transparent 4.31px),
+                //linear-gradient(-45deg, #708090 1.31px, #d9ecff 1.4px, #d9ecff 1.5px, transparent 1.5px, transparent 4.2px, #d9ecff 4.2px, #d9ecff 4.3px, transparent 4.31px)0 4px;
+                //background-color:#708090;
+                //background-size: 4px 8px;
+                case "pct5":
+                case "pct10":
+                case "pct20":
+                case "pct25":
+                case "pct30":
+                case "pct40":
+                case "pct50":
+                case "pct60":
+                case "pct70":
+                case "pct75":
+                case "pct80":
+                case "pct90":
+                //case "dotDmnd":
+                case "trellis":
+                case "divot":
+                    var px_pr_ary;
+                    switch (prst) {
+                        case "pct5":
+                            px_pr_ary = ["0.3px", "10%", "2px 2px"];
+                            break
+                        case "divot":
+                            px_pr_ary = ["0.3px", "40%", "4px 4px"];
+                            break
+                        case "pct10":
+                            px_pr_ary = ["0.3px", "20%", "2px 2px"];
+                            break
+                        case "pct20":
+                            //case "dotDmnd":
+                            px_pr_ary = ["0.2px", "40%", "2px 2px"];
+                            break
+                        case "pct25":
+                            px_pr_ary = ["0.2px", "50%", "2px 2px"];
+                            break
+                        case "pct30":
+                            px_pr_ary = ["0.5px", "50%", "2px 2px"];
+                            break
+                        case "pct40":
+                            px_pr_ary = ["0.5px", "70%", "2px 2px"];
+                            break
+                        case "pct50":
+                            px_pr_ary = ["0.09px", "90%", "2px 2px"];
+                            break
+                        case "pct60":
+                            px_pr_ary = ["0.3px", "90%", "2px 2px"];
+                            break
+                        case "pct70":
+                        case "trellis":
+                            px_pr_ary = ["0.5px", "95%", "2px 2px"];
+                            break
+                        case "pct75":
+                            px_pr_ary = ["0.65px", "100%", "2px 2px"];
+                            break
+                        case "pct80":
+                            px_pr_ary = ["0.85px", "100%", "2px 2px"];
+                            break
+                        case "pct90":
+                            px_pr_ary = ["1px", "100%", "2px 2px"];
+                            break
+                    }
+                    return ["radial-gradient(#" + fgColor + " " + px_pr_ary[0] + ", transparent " + px_pr_ary[1] + ")," +
+                        "#" + bgColor + ";", px_pr_ary[2]];
+                    break
+                default:
+                    return [0, 0];
+            }
+        }
+
+        function getSolidFill(node, clrMap, phClr, warpObj) {
 
             if (node === undefined) {
                 return undefined;
             }
 
-            var color = "FFF";
-
+            //console.log("getSolidFill node: ", node)
+            var color = "";
+            var clrNode;
             if (node["a:srgbClr"] !== undefined) {
-                color = getTextByPathList(node, ["a:srgbClr", "attrs", "val"]); //#...
+                clrNode = node["a:srgbClr"];
+                color = getTextByPathList(clrNode, ["attrs", "val"]); //#...
             } else if (node["a:schemeClr"] !== undefined) { //a:schemeClr
-                var schemeClr = getTextByPathList(node, ["a:schemeClr", "attrs", "val"]);
-                //console.log(schemeClr)
-                color = getSchemeColorFromTheme("a:" + schemeClr, undefined); //#...
-
+                clrNode = node["a:schemeClr"];
+                var schemeClr = getTextByPathList(clrNode, ["attrs", "val"]);
+                color = getSchemeColorFromTheme("a:" + schemeClr, clrMap, phClr, warpObj);
+                //console.log("schemeClr: ", schemeClr, "color: ", color)
             } else if (node["a:scrgbClr"] !== undefined) {
+                clrNode = node["a:scrgbClr"];
                 //<a:scrgbClr r="50%" g="50%" b="50%"/>  //Need to test/////////////////////////////////////////////
-                var defBultColorVals = node["a:scrgbClr"]["attrs"];
+                var defBultColorVals = clrNode["attrs"];
                 var red = (defBultColorVals["r"].indexOf("%") != -1) ? defBultColorVals["r"].split("%").shift() : defBultColorVals["r"];
                 var green = (defBultColorVals["g"].indexOf("%") != -1) ? defBultColorVals["g"].split("%").shift() : defBultColorVals["g"];
                 var blue = (defBultColorVals["b"].indexOf("%") != -1) ? defBultColorVals["b"].split("%").shift() : defBultColorVals["b"];
-                var scrgbClr = red + "," + green + "," + blue;
+                //var scrgbClr = red + "," + green + "," + blue;
                 color = toHex(255 * (Number(red) / 100)) + toHex(255 * (Number(green) / 100)) + toHex(255 * (Number(blue) / 100));
                 //console.log("scrgbClr: " + scrgbClr);
 
             } else if (node["a:prstClr"] !== undefined) {
+                clrNode = node["a:prstClr"];
                 //<a:prstClr val="black"/>  //Need to test/////////////////////////////////////////////
-                var prstClr = node["a:prstClr"]["attrs"]["val"];
+                var prstClr = getTextByPathList(clrNode, ["attrs", "val"]); //node["a:prstClr"]["attrs"]["val"];
                 color = getColorName2Hex(prstClr);
-                //console.log("prstClr: " + prstClr+" => hexClr: "+color);
+                //console.log("blip prstClr: ", prstClr, " => hexClr: ", color);
             } else if (node["a:hslClr"] !== undefined) {
+                clrNode = node["a:hslClr"];
                 //<a:hslClr hue="14400000" sat="100%" lum="50%"/>  //Need to test/////////////////////////////////////////////
-                var defBultColorVals = node["a:hslClr"]["attrs"];
+                var defBultColorVals = clrNode["attrs"];
                 var hue = Number(defBultColorVals["hue"]) / 100000;
                 var sat = Number((defBultColorVals["sat"].indexOf("%") != -1) ? defBultColorVals["sat"].split("%").shift() : defBultColorVals["sat"]) / 100;
                 var lum = Number((defBultColorVals["lum"].indexOf("%") != -1) ? defBultColorVals["lum"].split("%").shift() : defBultColorVals["lum"]) / 100;
-                var hslClr = defBultColorVals["hue"] + "," + defBultColorVals["sat"] + "," + defBultColorVals["lum"];
+                //var hslClr = defBultColorVals["hue"] + "," + defBultColorVals["sat"] + "," + defBultColorVals["lum"];
                 var hsl2rgb = hslToRgb(hue, sat, lum);
                 color = toHex(hsl2rgb.r) + toHex(hsl2rgb.g) + toHex(hsl2rgb.b);
                 //defBultColor = cnvrtHslColor2Hex(hslClr); //TODO
                 // console.log("hslClr: " + hslClr);
             } else if (node["a:sysClr"] !== undefined) {
+                clrNode = node["a:sysClr"];
                 //<a:sysClr val="windowText" lastClr="000000"/>  //Need to test/////////////////////////////////////////////
-                var sysClr = getTextByPathList(node, ["a:sysClr", "attrs", "lastClr"]);
+                var sysClr = getTextByPathList(clrNode, ["attrs", "lastClr"]);
                 if (sysClr !== undefined) {
                     color = sysClr;
                 }
             }
+            //console.log("color: [%cstart]", "color: #" + color, tinycolor(color).toHslString(), color)
+
+            //fix color -------------------------------------------------------- TODO 
+            //
+            //1. "alpha":
+            //Specifies the opacity as expressed by a percentage value.
+            // [Example: The following represents a green solid fill which is 50 % opaque
+            // < a: solidFill >
+            //     <a:srgbClr val="00FF00">
+            //         <a:alpha val="50%" />
+            //     </a:srgbClr>
+            // </a: solidFill >
+            var isAlpha = false;
+            var alpha = parseInt(getTextByPathList(clrNode, ["a:alpha", "attrs", "val"])) / 100000;
+            //console.log("alpha: ", alpha)
+            if (!isNaN(alpha)) {
+                // var al_color = new colz.Color(color);
+                // al_color.setAlpha(alpha);
+                // var ne_color = al_color.rgba.toString();
+                // color = (rgba2hex(ne_color))
+                var al_color = tinycolor(color);
+                al_color.setAlpha(alpha);
+                color = al_color.toHex8()
+                isAlpha = true;
+                //console.log("al_color: ", al_color, ", color: ", color)
+            }
+            //2. "alphaMod":
+            // Specifies the opacity as expressed by a percentage relative to the input color.
+            //     [Example: The following represents a green solid fill which is 50 % opaque
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:alphaMod val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //3. "alphaOff":
+            // Specifies the opacity as expressed by a percentage offset increase or decrease to the
+            // input color.Increases never increase the opacity beyond 100 %, decreases never decrease
+            // the opacity below 0 %.
+            // [Example: The following represents a green solid fill which is 90 % opaque
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:alphaOff val="-10%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+
+            //4. "blue":
+            //Specifies the value of the blue component.The assigned value is specified as a
+            //percentage with 0 % indicating minimal blue and 100 % indicating maximum blue.
+            //  [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //      to value RRGGBB = (00, FF, FF)
+            //          <a: solidFill >
+            //              <a:srgbClr val="00FF00">
+            //                  <a:blue val="100%" />
+            //              </a:srgbClr>
+            //          </a: solidFill >
+            //5. "blueMod"
+            // Specifies the blue component as expressed by a percentage relative to the input color
+            // component.Increases never increase the blue component beyond 100 %, decreases
+            // never decrease the blue component below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, 00, FF)
+            //     to value RRGGBB = (00, 00, 80)
+            //     < a: solidFill >
+            //         <a:srgbClr val="0000FF">
+            //             <a:blueMod val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //6. "blueOff"
+            // Specifies the blue component as expressed by a percentage offset increase or decrease
+            // to the input color component.Increases never increase the blue component
+            // beyond 100 %, decreases never decrease the blue component below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, 00, FF)
+            // to value RRGGBB = (00, 00, CC)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:blueOff val="-20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+
+            //7. "comp" - This element specifies that the color rendered should be the complement of its input color with the complement
+            // being defined as such.Two colors are called complementary if, when mixed they produce a shade of grey.For
+            // instance, the complement of red which is RGB(255, 0, 0) is cyan.(<a:comp/>)
+
+            //8. "gamma" - This element specifies that the output color rendered by the generating application should be the sRGB gamma
+            //              shift of the input color.
+
+            //9. "gray" - This element specifies a grayscale of its input color, taking into relative intensities of the red, green, and blue
+            //              primaries.
+
+            //10. "green":
+            // Specifies the value of the green component. The assigned value is specified as a
+            // percentage with 0 % indicating minimal green and 100 % indicating maximum green.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, 00, FF)
+            // to value RRGGBB = (00, FF, FF)
+            //     < a: solidFill >
+            //         <a:srgbClr val="0000FF">
+            //             <a:green val="100%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //11. "greenMod":
+            // Specifies the green component as expressed by a percentage relative to the input color
+            // component.Increases never increase the green component beyond 100 %, decreases
+            // never decrease the green component below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            // to value RRGGBB = (00, 80, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:greenMod val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //12. "greenOff":
+            // Specifies the green component as expressed by a percentage offset increase or decrease
+            // to the input color component.Increases never increase the green component
+            // beyond 100 %, decreases never decrease the green component below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            // to value RRGGBB = (00, CC, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:greenOff val="-20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+
+            //13. "hue" (This element specifies a color using the HSL color model):
+            // This element specifies the input color with the specified hue, but with its saturation and luminance unchanged.
+            // < a: solidFill >
+            //     <a:hslClr hue="14400000" sat="100%" lum="50%">
+            // </a:solidFill>
+            // <a:solidFill>
+            //     <a:hslClr hue="0" sat="100%" lum="50%">
+            //         <a:hue val="14400000"/>
+            //     <a:hslClr/>
+            // </a:solidFill>
+
+            //14. "hueMod" (This element specifies a color using the HSL color model):
+            // Specifies the hue as expressed by a percentage relative to the input color.
+            // [Example: The following manipulates the fill color from having RGB value RRGGBB = (00, FF, 00) to value RRGGBB = (FF, FF, 00)
+            //         < a: solidFill >
+            //             <a:srgbClr val="00FF00">
+            //                 <a:hueMod val="50%" />
+            //             </a:srgbClr>
+            //         </a: solidFill >
+
+            var hueMod = parseInt(getTextByPathList(clrNode, ["a:hueMod", "attrs", "val"])) / 100000;
+            //console.log("hueMod: ", hueMod)
+            if (!isNaN(hueMod)) {
+                color = applyHueMod(color, hueMod, isAlpha);
+            }
+            //15. "hueOff"(This element specifies a color using the HSL color model):
+            // Specifies the actual angular value of the shift.The result of the shift shall be between 0
+            // and 360 degrees.Shifts resulting in angular values less than 0 are treated as 0. Shifts
+            // resulting in angular values greater than 360 are treated as 360.
+            // [Example:
+            //     The following increases the hue angular value by 10 degrees.
+            //     < a: solidFill >
+            //         <a:hslClr hue="0" sat="100%" lum="50%"/>
+            //             <a:hueOff val="600000"/>
+            //     </a: solidFill >
+            //var hueOff = parseInt(getTextByPathList(clrNode, ["a:hueOff", "attrs", "val"])) / 100000;
+            // if (!isNaN(hueOff)) {
+            //     //console.log("hueOff: ", hueOff, " (TODO)")
+            //     //color = applyHueOff(color, hueOff, isAlpha);
+            // }
+
+            //16. "inv" (inverse)
+            //This element specifies the inverse of its input color.
+            //The inverse of red (1, 0, 0) is cyan (0, 1, 1 ).
+            // The following represents cyan, the inverse of red:
+            // <a:solidFill>
+            //     <a:srgbClr val="FF0000">
+            //         <a:inv />
+            //     </a:srgbClr>
+            // </a:solidFill>
+
+            //17. "invGamma" - This element specifies that the output color rendered by the generating application should be the inverse sRGB
+            //                  gamma shift of the input color.
+
+            //18. "lum":
+            // This element specifies the input color with the specified luminance, but with its hue and saturation unchanged.
+            // Typically luminance values fall in the range[0 %, 100 %].
+            // The following two solid fills are equivalent:
+            // <a:solidFill>
+            //     <a:hslClr hue="14400000" sat="100%" lum="50%">
+            // </a:solidFill>
+            // <a:solidFill>
+            //     <a:hslClr hue="14400000" sat="100%" lum="0%">
+            //         <a:lum val="50%" />
+            //     <a:hslClr />
+            // </a:solidFill>
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            // to value RRGGBB = (00, 66, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:lum val="20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            // end example]
+            //19. "lumMod":
+            // Specifies the luminance as expressed by a percentage relative to the input color.
+            // Increases never increase the luminance beyond 100 %, decreases never decrease the
+            // luminance below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (00, 75, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:lumMod val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            // end example]
+            var lumMod = parseInt(getTextByPathList(clrNode, ["a:lumMod", "attrs", "val"])) / 100000;
+            //console.log("lumMod: ", lumMod)
+            if (!isNaN(lumMod)) {
+                color = applyLumMod(color, lumMod, isAlpha);
+            }
+            //var lumMod_color = applyLumMod(color, 0.5);
+            //console.log("lumMod_color: ", lumMod_color)
+            //20. "lumOff"
+            // Specifies the luminance as expressed by a percentage offset increase or decrease to the
+            // input color.Increases never increase the luminance beyond 100 %, decreases never
+            // decrease the luminance below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (00, 99, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:lumOff val="-20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            var lumOff = parseInt(getTextByPathList(clrNode, ["a:lumOff", "attrs", "val"])) / 100000;
+            //console.log("lumOff: ", lumOff)
+            if (!isNaN(lumOff)) {
+                color = applyLumOff(color, lumOff, isAlpha);
+            }
+
+
+            //21. "red":
+            // Specifies the value of the red component.The assigned value is specified as a percentage
+            // with 0 % indicating minimal red and 100 % indicating maximum red.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (FF, FF, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:red val="100%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //22. "redMod":
+            // Specifies the red component as expressed by a percentage relative to the input color
+            // component.Increases never increase the red component beyond 100 %, decreases never
+            // decrease the red component below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (FF, 00, 00)
+            //     to value RRGGBB = (80, 00, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="FF0000">
+            //             <a:redMod val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            //23. "redOff":
+            // Specifies the red component as expressed by a percentage offset increase or decrease to
+            // the input color component.Increases never increase the red component beyond 100 %,
+            //     decreases never decrease the red component below 0 %.
+            //     [Example: The following manipulates the fill from having RGB value RRGGBB = (FF, 00, 00)
+            //     to value RRGGBB = (CC, 00, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="FF0000">
+            //             <a:redOff val="-20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+
+            //23. "sat":
+            // This element specifies the input color with the specified saturation, but with its hue and luminance unchanged.
+            // Typically saturation values fall in the range[0 %, 100 %].
+            // [Example:
+            //     The following two solid fills are equivalent:
+            //     <a:solidFill>
+            //         <a:hslClr hue="14400000" sat="100%" lum="50%">
+            //     </a:solidFill>
+            //     <a:solidFill>
+            //         <a:hslClr hue="14400000" sat="0%" lum="50%">
+            //             <a:sat val="100000" />
+            //         <a:hslClr />
+            //     </a:solidFill>
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (40, C0, 40)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:sat val="50%" />
+            //         </a:srgbClr>
+            //     <a: solidFill >
+            // end example]
+
+            //24. "satMod":
+            // Specifies the saturation as expressed by a percentage relative to the input color.
+            // Increases never increase the saturation beyond 100 %, decreases never decrease the
+            // saturation below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (66, 99, 66)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:satMod val="20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            var satMod = parseInt(getTextByPathList(clrNode, ["a:satMod", "attrs", "val"])) / 100000;
+            if (!isNaN(satMod)) {
+                color = applySatMod(color, satMod, isAlpha);
+            }
+            //25. "satOff":
+            // Specifies the saturation as expressed by a percentage offset increase or decrease to the
+            // input color.Increases never increase the saturation beyond 100 %, decreases never
+            // decrease the saturation below 0 %.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (19, E5, 19)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:satOff val="-20%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            // var satOff = parseInt(getTextByPathList(clrNode, ["a:satOff", "attrs", "val"])) / 100000;
+            // if (!isNaN(satOff)) {
+            //     console.log("satOff: ", satOff, " (TODO)")
+            // }
+
+            //26. "shade":
+            // This element specifies a darker version of its input color.A 10 % shade is 10 % of the input color combined with 90 % black.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (00, BC, 00)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:shade val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            // end example]
+            var shade = parseInt(getTextByPathList(clrNode, ["a:shade", "attrs", "val"])) / 100000;
+            if (!isNaN(shade)) {
+                color = applyShade(color, shade, isAlpha);
+            }
+            //27.  "tint":
+            // This element specifies a lighter version of its input color.A 10 % tint is 10 % of the input color combined with
+            // 90 % white.
+            // [Example: The following manipulates the fill from having RGB value RRGGBB = (00, FF, 00)
+            //     to value RRGGBB = (BC, FF, BC)
+            //     < a: solidFill >
+            //         <a:srgbClr val="00FF00">
+            //             <a:tint val="50%" />
+            //         </a:srgbClr>
+            //     </a: solidFill >
+            var tint = parseInt(getTextByPathList(clrNode, ["a:tint", "attrs", "val"])) / 100000;
+            if (!isNaN(tint)) {
+                color = applyTint(color, tint, isAlpha);
+            }
+            //console.log("color [%cfinal]: ", "color: #" + color, tinycolor(color).toHslString(), color)
+
             return color;
         }
         function toHex(n) {
@@ -9147,95 +13110,72 @@
         }
         function getColorName2Hex(name) {
             var hex;
-            var colorName = ['AliceBlue', 'AntiqueWhite', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque', 'Black', 'BlanchedAlmond', 'Blue', 'BlueViolet', 'Brown', 'BurlyWood', 'CadetBlue', 'Chartreuse', 'Chocolate', 'Coral', 'CornflowerBlue', 'Cornsilk', 'Crimson', 'Cyan', 'DarkBlue', 'DarkCyan', 'DarkGoldenRod', 'DarkGray', 'DarkGrey', 'DarkGreen', 'DarkKhaki', 'DarkMagenta', 'DarkOliveGreen', 'DarkOrange', 'DarkOrchid', 'DarkRed', 'DarkSalmon', 'DarkSeaGreen', 'DarkSlateBlue', 'DarkSlateGray', 'DarkSlateGrey', 'DarkTurquoise', 'DarkViolet', 'DeepPink', 'DeepSkyBlue', 'DimGray', 'DimGrey', 'DodgerBlue', 'FireBrick', 'FloralWhite', 'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod', 'Gray', 'Grey', 'Green', 'GreenYellow', 'HoneyDew', 'HotPink', 'IndianRed', 'Indigo', 'Ivory', 'Khaki', 'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue', 'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey', 'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue', 'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime', 'LimeGreen', 'Linen', 'Magenta', 'Maroon', 'MediumAquaMarine', 'MediumBlue', 'MediumOrchid', 'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen', 'MediumTurquoise', 'MediumVioletRed', 'MidnightBlue', 'MintCream', 'MistyRose', 'Moccasin', 'NavajoWhite', 'Navy', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed', 'Orchid', 'PaleGoldenRod', 'PaleGreen', 'PaleTurquoise', 'PaleVioletRed', 'PapayaWhip', 'PeachPuff', 'Peru', 'Pink', 'Plum', 'PowderBlue', 'Purple', 'RebeccaPurple', 'Red', 'RosyBrown', 'RoyalBlue', 'SaddleBrown', 'Salmon', 'SandyBrown', 'SeaGreen', 'SeaShell', 'Sienna', 'Silver', 'SkyBlue', 'SlateBlue', 'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'Tan', 'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White', 'WhiteSmoke', 'Yellow', 'YellowGreen'];
-            var colorHex = ['f0f8ff', 'faebd7', '00ffff', '7fffd4', 'f0ffff', 'f5f5dc', 'ffe4c4', '000000', 'ffebcd', '0000ff', '8a2be2', 'a52a2a', 'deb887', '5f9ea0', '7fff00', 'd2691e', 'ff7f50', '6495ed', 'fff8dc', 'dc143c', '00ffff', '00008b', '008b8b', 'b8860b', 'a9a9a9', 'a9a9a9', '006400', 'bdb76b', '8b008b', '556b2f', 'ff8c00', '9932cc', '8b0000', 'e9967a', '8fbc8f', '483d8b', '2f4f4f', '2f4f4f', '00ced1', '9400d3', 'ff1493', '00bfff', '696969', '696969', '1e90ff', 'b22222', 'fffaf0', '228b22', 'ff00ff', 'dcdcdc', 'f8f8ff', 'ffd700', 'daa520', '808080', '808080', '008000', 'adff2f', 'f0fff0', 'ff69b4', 'cd5c5c', '4b0082', 'fffff0', 'f0e68c', 'e6e6fa', 'fff0f5', '7cfc00', 'fffacd', 'add8e6', 'f08080', 'e0ffff', 'fafad2', 'd3d3d3', 'd3d3d3', '90ee90', 'ffb6c1', 'ffa07a', '20b2aa', '87cefa', '778899', '778899', 'b0c4de', 'ffffe0', '00ff00', '32cd32', 'faf0e6', 'ff00ff', '800000', '66cdaa', '0000cd', 'ba55d3', '9370db', '3cb371', '7b68ee', '00fa9a', '48d1cc', 'c71585', '191970', 'f5fffa', 'ffe4e1', 'ffe4b5', 'ffdead', '000080', 'fdf5e6', '808000', '6b8e23', 'ffa500', 'ff4500', 'da70d6', 'eee8aa', '98fb98', 'afeeee', 'db7093', 'ffefd5', 'ffdab9', 'cd853f', 'ffc0cb', 'dda0dd', 'b0e0e6', '800080', '663399', 'ff0000', 'bc8f8f', '4169e1', '8b4513', 'fa8072', 'f4a460', '2e8b57', 'fff5ee', 'a0522d', 'c0c0c0', '87ceeb', '6a5acd', '708090', '708090', 'fffafa', '00ff7f', '4682b4', 'd2b48c', '008080', 'd8bfd8', 'ff6347', '40e0d0', 'ee82ee', 'f5deb3', 'ffffff', 'f5f5f5', 'ffff00', '9acd32'];
+            var colorName = ['white', 'AliceBlue', 'AntiqueWhite', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque', 'black', 'BlanchedAlmond', 'Blue', 'BlueViolet', 'Brown', 'BurlyWood', 'CadetBlue', 'Chartreuse', 'Chocolate', 'Coral', 'CornflowerBlue', 'Cornsilk', 'Crimson', 'Cyan', 'DarkBlue', 'DarkCyan', 'DarkGoldenRod', 'DarkGray', 'DarkGrey', 'DarkGreen', 'DarkKhaki', 'DarkMagenta', 'DarkOliveGreen', 'DarkOrange', 'DarkOrchid', 'DarkRed', 'DarkSalmon', 'DarkSeaGreen', 'DarkSlateBlue', 'DarkSlateGray', 'DarkSlateGrey', 'DarkTurquoise', 'DarkViolet', 'DeepPink', 'DeepSkyBlue', 'DimGray', 'DimGrey', 'DodgerBlue', 'FireBrick', 'FloralWhite', 'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod', 'Gray', 'Grey', 'Green', 'GreenYellow', 'HoneyDew', 'HotPink', 'IndianRed', 'Indigo', 'Ivory', 'Khaki', 'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue', 'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey', 'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue', 'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime', 'LimeGreen', 'Linen', 'Magenta', 'Maroon', 'MediumAquaMarine', 'MediumBlue', 'MediumOrchid', 'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen', 'MediumTurquoise', 'MediumVioletRed', 'MidnightBlue', 'MintCream', 'MistyRose', 'Moccasin', 'NavajoWhite', 'Navy', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed', 'Orchid', 'PaleGoldenRod', 'PaleGreen', 'PaleTurquoise', 'PaleVioletRed', 'PapayaWhip', 'PeachPuff', 'Peru', 'Pink', 'Plum', 'PowderBlue', 'Purple', 'RebeccaPurple', 'Red', 'RosyBrown', 'RoyalBlue', 'SaddleBrown', 'Salmon', 'SandyBrown', 'SeaGreen', 'SeaShell', 'Sienna', 'Silver', 'SkyBlue', 'SlateBlue', 'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'Tan', 'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White', 'WhiteSmoke', 'Yellow', 'YellowGreen'];
+            var colorHex = ['ffffff', 'f0f8ff', 'faebd7', '00ffff', '7fffd4', 'f0ffff', 'f5f5dc', 'ffe4c4', '000000', 'ffebcd', '0000ff', '8a2be2', 'a52a2a', 'deb887', '5f9ea0', '7fff00', 'd2691e', 'ff7f50', '6495ed', 'fff8dc', 'dc143c', '00ffff', '00008b', '008b8b', 'b8860b', 'a9a9a9', 'a9a9a9', '006400', 'bdb76b', '8b008b', '556b2f', 'ff8c00', '9932cc', '8b0000', 'e9967a', '8fbc8f', '483d8b', '2f4f4f', '2f4f4f', '00ced1', '9400d3', 'ff1493', '00bfff', '696969', '696969', '1e90ff', 'b22222', 'fffaf0', '228b22', 'ff00ff', 'dcdcdc', 'f8f8ff', 'ffd700', 'daa520', '808080', '808080', '008000', 'adff2f', 'f0fff0', 'ff69b4', 'cd5c5c', '4b0082', 'fffff0', 'f0e68c', 'e6e6fa', 'fff0f5', '7cfc00', 'fffacd', 'add8e6', 'f08080', 'e0ffff', 'fafad2', 'd3d3d3', 'd3d3d3', '90ee90', 'ffb6c1', 'ffa07a', '20b2aa', '87cefa', '778899', '778899', 'b0c4de', 'ffffe0', '00ff00', '32cd32', 'faf0e6', 'ff00ff', '800000', '66cdaa', '0000cd', 'ba55d3', '9370db', '3cb371', '7b68ee', '00fa9a', '48d1cc', 'c71585', '191970', 'f5fffa', 'ffe4e1', 'ffe4b5', 'ffdead', '000080', 'fdf5e6', '808000', '6b8e23', 'ffa500', 'ff4500', 'da70d6', 'eee8aa', '98fb98', 'afeeee', 'db7093', 'ffefd5', 'ffdab9', 'cd853f', 'ffc0cb', 'dda0dd', 'b0e0e6', '800080', '663399', 'ff0000', 'bc8f8f', '4169e1', '8b4513', 'fa8072', 'f4a460', '2e8b57', 'fff5ee', 'a0522d', 'c0c0c0', '87ceeb', '6a5acd', '708090', '708090', 'fffafa', '00ff7f', '4682b4', 'd2b48c', '008080', 'd8bfd8', 'ff6347', '40e0d0', 'ee82ee', 'f5deb3', 'ffffff', 'f5f5f5', 'ffff00', '9acd32'];
             var findIndx = colorName.indexOf(name);
             if (findIndx != -1) {
                 hex = colorHex[findIndx];
             }
             return hex;
         }
-        function getColorOpacity(solidFill) {
-
-            if (solidFill === undefined) {
-                return undefined;
-            }
-            var opcity = 1;
-
-            if (solidFill["a:srgbClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:srgbClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-            } else if (solidFill["a:schemeClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:schemeClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-            } else if (solidFill["a:scrgbClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:scrgbClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-
-            } else if (solidFill["a:prstClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:prstClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-            } else if (solidFill["a:hslClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:hslClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-            } else if (solidFill["a:sysClr"] !== undefined) {
-                var tint = getTextByPathList(solidFill, ["a:sysClr", "a:tint", "attrs", "val"]);
-                if (tint !== undefined) {
-                    opcity = parseInt(tint) / 100000;
-                }
-            }
-
-            return opcity;
-        }
-        function getSchemeColorFromTheme(schemeClr, sldMasterNode) {
+        function getSchemeColorFromTheme(schemeClr, clrMap, phClr, warpObj) {
             //<p:clrMap ...> in slide master
             // e.g. tx2="dk2" bg2="lt2" tx1="dk1" bg1="lt1" slideLayoutClrOvride
-
-            if (slideLayoutClrOvride == "" || slideLayoutClrOvride === undefined) {
-                slideLayoutClrOvride = getTextByPathList(sldMasterNode, ["p:sldMaster", "p:clrMap", "attrs"])
-            }
-            //console.log(slideLayoutClrOvride);
-            var schmClrName = schemeClr.substr(2);
-            if (slideLayoutClrOvride !== undefined) {
-                switch (schmClrName) {
-                    case "tx1":
-                    case "tx2":
-                    case "bg1":
-                    case "bg2":
-                        schemeClr = "a:" + slideLayoutClrOvride[schmClrName];
-                        //console.log(schmClrName+ "=> "+schemeClr);
-                        break;
-                }
+            //console.log("getSchemeColorFromTheme: schemeClr: ", schemeClr, ",clrMap: ", clrMap)
+            var slideLayoutClrOvride;
+            if (clrMap !== undefined) {
+                slideLayoutClrOvride = clrMap;//getTextByPathList(clrMap, ["p:sldMaster", "p:clrMap", "attrs"])
             } else {
-                switch (schmClrName) {
-                    case "tx1":
-                        schemeClr = "a:dk1";
-                        break;
-                    case "tx2":
-                        schemeClr = "a:dk2";
-                        break;
-                    case "bg1":
-                        schemeClr = "a:lt1";
-                        break;
-                    case "bg2":
-                        schemeClr = "a:lt2";
-                        break;
+                var sldClrMapOvr = getTextByPathList(warpObj["slideContent"], ["p:sld", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                if (sldClrMapOvr !== undefined) {
+                    slideLayoutClrOvride = sldClrMapOvr;
+                } else {
+                    var sldClrMapOvr = getTextByPathList(warpObj["slideLayoutContent"], ["p:sldLayout", "p:clrMapOvr", "a:overrideClrMapping", "attrs"]);
+                    if (sldClrMapOvr !== undefined) {
+                        slideLayoutClrOvride = sldClrMapOvr;
+                    } else {
+                        slideLayoutClrOvride = getTextByPathList(warpObj["slideMasterContent"], ["p:sldMaster", "p:clrMap", "attrs"]);
+                    }
+
                 }
             }
-            var refNode = getTextByPathList(themeContent, ["a:theme", "a:themeElements", "a:clrScheme", schemeClr]);
-            var color = getTextByPathList(refNode, ["a:srgbClr", "attrs", "val"]);
-            if (color === undefined && refNode !== undefined) {
-                color = getTextByPathList(refNode, ["a:sysClr", "attrs", "lastClr"]);
+            //console.log("getSchemeColorFromTheme slideLayoutClrOvride: ", slideLayoutClrOvride);
+            var schmClrName = schemeClr.substr(2);
+            if (schmClrName == "phClr" && phClr !== undefined) {
+                color = phClr;
+            } else {
+                if (slideLayoutClrOvride !== undefined) {
+                    switch (schmClrName) {
+                        case "tx1":
+                        case "tx2":
+                        case "bg1":
+                        case "bg2":
+                            schemeClr = "a:" + slideLayoutClrOvride[schmClrName];
+                            break;
+                    }
+                } else {
+                    switch (schmClrName) {
+                        case "tx1":
+                            schemeClr = "a:dk1";
+                            break;
+                        case "tx2":
+                            schemeClr = "a:dk2";
+                            break;
+                        case "bg1":
+                            schemeClr = "a:lt1";
+                            break;
+                        case "bg2":
+                            schemeClr = "a:lt2";
+                            break;
+                    }
+                }
+                //console.log("getSchemeColorFromTheme:  schemeClr: ", schemeClr);
+                var refNode = getTextByPathList(warpObj["themeContent"], ["a:theme", "a:themeElements", "a:clrScheme", schemeClr]);
+                var color = getTextByPathList(refNode, ["a:srgbClr", "attrs", "val"]);
+                //console.log("themeContent: color", color);
+                if (color === undefined && refNode !== undefined) {
+                    color = getTextByPathList(refNode, ["a:sysClr", "attrs", "lastClr"]);
+                }
             }
             //console.log(color)
             return color;
@@ -9332,6 +13272,42 @@
 
             return node;
         }
+        /**
+         * setTextByPathList
+         * @param {Object} node
+         * @param {string Array} path
+         * @param {string} value
+         */
+        function setTextByPathList(node, path, value) {
+
+            if (path.constructor !== Array) {
+                throw Error("Error of path type! path is not array.");
+            }
+
+            if (node === undefined) {
+                return undefined;
+            }
+
+            Object.prototype.set = function (parts, value) {
+                //var parts = prop.split('.');
+                var obj = this;
+                var lent = parts.length;
+                for (var i = 0; i < lent; i++) {
+                    var p = parts[i];
+                    if (obj[p] === undefined) {
+                        if (i == lent - 1) {
+                            obj[p] = value;
+                        } else {
+                            obj[p] = {};
+                        }
+                    }
+                    obj = obj[p];
+                }
+                return obj;
+            }
+
+            node.set(path, value)
+        }
 
         /**
          * eachElement
@@ -9360,10 +13336,19 @@
          * @param {string} rgbStr
          * @param {number} shadeValue
          */
-        function applyShade(rgbStr, shadeValue) {
-            var color = new colz.Color(rgbStr);
-            color.setLum(color.hsl.l * shadeValue);
-            return color.rgb.toString();
+        function applyShade(rgbStr, shadeValue, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applyShade  color: ", color, ", shadeValue: ", shadeValue)
+            if (shadeValue >= 1) {
+                shadeValue = 1;
+            }
+            var cacl_l = Math.min(color.l * shadeValue, 1);//;color.l * shadeValue + (1 - shadeValue);
+            // if (isAlpha)
+            //     return color.lighten(tintValue).toHex8();
+            // return color.lighten(tintValue).toHex();
+            if (isAlpha)
+                return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
+            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
         }
 
         /**
@@ -9371,23 +13356,138 @@
          * @param {string} rgbStr
          * @param {number} tintValue
          */
-        function applyTint(rgbStr, tintValue) {
-            var color = new colz.Color(rgbStr);
-            color.setLum(color.hsl.l * tintValue + (1 - tintValue));
-            return color.rgb.toString();
+        function applyTint(rgbStr, tintValue, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applyTint  color: ", color, ", tintValue: ", tintValue)
+            if (tintValue >= 1) {
+                tintValue = 1;
+            }
+            var cacl_l = color.l * tintValue + (1 - tintValue);
+            // if (isAlpha)
+            //     return color.lighten(tintValue).toHex8();
+            // return color.lighten(tintValue).toHex();
+            if (isAlpha)
+                return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
+            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
         }
 
         /**
-         * applyLumModify
+         * applyLumOff
          * @param {string} rgbStr
-         * @param {number} factor
          * @param {number} offset
          */
-        function applyLumModify(rgbStr, factor, offset) {
-            var color = new colz.Color(rgbStr);
-            //color.setLum(color.hsl.l * factor);
-            color.setLum(color.hsl.l * (1 + offset));
-            return color.rgb.toString();
+        function applyLumOff(rgbStr, offset, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applyLumOff  color.l: ", color.l, ", offset: ", offset, ", color.l + offset : ", color.l + offset)
+            var lum = offset + color.l;
+            if (lum >= 1) {
+                if (isAlpha)
+                    return tinycolor({ h: color.h, s: color.s, l: 1, a: color.a }).toHex8();
+                return tinycolor({ h: color.h, s: color.s, l: 1, a: color.a }).toHex();
+            }
+            if (isAlpha)
+                return tinycolor({ h: color.h, s: color.s, l: lum, a: color.a }).toHex8();
+            return tinycolor({ h: color.h, s: color.s, l: lum, a: color.a }).toHex();
+        }
+
+        /**
+         * applyLumMod
+         * @param {string} rgbStr
+         * @param {number} multiplier
+         */
+        function applyLumMod(rgbStr, multiplier, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applyLumMod  color.l: ", color.l, ", multiplier: ", multiplier, ", color.l * multiplier : ", color.l * multiplier)
+            var cacl_l = color.l * multiplier;
+            if (cacl_l >= 1) {
+                cacl_l = 1;
+            }
+            if (isAlpha)
+                return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex8();
+            return tinycolor({ h: color.h, s: color.s, l: cacl_l, a: color.a }).toHex();
+        }
+
+
+        // /**
+        //  * applyHueMod
+        //  * @param {string} rgbStr
+        //  * @param {number} multiplier
+        //  */
+        function applyHueMod(rgbStr, multiplier, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applyLumMod  color.h: ", color.h, ", multiplier: ", multiplier, ", color.h * multiplier : ", color.h * multiplier)
+
+            var cacl_h = color.h * multiplier;
+            if (cacl_h >= 360) {
+                cacl_h = cacl_h - 360;
+            }
+            if (isAlpha)
+                return tinycolor({ h: cocacl_h, s: color.s, l: color.l, a: color.a }).toHex8();
+            return tinycolor({ h: cacl_h, s: color.s, l: color.l, a: color.a }).toHex();
+        }
+
+
+        // /**
+        //  * applyHueOff
+        //  * @param {string} rgbStr
+        //  * @param {number} offset
+        //  */
+        // function applyHueOff(rgbStr, offset, isAlpha) {
+        //     var color = tinycolor(rgbStr).toHsl();
+        //     //console.log("applyLumMod  color.h: ", color.h, ", offset: ", offset, ", color.h * offset : ", color.h * offset)
+
+        //     var cacl_h = color.h * offset;
+        //     if (cacl_h >= 360) {
+        //         cacl_h = cacl_h - 360;
+        //     }
+        //     if (isAlpha)
+        //         return tinycolor({ h: cocacl_h, s: color.s, l: color.l, a: color.a }).toHex8();
+        //     return tinycolor({ h: cacl_h, s: color.s, l: color.l, a: color.a }).toHex();
+        // }
+        // /**
+        //  * applySatMod
+        //  * @param {string} rgbStr
+        //  * @param {number} multiplier
+        //  */
+        function applySatMod(rgbStr, multiplier, isAlpha) {
+            var color = tinycolor(rgbStr).toHsl();
+            //console.log("applySatMod  color.s: ", color.s, ", multiplier: ", multiplier, ", color.s * multiplier : ", color.s * multiplier)
+            var cacl_s = color.s * multiplier;
+            if (cacl_s >= 1) {
+                cacl_s = 1;
+            }
+            //return;
+            // if (isAlpha)
+            //     return tinycolor(rgbStr).saturate(multiplier * 100).toHex8();
+            // return tinycolor(rgbStr).saturate(multiplier * 100).toHex();
+            if (isAlpha)
+                return tinycolor({ h: color.h, s: cacl_s, l: color.l, a: color.a }).toHex8();
+            return tinycolor({ h: color.h, s: cacl_s, l: color.l, a: color.a }).toHex();
+        }
+
+        /**
+         * rgba2hex
+         * @param {string} rgbaStr
+         */
+        function rgba2hex(rgbaStr) {
+            var a,
+                rgb = rgbaStr.replace(/\s/g, '').match(/^rgba?\((\d+),(\d+),(\d+),?([^,\s)]+)?/i),
+                alpha = (rgb && rgb[4] || "").trim(),
+                hex = rgb ?
+                    (rgb[1] | 1 << 8).toString(16).slice(1) +
+                    (rgb[2] | 1 << 8).toString(16).slice(1) +
+                    (rgb[3] | 1 << 8).toString(16).slice(1) : rgbaStr;
+
+            if (alpha !== "") {
+                a = alpha;
+            } else {
+                a = 01;
+            }
+            // multiply before convert to HEX
+            a = ((a * 255) | 1 << 8).toString(16).slice(1)
+            hex = hex + a;
+
+            return hex;
         }
 
         ///////////////////////Amir////////////////
@@ -9397,6 +13497,13 @@
             }
             return Math.round(angle / 60000);
         }
+        // function degreesToRadians(degrees) {
+        //     //Math.PI
+        //     if (degrees == "" || degrees == null || degrees == undefined) {
+        //         return 0;
+        //     }
+        //     return degrees * (Math.PI / 180);
+        // }
         function getMimeType(imgFileExt) {
             var mimeType = "";
             //console.log(imgFileExt)
@@ -9449,12 +13556,15 @@
                     break;
                 case "wmf":
                     mimeType = "image/wmf";
+                case "tif":
+                case "tiff":
+                    mimeType = "image/tiff";
                     break;
             }
             return mimeType;
         }
         function getSvgGradient(w, h, angl, color_arry, shpId) {
-            var stopsArray = getMiddleStops(color_arry.length - 2);
+            var stopsArray = getMiddleStops(color_arry - 2);
 
             var svgAngle = '',
                 svgHeight = h,
@@ -9473,7 +13583,10 @@
             svg += svgAngle;
 
             for (var i = 0; i < sal; i++) {
-                svg += '<stop offset="' + Math.round(parseFloat(stopsArray[i]) / 100 * sr) / sr + '" stop-color="' + color_arry[i] + '"';
+                var tinClr = tinycolor("#" + color_arry[i]);
+                var alpha = tinClr.getAlpha();
+                //console.log("color: ", color_arry[i], ", rgba: ", tinClr.toHexString(), ", alpha: ", alpha)
+                svg += '<stop offset="' + Math.round(parseFloat(stopsArray[i]) / 100 * sr) / sr + '" style="stop-color:' + tinClr.toHexString() + '; stop-opacity:' + (alpha) + ';"';
                 svg += '/>\n'
             }
 
@@ -9484,7 +13597,7 @@
         function getMiddleStops(s) {
             var sArry = ['0%', '100%'];
             if (s == 0) {
-                return true
+                return sArry;
             } else {
                 var i = s;
                 while (i--) {
@@ -9557,13 +13670,106 @@
                 y2 = Math.round(ty1 / h * 100 * 100) / 100;
             return [x1, y1, x2, y2];
         }
-        function getSvgImagePattern(fillColor, shpId) {
-            var ptrn = '<pattern id="imgPtrn_' + shpId + '"  patternContentUnits="objectBoundingBox"  width="1" height="1">';
-            //console.log("fillColor: ", fillColor)
-            fillColor = escapeHtml(fillColor);
-            ptrn += '<image  xlink:href="' + fillColor + '" preserveAspectRatio="none" width="1" height="1"></image>';
+        function getSvgImagePattern(node, fill, shpId, warpObj) {
+            var pic_dim = getBase64ImageDimensions(fill);
+            var width = pic_dim[0];
+            var height = pic_dim[1];
+            //console.log("getSvgImagePattern node:", node);
+            var blipFillNode = node["p:spPr"]["a:blipFill"];
+            var tileNode = getTextByPathList(blipFillNode, ["a:tile", "attrs"])
+            if (tileNode !== undefined && tileNode["sx"] !== undefined) {
+                var sx = (parseInt(tileNode["sx"]) / 100000) * width;
+                var sy = (parseInt(tileNode["sy"]) / 100000) * height;
+            }
+
+            var blipNode = node["p:spPr"]["a:blipFill"]["a:blip"];
+            var tialphaModFixNode = getTextByPathList(blipNode, ["a:alphaModFix", "attrs"])
+            var imgOpacity = "";
+            if (tialphaModFixNode !== undefined && tialphaModFixNode["amt"] !== undefined && tialphaModFixNode["amt"] != "") {
+                var amt = parseInt(tialphaModFixNode["amt"]) / 100000;
+                var opacity = amt;
+                var imgOpacity = "opacity='" + opacity + "'";
+
+            }
+            if (sx !== undefined && sx != 0) {
+                var ptrn = '<pattern id="imgPtrn_' + shpId + '" x="0" y="0"  width="' + sx + '" height="' + sy + '" patternUnits="userSpaceOnUse">';
+            } else {
+                var ptrn = '<pattern id="imgPtrn_' + shpId + '"  patternContentUnits="objectBoundingBox"  width="1" height="1">';
+            }
+            var duotoneNode = getTextByPathList(blipNode, ["a:duotone"])
+            var fillterNode = "";
+            var filterUrl = "";
+            if (duotoneNode !== undefined) {
+                //console.log("pic duotoneNode: ", duotoneNode)
+                var clr_ary = [];
+                Object.keys(duotoneNode).forEach(function (clr_type) {
+                    //Object.keys(duotoneNode[clr_type]).forEach(function (clr) {
+                    //console.log("blip pic duotone clr: ", duotoneNode[clr_type][clr], clr)
+                    if (clr_type != "attrs") {
+                        var obj = {};
+                        obj[clr_type] = duotoneNode[clr_type];
+                        //console.log("blip pic duotone obj: ", obj)
+                        var hexClr = getSolidFill(obj, undefined, undefined, warpObj)
+                        //clr_ary.push();
+
+                        var color = tinycolor("#" + hexClr);
+                        clr_ary.push(color.toRgb()); // { r: 255, g: 0, b: 0, a: 1 }
+                    }
+                    // })
+                })
+
+                if (clr_ary.length == 2) {
+
+                    fillterNode = '<filter id="svg_image_duotone"> ' +
+                        '<feColorMatrix type="matrix" values=".33 .33 .33 0 0' +
+                        '.33 .33 .33 0 0' +
+                        '.33 .33 .33 0 0' +
+                        '0 0 0 1 0">' +
+                        '</feColorMatrix>' +
+                        '<feComponentTransfer color-interpolation-filters="sRGB">' +
+                        //clr_ary.forEach(function(clr){
+                        '<feFuncR type="table" tableValues="' + clr_ary[0].r / 255 + ' ' + clr_ary[1].r / 255 + '"></feFuncR>' +
+                        '<feFuncG type="table" tableValues="' + clr_ary[0].g / 255 + ' ' + clr_ary[1].g / 255 + '"></feFuncG>' +
+                        '<feFuncB type="table" tableValues="' + clr_ary[0].b / 255 + ' ' + clr_ary[1].b / 255 + '"></feFuncB>' +
+                        //});
+                        '</feComponentTransfer>' +
+                        ' </filter>';
+                }
+
+                filterUrl = 'filter="url(#svg_image_duotone)"';
+
+                ptrn += fillterNode;
+            }
+
+            fill = escapeHtml(fill);
+            if (sx !== undefined && sx != 0) {
+                ptrn += '<image  xlink:href="' + fill + '" x="0" y="0" width="' + sx + '" height="' + sy + '" ' + imgOpacity + ' ' + filterUrl + '></image>';
+            } else {
+                ptrn += '<image  xlink:href="' + fill + '" preserveAspectRatio="none" width="1" height="1" ' + imgOpacity + ' ' + filterUrl + '></image>';
+            }
             ptrn += '</pattern>';
+
+            //console.log("getSvgImagePattern(...) pic_dim:", pic_dim, ", fillColor: ", fill, ", blipNode: ", blipNode, ",sx: ", sx, ", sy: ", sy, ", clr_ary: ", clr_ary, ", ptrn: ", ptrn)
+
             return ptrn;
+        }
+
+        function getBase64ImageDimensions(imgSrc) {
+            var image = new Image();
+            var w, h;
+            image.onload = function () {
+                w = image.width;
+                h = image.height;
+            };
+            image.src = imgSrc;
+
+            do {
+                if (image.width !== undefined) {
+                    return [image.width, image.height];
+                }
+            } while (image.width === undefined);
+
+            //return [w, h];
         }
 
         function processMsgQueue(queue) {
@@ -9595,7 +13801,9 @@
                     break;
                 case "pieChart":
                 case "pie3DChart":
-                    data = chartData[0].values;
+                    if (chartData.length > 0) {
+                        data = chartData[0].values;
+                    }
                     chart = nv.models.pieChart();
                     break;
                 case "areaChart":
@@ -9881,436 +14089,8 @@
     */
     !function (a) { "object" == typeof exports ? module.exports = a() : "function" == typeof define && define.amd ? define(a) : "undefined" != typeof window ? window.JSZipUtils = a() : "undefined" != typeof global ? global.JSZipUtils = a() : "undefined" != typeof self && (self.JSZipUtils = a()) }(function () { return function a(b, c, d) { function e(g, h) { if (!c[g]) { if (!b[g]) { var i = "function" == typeof require && require; if (!h && i) return i(g, !0); if (f) return f(g, !0); throw new Error("Cannot find module '" + g + "'") } var j = c[g] = { exports: {} }; b[g][0].call(j.exports, function (a) { var c = b[g][1][a]; return e(c ? c : a) }, j, j.exports, a, b, c, d) } return c[g].exports } for (var f = "function" == typeof require && require, g = 0; g < d.length; g++)e(d[g]); return e }({ 1: [function (a, b) { "use strict"; function c() { try { return new window.XMLHttpRequest } catch (a) { } } function d() { try { return new window.ActiveXObject("Microsoft.XMLHTTP") } catch (a) { } } var e = {}; e._getBinaryFromXHR = function (a) { return a.response || a.responseText }; var f = window.ActiveXObject ? function () { return c() || d() } : c; e.getBinaryContent = function (a, b) { try { var c = f(); c.open("GET", a, !0), "responseType" in c && (c.responseType = "arraybuffer"), c.overrideMimeType && c.overrideMimeType("text/plain; charset=x-user-defined"), c.onreadystatechange = function () { var d, f; if (4 === c.readyState) if (200 === c.status || 0 === c.status) { d = null, f = null; try { d = e._getBinaryFromXHR(c) } catch (g) { f = new Error(g) } b(f, d) } else b(new Error("Ajax error for " + a + " : " + this.status + " " + this.statusText), null) }, c.send() } catch (d) { b(new Error(d), null) } }, b.exports = e }, {}] }, {}, [1])(1) });
 
-    /**
-     * Colorz (or Colz) is a Javascript "library" to help
-     * in color conversion between the usual color-spaces
-     * Hex - Rgb - Hsl / Hsv - Hsb
-     *
-     * It provides some helpers to output Canvas / CSS
-     * color strings.
-     *
-     * by Carlos Cabo 2013
-     * http://carloscabo.com
-     *
-     * Some formulas borrowed from Wikipedia or other authors.
-    */
-
-    (function (name, definition) {
-        if (typeof define === "function") {
-            define(definition);
-        } else if (typeof module !== "undefined" && module.exports) {
-            module.exports = definition();
-        } else {
-            var theModule = definition(),
-                global = this,
-                old = global[name];
-            theModule.noConflict = function () {
-                global[name] = old;
-                return theModule;
-            };
-            global[name] = theModule;
-        }
-    })("colz", function () {
-        var round = Math.round,
-            toString = "toString",
-            colz = colz || {},
-            Rgb,
-            Rgba,
-            Hsl,
-            Hsla,
-            Color,
-            ColorScheme,
-            hexToRgb,
-            componentToHex,
-            rgbToHex,
-            rgbToHsl,
-            hue2rgb,
-            hslToRgb,
-            rgbToHsb,
-            hsbToRgb,
-            hsbToHsl,
-            hsvToHsl,
-            hsvToRgb,
-            randomColor;
-        Rgb = colz.Rgb = function (col) {
-            this.r = col[0];
-            this.g = col[1];
-            this.b = col[2];
-        };
-        Rgb.prototype[toString] = function () {
-            return "rgb(" + this.r + "," + this.g + "," + this.b + ")";
-        };
-        Rgba = colz.Rgba = function (col) {
-            this.r = col[0];
-            this.g = col[1];
-            this.b = col[2];
-            this.a = col[3];
-        };
-        Rgba.prototype[toString] = function () {
-            return (
-                "rgba(" + this.r + "," + this.g + "," + this.b + "," + this.a + ")"
-            );
-        };
-        Hsl = colz.Hsl = function (col) {
-            this.h = col[0];
-            this.s = col[1];
-            this.l = col[2];
-        };
-        Hsl.prototype[toString] = function () {
-            return "hsl(" + this.h + "," + this.s + "%," + this.l + "%)";
-        };
-        Hsla = colz.Hsla = function (col) {
-            this.h = col[0];
-            this.s = col[1];
-            this.l = col[2];
-            this.a = col[3];
-        };
-        Hsla.prototype[toString] = function () {
-            return (
-                "hsla(" + this.h + "," + this.s + "%," + this.l + "%," + this.a + ")"
-            );
-        };
-        Color = colz.Color = function () {
-            this.hex = this.r = this.g = this.b = this.h = this.s = this.l = this.a = this.hsl = this.hsla = this.rgb = this.rgba = null;
-            this.init(arguments);
-        };
-        var colorPrototype = Color.prototype;
-        colorPrototype.init = function (arg) {
-            var _this = this;
-            if (typeof arg[0] === "string") {
-                if (arg[0].charAt(0) !== "#") {
-                    arg[0] = "#" + arg[0];
-                }
-                if (arg[0].length < 7) {
-                    arg[0] =
-                        "#" +
-                        arg[0][1] +
-                        arg[0][1] +
-                        arg[0][2] +
-                        arg[0][2] +
-                        arg[0][3] +
-                        arg[0][3];
-                }
-                _this.hex = arg[0].toLowerCase();
-                _this.rgb = new Rgb(hexToRgb(_this.hex));
-                _this.r = _this.rgb.r;
-                _this.g = _this.rgb.g;
-                _this.b = _this.rgb.b;
-                _this.a = 1;
-                _this.rgba = new Rgba([_this.r, _this.g, _this.b, _this.a]);
-            }
-            if (typeof arg[0] === "number") {
-                _this.r = arg[0];
-                _this.g = arg[1];
-                _this.b = arg[2];
-                if (typeof arg[3] === "undefined") {
-                    _this.a = 1;
-                } else {
-                    _this.a = arg[3];
-                }
-                _this.rgb = new Rgb([_this.r, _this.g, _this.b]);
-                _this.rgba = new Rgba([_this.r, _this.g, _this.b, _this.a]);
-                _this.hex = rgbToHex([_this.r, _this.g, _this.b]);
-            }
-            if (arg[0] instanceof Array) {
-                _this.r = arg[0][0];
-                _this.g = arg[0][1];
-                _this.b = arg[0][2];
-                if (typeof arg[0][3] === "undefined") {
-                    _this.a = 1;
-                } else {
-                    _this.a = arg[0][3];
-                }
-                _this.rgb = new Rgb([_this.r, _this.g, _this.b]);
-                _this.rgba = new Rgba([_this.r, _this.g, _this.b, _this.a]);
-                _this.hex = rgbToHex([_this.r, _this.g, _this.b]);
-            }
-            _this.hsl = new Hsl(colz.rgbToHsl([_this.r, _this.g, _this.b]));
-            _this.h = _this.hsl.h;
-            _this.s = _this.hsl.s;
-            _this.l = _this.hsl.l;
-            _this.hsla = new Hsla([_this.h, _this.s, _this.l, _this.a]);
-        };
-        colorPrototype.setHue = function (newhue) {
-            var _this = this;
-            _this.h = newhue;
-            _this.hsl.h = newhue;
-            _this.hsla.h = newhue;
-            _this.updateFromHsl();
-        };
-        colorPrototype.setSat = function (newsat) {
-            var _this = this;
-            _this.s = newsat;
-            _this.hsl.s = newsat;
-            _this.hsla.s = newsat;
-            _this.updateFromHsl();
-        };
-        colorPrototype.setLum = function (newlum) {
-            var _this = this;
-            _this.l = newlum;
-            _this.hsl.l = newlum;
-            _this.hsla.l = newlum;
-            _this.updateFromHsl();
-        };
-        colorPrototype.setAlpha = function (newalpha) {
-            this.a = newalpha;
-            this.hsla.a = newalpha;
-            this.rgba.a = newalpha;
-        };
-        colorPrototype.updateFromHsl = function () {
-            this.rgb = null;
-            this.rgb = new Rgb(colz.hslToRgb([this.h, this.s, this.l]));
-            this.r = this.rgb.r;
-            this.g = this.rgb.g;
-            this.b = this.rgb.b;
-            this.rgba.r = this.rgb.r;
-            this.rgba.g = this.rgb.g;
-            this.rgba.b = this.rgb.b;
-            this.hex = null;
-            this.hex = rgbToHex([this.r, this.g, this.b]);
-        };
-        randomColor = colz.randomColor = function () {
-            var r = "#" + Math.random().toString(16).slice(2, 8);
-            return new Color(r);
-        };
-        hexToRgb = colz.hexToRgb = function (hex) {
-            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result
-                ? [
-                    parseInt(result[1], 16),
-                    parseInt(result[2], 16),
-                    parseInt(result[3], 16)
-                ]
-                : null;
-        };
-        componentToHex = colz.componentToHex = function (c) {
-            var hex = c.toString(16);
-            return hex.length === 1 ? "0" + hex : hex;
-        };
-        rgbToHex = colz.rgbToHex = function () {
-            var arg, r, g, b;
-            arg = arguments;
-            if (arg.length > 1) {
-                r = arg[0];
-                g = arg[1];
-                b = arg[2];
-            } else {
-                r = arg[0][0];
-                g = arg[0][1];
-                b = arg[0][2];
-            }
-            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
-        };
-        rgbToHsl = colz.rgbToHsl = function () {
-            var arg, r, g, b, h, s, l, d, max, min;
-            arg = arguments;
-            if (typeof arg[0] === "number") {
-                r = arg[0];
-                g = arg[1];
-                b = arg[2];
-            } else {
-                r = arg[0][0];
-                g = arg[0][1];
-                b = arg[0][2];
-            }
-            r /= 255;
-            g /= 255;
-            b /= 255;
-            max = Math.max(r, g, b);
-            min = Math.min(r, g, b);
-            l = (max + min) / 2;
-            if (max === min) {
-                h = s = 0;
-            } else {
-                d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                switch (max) {
-                    case r:
-                        h = (g - b) / d + (g < b ? 6 : 0);
-                        break;
-                    case g:
-                        h = (b - r) / d + 2;
-                        break;
-                    case b:
-                        h = (r - g) / d + 4;
-                        break;
-                }
-                h /= 6;
-            }
-            h = round(h * 360);
-            s = round(s * 100);
-            l = round(l * 100);
-            return [h, s, l];
-        };
-        hue2rgb = colz.hue2rgb = function (p, q, t) {
-            if (t < 0) {
-                t += 1;
-            }
-            if (t > 1) {
-                t -= 1;
-            }
-            if (t < 1 / 6) {
-                return p + (q - p) * 6 * t;
-            }
-            if (t < 1 / 2) {
-                return q;
-            }
-            if (t < 2 / 3) {
-                return p + (q - p) * (2 / 3 - t) * 6;
-            }
-            return p;
-        };
-        hslToRgb = colz.hslToRgb = function () {
-            var arg, r, g, b, h, s, l, q, p;
-            arg = arguments;
-            if (typeof arg[0] === "number") {
-                h = arg[0] / 360;
-                s = arg[1] / 100;
-                l = arg[2] / 100;
-            } else {
-                h = arg[0][0] / 360;
-                s = arg[0][1] / 100;
-                l = arg[0][2] / 100;
-            }
-            if (s === 0) {
-                r = g = b = l;
-            } else {
-                q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                p = 2 * l - q;
-                r = colz.hue2rgb(p, q, h + 1 / 3);
-                g = colz.hue2rgb(p, q, h);
-                b = colz.hue2rgb(p, q, h - 1 / 3);
-            }
-            return [round(r * 255), round(g * 255), round(b * 255)];
-        };
-        rgbToHsb = colz.rgbToHsb = function (r, g, b) {
-            var max, min, h, s, v, d;
-            r = r / 255;
-            g = g / 255;
-            b = b / 255;
-            max = Math.max(r, g, b);
-            min = Math.min(r, g, b);
-            v = max;
-            d = max - min;
-            s = max === 0 ? 0 : d / max;
-            if (max === min) {
-                h = 0;
-            } else {
-                switch (max) {
-                    case r:
-                        h = (g - b) / d + (g < b ? 6 : 0);
-                        break;
-                    case g:
-                        h = (b - r) / d + 2;
-                        break;
-                    case b:
-                        h = (r - g) / d + 4;
-                        break;
-                }
-                h /= 6;
-            }
-            h = round(h * 360);
-            s = round(s * 100);
-            v = round(v * 100);
-            return [h, s, v];
-        };
-        hsbToRgb = colz.hsbToRgb = function (h, s, v) {
-            var r, g, b, i, f, p, q, t;
-            if (v === 0) {
-                return [0, 0, 0];
-            }
-            s = s / 100;
-            v = v / 100;
-            h = h / 60;
-            i = Math.floor(h);
-            f = h - i;
-            p = v * (1 - s);
-            q = v * (1 - s * f);
-            t = v * (1 - s * (1 - f));
-            if (i === 0) {
-                r = v;
-                g = t;
-                b = p;
-            } else if (i === 1) {
-                r = q;
-                g = v;
-                b = p;
-            } else if (i === 2) {
-                r = p;
-                g = v;
-                b = t;
-            } else if (i === 3) {
-                r = p;
-                g = q;
-                b = v;
-            } else if (i === 4) {
-                r = t;
-                g = p;
-                b = v;
-            } else if (i === 5) {
-                r = v;
-                g = p;
-                b = q;
-            }
-            r = Math.floor(r * 255);
-            g = Math.floor(g * 255);
-            b = Math.floor(b * 255);
-            return [r, g, b];
-        };
-        hsbToHsl = colz.hsbToHsl = function (h, s, b) {
-            return colz.rgbToHsl(colz.hsbToRgb(h, s, b));
-        };
-        hsvToHsl = colz.hsvToHsl = colz.hsbToHsl;
-        hsvToRgb = colz.hsvToRgb = colz.hsbToRgb;
-        ColorScheme = colz.ColorScheme = function (color_val, angle_array) {
-            this.palette = [];
-            if (angle_array === undefined && color_val instanceof Array) {
-                this.createFromColors(color_val);
-            } else {
-                this.createFromAngles(color_val, angle_array);
-            }
-        };
-        var colorSchemePrototype = ColorScheme.prototype;
-        colorSchemePrototype.createFromColors = function (color_val) {
-            for (var i in color_val) {
-                if (color_val.hasOwnProperty(i)) {
-                    this.palette.push(new Color(color_val[i]));
-                }
-            }
-            return this.palette;
-        };
-        colorSchemePrototype.createFromAngles = function (color_val, angle_array) {
-            this.palette.push(new Color(color_val));
-            for (var i in angle_array) {
-                if (angle_array.hasOwnProperty(i)) {
-                    var tempHue = (this.palette[0].h + angle_array[i]) % 360;
-                    this.palette.push(
-                        new Color(
-                            colz.hslToRgb([tempHue, this.palette[0].s, this.palette[0].l])
-                        )
-                    );
-                }
-            }
-            return this.palette;
-        };
-        ColorScheme.Compl = function (color_val) {
-            return new ColorScheme(color_val, [180]);
-        };
-        ColorScheme.Triad = function (color_val) {
-            return new ColorScheme(color_val, [120, 240]);
-        };
-        ColorScheme.Tetrad = function (color_val) {
-            return new ColorScheme(color_val, [60, 180, 240]);
-        };
-        ColorScheme.Analog = function (color_val) {
-            return new ColorScheme(color_val, [-45, 45]);
-        };
-        ColorScheme.Split = function (color_val) {
-            return new ColorScheme(color_val, [150, 210]);
-        };
-        ColorScheme.Accent = function (color_val) {
-            return new ColorScheme(color_val, [-45, 45, 180]);
-        };
-        return colz;
-    });
+    // TinyColor v1.4.2
+    // https://github.com/bgrins/TinyColor
+    // 2020-09-25, Brian Grinstead, MIT License
+    !function (a) { function b(a, d) { if (a = a ? a : "", d = d || {}, a instanceof b) return a; if (!(this instanceof b)) return new b(a, d); var e = c(a); this._originalInput = a, this._r = e.r, this._g = e.g, this._b = e.b, this._a = e.a, this._roundA = P(100 * this._a) / 100, this._format = d.format || e.format, this._gradientType = d.gradientType, this._r < 1 && (this._r = P(this._r)), this._g < 1 && (this._g = P(this._g)), this._b < 1 && (this._b = P(this._b)), this._ok = e.ok, this._tc_id = O++ } function c(a) { var b = { r: 0, g: 0, b: 0 }, c = 1, e = null, g = null, i = null, j = !1, k = !1; return "string" == typeof a && (a = K(a)), "object" == typeof a && (J(a.r) && J(a.g) && J(a.b) ? (b = d(a.r, a.g, a.b), j = !0, k = "%" === String(a.r).substr(-1) ? "prgb" : "rgb") : J(a.h) && J(a.s) && J(a.v) ? (e = G(a.s), g = G(a.v), b = h(a.h, e, g), j = !0, k = "hsv") : J(a.h) && J(a.s) && J(a.l) && (e = G(a.s), i = G(a.l), b = f(a.h, e, i), j = !0, k = "hsl"), a.hasOwnProperty("a") && (c = a.a)), c = z(c), { ok: j, format: a.format || k, r: Q(255, R(b.r, 0)), g: Q(255, R(b.g, 0)), b: Q(255, R(b.b, 0)), a: c } } function d(a, b, c) { return { r: 255 * A(a, 255), g: 255 * A(b, 255), b: 255 * A(c, 255) } } function e(a, b, c) { a = A(a, 255), b = A(b, 255), c = A(c, 255); var d, e, f = R(a, b, c), g = Q(a, b, c), h = (f + g) / 2; if (f == g) d = e = 0; else { var i = f - g; switch (e = h > .5 ? i / (2 - f - g) : i / (f + g), f) { case a: d = (b - c) / i + (c > b ? 6 : 0); break; case b: d = (c - a) / i + 2; break; case c: d = (a - b) / i + 4 }d /= 6 } return { h: d, s: e, l: h } } function f(a, b, c) { function d(a, b, c) { return 0 > c && (c += 1), c > 1 && (c -= 1), 1 / 6 > c ? a + 6 * (b - a) * c : .5 > c ? b : 2 / 3 > c ? a + (b - a) * (2 / 3 - c) * 6 : a } var e, f, g; if (a = A(a, 360), b = A(b, 100), c = A(c, 100), 0 === b) e = f = g = c; else { var h = .5 > c ? c * (1 + b) : c + b - c * b, i = 2 * c - h; e = d(i, h, a + 1 / 3), f = d(i, h, a), g = d(i, h, a - 1 / 3) } return { r: 255 * e, g: 255 * f, b: 255 * g } } function g(a, b, c) { a = A(a, 255), b = A(b, 255), c = A(c, 255); var d, e, f = R(a, b, c), g = Q(a, b, c), h = f, i = f - g; if (e = 0 === f ? 0 : i / f, f == g) d = 0; else { switch (f) { case a: d = (b - c) / i + (c > b ? 6 : 0); break; case b: d = (c - a) / i + 2; break; case c: d = (a - b) / i + 4 }d /= 6 } return { h: d, s: e, v: h } } function h(b, c, d) { b = 6 * A(b, 360), c = A(c, 100), d = A(d, 100); var e = a.floor(b), f = b - e, g = d * (1 - c), h = d * (1 - f * c), i = d * (1 - (1 - f) * c), j = e % 6, k = [d, h, g, g, i, d][j], l = [i, d, d, h, g, g][j], m = [g, g, i, d, d, h][j]; return { r: 255 * k, g: 255 * l, b: 255 * m } } function i(a, b, c, d) { var e = [F(P(a).toString(16)), F(P(b).toString(16)), F(P(c).toString(16))]; return d && e[0].charAt(0) == e[0].charAt(1) && e[1].charAt(0) == e[1].charAt(1) && e[2].charAt(0) == e[2].charAt(1) ? e[0].charAt(0) + e[1].charAt(0) + e[2].charAt(0) : e.join("") } function j(a, b, c, d, e) { var f = [F(P(a).toString(16)), F(P(b).toString(16)), F(P(c).toString(16)), F(H(d))]; return e && f[0].charAt(0) == f[0].charAt(1) && f[1].charAt(0) == f[1].charAt(1) && f[2].charAt(0) == f[2].charAt(1) && f[3].charAt(0) == f[3].charAt(1) ? f[0].charAt(0) + f[1].charAt(0) + f[2].charAt(0) + f[3].charAt(0) : f.join("") } function k(a, b, c, d) { var e = [F(H(d)), F(P(a).toString(16)), F(P(b).toString(16)), F(P(c).toString(16))]; return e.join("") } function l(a, c) { c = 0 === c ? 0 : c || 10; var d = b(a).toHsl(); return d.s -= c / 100, d.s = B(d.s), b(d) } function m(a, c) { c = 0 === c ? 0 : c || 10; var d = b(a).toHsl(); return d.s += c / 100, d.s = B(d.s), b(d) } function n(a) { return b(a).desaturate(100) } function o(a, c) { c = 0 === c ? 0 : c || 10; var d = b(a).toHsl(); return d.l += c / 100, d.l = B(d.l), b(d) } function p(a, c) { c = 0 === c ? 0 : c || 10; var d = b(a).toRgb(); return d.r = R(0, Q(255, d.r - P(255 * -(c / 100)))), d.g = R(0, Q(255, d.g - P(255 * -(c / 100)))), d.b = R(0, Q(255, d.b - P(255 * -(c / 100)))), b(d) } function q(a, c) { c = 0 === c ? 0 : c || 10; var d = b(a).toHsl(); return d.l -= c / 100, d.l = B(d.l), b(d) } function r(a, c) { var d = b(a).toHsl(), e = (d.h + c) % 360; return d.h = 0 > e ? 360 + e : e, b(d) } function s(a) { var c = b(a).toHsl(); return c.h = (c.h + 180) % 360, b(c) } function t(a) { var c = b(a).toHsl(), d = c.h; return [b(a), b({ h: (d + 120) % 360, s: c.s, l: c.l }), b({ h: (d + 240) % 360, s: c.s, l: c.l })] } function u(a) { var c = b(a).toHsl(), d = c.h; return [b(a), b({ h: (d + 90) % 360, s: c.s, l: c.l }), b({ h: (d + 180) % 360, s: c.s, l: c.l }), b({ h: (d + 270) % 360, s: c.s, l: c.l })] } function v(a) { var c = b(a).toHsl(), d = c.h; return [b(a), b({ h: (d + 72) % 360, s: c.s, l: c.l }), b({ h: (d + 216) % 360, s: c.s, l: c.l })] } function w(a, c, d) { c = c || 6, d = d || 30; var e = b(a).toHsl(), f = 360 / d, g = [b(a)]; for (e.h = (e.h - (f * c >> 1) + 720) % 360; --c;)e.h = (e.h + f) % 360, g.push(b(e)); return g } function x(a, c) { c = c || 6; for (var d = b(a).toHsv(), e = d.h, f = d.s, g = d.v, h = [], i = 1 / c; c--;)h.push(b({ h: e, s: f, v: g })), g = (g + i) % 1; return h } function y(a) { var b = {}; for (var c in a) a.hasOwnProperty(c) && (b[a[c]] = c); return b } function z(a) { return a = parseFloat(a), (isNaN(a) || 0 > a || a > 1) && (a = 1), a } function A(b, c) { D(b) && (b = "100%"); var d = E(b); return b = Q(c, R(0, parseFloat(b))), d && (b = parseInt(b * c, 10) / 100), a.abs(b - c) < 1e-6 ? 1 : b % c / parseFloat(c) } function B(a) { return Q(1, R(0, a)) } function C(a) { return parseInt(a, 16) } function D(a) { return "string" == typeof a && -1 != a.indexOf(".") && 1 === parseFloat(a) } function E(a) { return "string" == typeof a && -1 != a.indexOf("%") } function F(a) { return 1 == a.length ? "0" + a : "" + a } function G(a) { return 1 >= a && (a = 100 * a + "%"), a } function H(b) { return a.round(255 * parseFloat(b)).toString(16) } function I(a) { return C(a) / 255 } function J(a) { return !!V.CSS_UNIT.exec(a) } function K(a) { a = a.replace(M, "").replace(N, "").toLowerCase(); var b = !1; if (T[a]) a = T[a], b = !0; else if ("transparent" == a) return { r: 0, g: 0, b: 0, a: 0, format: "name" }; var c; return (c = V.rgb.exec(a)) ? { r: c[1], g: c[2], b: c[3] } : (c = V.rgba.exec(a)) ? { r: c[1], g: c[2], b: c[3], a: c[4] } : (c = V.hsl.exec(a)) ? { h: c[1], s: c[2], l: c[3] } : (c = V.hsla.exec(a)) ? { h: c[1], s: c[2], l: c[3], a: c[4] } : (c = V.hsv.exec(a)) ? { h: c[1], s: c[2], v: c[3] } : (c = V.hsva.exec(a)) ? { h: c[1], s: c[2], v: c[3], a: c[4] } : (c = V.hex8.exec(a)) ? { r: C(c[1]), g: C(c[2]), b: C(c[3]), a: I(c[4]), format: b ? "name" : "hex8" } : (c = V.hex6.exec(a)) ? { r: C(c[1]), g: C(c[2]), b: C(c[3]), format: b ? "name" : "hex" } : (c = V.hex4.exec(a)) ? { r: C(c[1] + "" + c[1]), g: C(c[2] + "" + c[2]), b: C(c[3] + "" + c[3]), a: I(c[4] + "" + c[4]), format: b ? "name" : "hex8" } : (c = V.hex3.exec(a)) ? { r: C(c[1] + "" + c[1]), g: C(c[2] + "" + c[2]), b: C(c[3] + "" + c[3]), format: b ? "name" : "hex" } : !1 } function L(a) { var b, c; return a = a || { level: "AA", size: "small" }, b = (a.level || "AA").toUpperCase(), c = (a.size || "small").toLowerCase(), "AA" !== b && "AAA" !== b && (b = "AA"), "small" !== c && "large" !== c && (c = "small"), { level: b, size: c } } var M = /^\s+/, N = /\s+$/, O = 0, P = a.round, Q = a.min, R = a.max, S = a.random; b.prototype = { isDark: function () { return this.getBrightness() < 128 }, isLight: function () { return !this.isDark() }, isValid: function () { return this._ok }, getOriginalInput: function () { return this._originalInput }, getFormat: function () { return this._format }, getAlpha: function () { return this._a }, getBrightness: function () { var a = this.toRgb(); return (299 * a.r + 587 * a.g + 114 * a.b) / 1e3 }, getLuminance: function () { var b, c, d, e, f, g, h = this.toRgb(); return b = h.r / 255, c = h.g / 255, d = h.b / 255, e = .03928 >= b ? b / 12.92 : a.pow((b + .055) / 1.055, 2.4), f = .03928 >= c ? c / 12.92 : a.pow((c + .055) / 1.055, 2.4), g = .03928 >= d ? d / 12.92 : a.pow((d + .055) / 1.055, 2.4), .2126 * e + .7152 * f + .0722 * g }, setAlpha: function (a) { return this._a = z(a), this._roundA = P(100 * this._a) / 100, this }, toHsv: function () { var a = g(this._r, this._g, this._b); return { h: 360 * a.h, s: a.s, v: a.v, a: this._a } }, toHsvString: function () { var a = g(this._r, this._g, this._b), b = P(360 * a.h), c = P(100 * a.s), d = P(100 * a.v); return 1 == this._a ? "hsv(" + b + ", " + c + "%, " + d + "%)" : "hsva(" + b + ", " + c + "%, " + d + "%, " + this._roundA + ")" }, toHsl: function () { var a = e(this._r, this._g, this._b); return { h: 360 * a.h, s: a.s, l: a.l, a: this._a } }, toHslString: function () { var a = e(this._r, this._g, this._b), b = P(360 * a.h), c = P(100 * a.s), d = P(100 * a.l); return 1 == this._a ? "hsl(" + b + ", " + c + "%, " + d + "%)" : "hsla(" + b + ", " + c + "%, " + d + "%, " + this._roundA + ")" }, toHex: function (a) { return i(this._r, this._g, this._b, a) }, toHexString: function (a) { return "#" + this.toHex(a) }, toHex8: function (a) { return j(this._r, this._g, this._b, this._a, a) }, toHex8String: function (a) { return "#" + this.toHex8(a) }, toRgb: function () { return { r: P(this._r), g: P(this._g), b: P(this._b), a: this._a } }, toRgbString: function () { return 1 == this._a ? "rgb(" + P(this._r) + ", " + P(this._g) + ", " + P(this._b) + ")" : "rgba(" + P(this._r) + ", " + P(this._g) + ", " + P(this._b) + ", " + this._roundA + ")" }, toPercentageRgb: function () { return { r: P(100 * A(this._r, 255)) + "%", g: P(100 * A(this._g, 255)) + "%", b: P(100 * A(this._b, 255)) + "%", a: this._a } }, toPercentageRgbString: function () { return 1 == this._a ? "rgb(" + P(100 * A(this._r, 255)) + "%, " + P(100 * A(this._g, 255)) + "%, " + P(100 * A(this._b, 255)) + "%)" : "rgba(" + P(100 * A(this._r, 255)) + "%, " + P(100 * A(this._g, 255)) + "%, " + P(100 * A(this._b, 255)) + "%, " + this._roundA + ")" }, toName: function () { return 0 === this._a ? "transparent" : this._a < 1 ? !1 : U[i(this._r, this._g, this._b, !0)] || !1 }, toFilter: function (a) { var c = "#" + k(this._r, this._g, this._b, this._a), d = c, e = this._gradientType ? "GradientType = 1, " : ""; if (a) { var f = b(a); d = "#" + k(f._r, f._g, f._b, f._a) } return "progid:DXImageTransform.Microsoft.gradient(" + e + "startColorstr=" + c + ",endColorstr=" + d + ")" }, toString: function (a) { var b = !!a; a = a || this._format; var c = !1, d = this._a < 1 && this._a >= 0, e = !b && d && ("hex" === a || "hex6" === a || "hex3" === a || "hex4" === a || "hex8" === a || "name" === a); return e ? "name" === a && 0 === this._a ? this.toName() : this.toRgbString() : ("rgb" === a && (c = this.toRgbString()), "prgb" === a && (c = this.toPercentageRgbString()), ("hex" === a || "hex6" === a) && (c = this.toHexString()), "hex3" === a && (c = this.toHexString(!0)), "hex4" === a && (c = this.toHex8String(!0)), "hex8" === a && (c = this.toHex8String()), "name" === a && (c = this.toName()), "hsl" === a && (c = this.toHslString()), "hsv" === a && (c = this.toHsvString()), c || this.toHexString()) }, clone: function () { return b(this.toString()) }, _applyModification: function (a, b) { var c = a.apply(null, [this].concat([].slice.call(b))); return this._r = c._r, this._g = c._g, this._b = c._b, this.setAlpha(c._a), this }, lighten: function () { return this._applyModification(o, arguments) }, brighten: function () { return this._applyModification(p, arguments) }, darken: function () { return this._applyModification(q, arguments) }, desaturate: function () { return this._applyModification(l, arguments) }, saturate: function () { return this._applyModification(m, arguments) }, greyscale: function () { return this._applyModification(n, arguments) }, spin: function () { return this._applyModification(r, arguments) }, _applyCombination: function (a, b) { return a.apply(null, [this].concat([].slice.call(b))) }, analogous: function () { return this._applyCombination(w, arguments) }, complement: function () { return this._applyCombination(s, arguments) }, monochromatic: function () { return this._applyCombination(x, arguments) }, splitcomplement: function () { return this._applyCombination(v, arguments) }, triad: function () { return this._applyCombination(t, arguments) }, tetrad: function () { return this._applyCombination(u, arguments) } }, b.fromRatio = function (a, c) { if ("object" == typeof a) { var d = {}; for (var e in a) a.hasOwnProperty(e) && ("a" === e ? d[e] = a[e] : d[e] = G(a[e])); a = d } return b(a, c) }, b.equals = function (a, c) { return a && c ? b(a).toRgbString() == b(c).toRgbString() : !1 }, b.random = function () { return b.fromRatio({ r: S(), g: S(), b: S() }) }, b.mix = function (a, c, d) { d = 0 === d ? 0 : d || 50; var e = b(a).toRgb(), f = b(c).toRgb(), g = d / 100, h = { r: (f.r - e.r) * g + e.r, g: (f.g - e.g) * g + e.g, b: (f.b - e.b) * g + e.b, a: (f.a - e.a) * g + e.a }; return b(h) }, b.readability = function (c, d) { var e = b(c), f = b(d); return (a.max(e.getLuminance(), f.getLuminance()) + .05) / (a.min(e.getLuminance(), f.getLuminance()) + .05) }, b.isReadable = function (a, c, d) { var e, f, g = b.readability(a, c); switch (f = !1, e = L(d), e.level + e.size) { case "AAsmall": case "AAAlarge": f = g >= 4.5; break; case "AAlarge": f = g >= 3; break; case "AAAsmall": f = g >= 7 }return f }, b.mostReadable = function (a, c, d) { var e, f, g, h, i = null, j = 0; d = d || {}, f = d.includeFallbackColors, g = d.level, h = d.size; for (var k = 0; k < c.length; k++)e = b.readability(a, c[k]), e > j && (j = e, i = b(c[k])); return b.isReadable(a, i, { level: g, size: h }) || !f ? i : (d.includeFallbackColors = !1, b.mostReadable(a, ["#fff", "#000"], d)) }; var T = b.names = { aliceblue: "f0f8ff", antiquewhite: "faebd7", aqua: "0ff", aquamarine: "7fffd4", azure: "f0ffff", beige: "f5f5dc", bisque: "ffe4c4", black: "000", blanchedalmond: "ffebcd", blue: "00f", blueviolet: "8a2be2", brown: "a52a2a", burlywood: "deb887", burntsienna: "ea7e5d", cadetblue: "5f9ea0", chartreuse: "7fff00", chocolate: "d2691e", coral: "ff7f50", cornflowerblue: "6495ed", cornsilk: "fff8dc", crimson: "dc143c", cyan: "0ff", darkblue: "00008b", darkcyan: "008b8b", darkgoldenrod: "b8860b", darkgray: "a9a9a9", darkgreen: "006400", darkgrey: "a9a9a9", darkkhaki: "bdb76b", darkmagenta: "8b008b", darkolivegreen: "556b2f", darkorange: "ff8c00", darkorchid: "9932cc", darkred: "8b0000", darksalmon: "e9967a", darkseagreen: "8fbc8f", darkslateblue: "483d8b", darkslategray: "2f4f4f", darkslategrey: "2f4f4f", darkturquoise: "00ced1", darkviolet: "9400d3", deeppink: "ff1493", deepskyblue: "00bfff", dimgray: "696969", dimgrey: "696969", dodgerblue: "1e90ff", firebrick: "b22222", floralwhite: "fffaf0", forestgreen: "228b22", fuchsia: "f0f", gainsboro: "dcdcdc", ghostwhite: "f8f8ff", gold: "ffd700", goldenrod: "daa520", gray: "808080", green: "008000", greenyellow: "adff2f", grey: "808080", honeydew: "f0fff0", hotpink: "ff69b4", indianred: "cd5c5c", indigo: "4b0082", ivory: "fffff0", khaki: "f0e68c", lavender: "e6e6fa", lavenderblush: "fff0f5", lawngreen: "7cfc00", lemonchiffon: "fffacd", lightblue: "add8e6", lightcoral: "f08080", lightcyan: "e0ffff", lightgoldenrodyellow: "fafad2", lightgray: "d3d3d3", lightgreen: "90ee90", lightgrey: "d3d3d3", lightpink: "ffb6c1", lightsalmon: "ffa07a", lightseagreen: "20b2aa", lightskyblue: "87cefa", lightslategray: "789", lightslategrey: "789", lightsteelblue: "b0c4de", lightyellow: "ffffe0", lime: "0f0", limegreen: "32cd32", linen: "faf0e6", magenta: "f0f", maroon: "800000", mediumaquamarine: "66cdaa", mediumblue: "0000cd", mediumorchid: "ba55d3", mediumpurple: "9370db", mediumseagreen: "3cb371", mediumslateblue: "7b68ee", mediumspringgreen: "00fa9a", mediumturquoise: "48d1cc", mediumvioletred: "c71585", midnightblue: "191970", mintcream: "f5fffa", mistyrose: "ffe4e1", moccasin: "ffe4b5", navajowhite: "ffdead", navy: "000080", oldlace: "fdf5e6", olive: "808000", olivedrab: "6b8e23", orange: "ffa500", orangered: "ff4500", orchid: "da70d6", palegoldenrod: "eee8aa", palegreen: "98fb98", paleturquoise: "afeeee", palevioletred: "db7093", papayawhip: "ffefd5", peachpuff: "ffdab9", peru: "cd853f", pink: "ffc0cb", plum: "dda0dd", powderblue: "b0e0e6", purple: "800080", rebeccapurple: "663399", red: "f00", rosybrown: "bc8f8f", royalblue: "4169e1", saddlebrown: "8b4513", salmon: "fa8072", sandybrown: "f4a460", seagreen: "2e8b57", seashell: "fff5ee", sienna: "a0522d", silver: "c0c0c0", skyblue: "87ceeb", slateblue: "6a5acd", slategray: "708090", slategrey: "708090", snow: "fffafa", springgreen: "00ff7f", steelblue: "4682b4", tan: "d2b48c", teal: "008080", thistle: "d8bfd8", tomato: "ff6347", turquoise: "40e0d0", violet: "ee82ee", wheat: "f5deb3", white: "fff", whitesmoke: "f5f5f5", yellow: "ff0", yellowgreen: "9acd32" }, U = b.hexNames = y(T), V = function () { var a = "[-\\+]?\\d+%?", b = "[-\\+]?\\d*\\.\\d+%?", c = "(?:" + b + ")|(?:" + a + ")", d = "[\\s|\\(]+(" + c + ")[,|\\s]+(" + c + ")[,|\\s]+(" + c + ")\\s*\\)?", e = "[\\s|\\(]+(" + c + ")[,|\\s]+(" + c + ")[,|\\s]+(" + c + ")[,|\\s]+(" + c + ")\\s*\\)?"; return { CSS_UNIT: new RegExp(c), rgb: new RegExp("rgb" + d), rgba: new RegExp("rgba" + e), hsl: new RegExp("hsl" + d), hsla: new RegExp("hsla" + e), hsv: new RegExp("hsv" + d), hsva: new RegExp("hsva" + e), hex3: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/, hex6: /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/, hex4: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/, hex8: /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/ } }(); "undefined" != typeof module && module.exports ? module.exports = b : "function" == typeof define && define.amd ? define(function () { return b }) : window.tinycolor = b }(Math);
 }(jQuery));
