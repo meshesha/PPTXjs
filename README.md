@@ -126,7 +126,7 @@ PPTXjs
 </script>
  ``` 
 # Changelog
-* 1.21.00
+* v1.21.00
   * add theme (background) support
   * improved tables
   * improved bullets (add ./js/dingbat.js)
