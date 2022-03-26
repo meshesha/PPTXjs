@@ -1,10 +1,12 @@
 /**
  * pptxjs.js
- * Ver. : 1.21.00
- * last update: 14/11/2021
+ * Ver. : 1.21.1
+ * last update: 16/11/2021
  * Author: meshesha , https://github.com/meshesha
  * LICENSE: MIT
  * url:https://pptx.js.org/
+ * fix issues:
+ * [#16](https://github.com/meshesha/PPTXjs/issues/16)
  */
 
 (function ($) {
@@ -8527,8 +8529,14 @@
                 case "http://schemas.openxmlformats.org/presentationml/2006/ole":
                     //result = genDiagram(node, warpObj, source, sType);
                     var oleObjNode = getTextByPathList(node, ["a:graphic", "a:graphicData", "mc:AlternateContent", "mc:Fallback","p:oleObj"]);
-                    //console.log("oleObjNode:", oleObjNode)
-                    result = processGroupSpNode(oleObjNode, warpObj, source);
+                    
+                    if (oleObjNode === undefined) {
+                        oleObjNode = getTextByPathList(node, ["a:graphic", "a:graphicData", "p:oleObj"]);
+                    }
+                    //console.log("node:", node, "oleObjNode:", oleObjNode)
+                    if (oleObjNode !== undefined){
+                        result = processGroupSpNode(oleObjNode, warpObj, source);
+                    }
                     break;
                 default:
             }

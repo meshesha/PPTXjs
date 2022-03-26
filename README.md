@@ -126,6 +126,10 @@ PPTXjs
 </script>
  ``` 
 # Changelog
+* v1.21.1
+  * fixed issues:
+    - [#16](https://github.com/meshesha/PPTXjs/issues/16)
+
 * v1.21.00
   * add theme (background) support
   * improved tables
