@@ -1,96 +1,61 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<title>PPTXjs - Meshesha</title>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>PPTXjs - Meshesha</title>
 
-<link rel="stylesheet" href="./css/pptxjs.css">
-<link rel="stylesheet" href="./css/nv.d3.min.css">
+	<link rel="stylesheet" href="./css/pptxjs.css">
+	<link rel="stylesheet" href="./css/nv.d3.min.css">
 
-<script type="text/javascript" src="./js/jquery-1.11.3.min.js"></script>
-<script type="text/javascript" src="./js/jszip.min.js"></script>
-<script type="text/javascript" src="./js/filereader.js"></script>
-<script type="text/javascript" src="./js/d3.min.js"></script>
-<script type="text/javascript" src="./js/nv.d3.min.js"></script>
-<script type="text/javascript" src="./js/pptxjs.js"></script>
-<script type="text/javascript" src="./js/divs2slides.js"></script>
+	<script type="text/javascript" src="./js/d3.min.js"></script>
+	<script type="text/javascript" src="./js/dingbat.min.js"></script>
+	<script type="text/javascript" src="./js/filereader.min.js"></script>
+	<script type="text/javascript" src="./js/jszip.min.js"></script>
+	<script type="text/javascript" src="./js/nv.d3.min.js"></script>
+	<script type="text/javascript" src="./js/pptxjs.min.js"></script>
+	<style>
+		html,
+		body {
+			margin: 0;
+			padding: 0;
+		}
 
-<script type="text/javascript" src="./js/jquery.fullscreen-min.js"></script>
-
-<script type="text/javascript">
-    $(function() {
-		var oldWidth, oldMargin ,isFullscreenMode=false;
-		$("#fullscreen-btn").on("click", function(){
-			 			
-			if(!isFullscreenMode){
-				oldWidth = $("#result .slide").css("width");
-				oldMargin = $("#result .slide").css("margin");
-				$("#result .slide").css({
-					"width": "99%",
-					"margin": "0 auto"
-				})
-				$("#result").toggleFullScreen();
-				isFullscreenMode = true;
-			}else{
-				$("#result .slide").css({
-					"width": oldWidth,
-					"margin": oldMargin
-				})
-				$("#result").toggleFullScreen();
-				isFullscreenMode = false;
-			}		
-		});
-		$(document).bind("fullscreenchange", function() {
-			if(!$(document).fullScreen()){
-				$("#result .slide").css({
-					"width": oldWidth,
-  					"margin": oldMargin
-				})
-			}
-		});
-    });
-</script>
-<style>
-	html, body { margin: 0; padding: 0; }
-	#warper { margin-right: auto; margin-left: auto; width: 900px; }
-</style>
+		#warper {
+			margin-right: auto;
+			margin-left: auto;
+			width: 900px;
+		}
+	</style>
 </head>
+
 <body>
 	<div id="warper">
 		<input id="uploadFileInput" type="file" />
 		<br><br>
-		<div id="container">
-			<input id="fullscreen-btn" type="button" value="Fullscreen" />
-			<br>
-			<div  id="result"></div>
-		</div>
+		<div id="container"></div>
 	</div>
-<script>
-$("#result").pptxToHtml({
-	pptxFileUrl: "Sample_12.pptx",
-	fileInputId: "uploadFileInput",
-	slideMode: false,
-	keyBoardShortCut: false,
-	slideModeConfig: {  //on slide mode (slideMode: true)
-	    first: 1, 
-	    nav: false, /** true,false : show or not nav buttons*/
-	    navTxtColor: "white", /** color */
-	    navNextTxt:"&#8250;", //">"
-	    navPrevTxt: "&#8249;", //"<"
-	    showPlayPauseBtn: false,/** true,false */
-	    keyBoardShortCut: false, /** true,false */
-	    showSlideNum: false, /** true,false */
-	    showTotalSlideNum: false, /** true,false */
-	    autoSlide: false, /** false or seconds (the pause time between slides) , F8 to active(keyBoardShortCut: true) */
-	    randomAutoSlide: false, /** true,false ,autoSlide:true */ 
-	    loop: false,  /** true,false */
-	    background: "black", /** false or color*/
-	    transition: "default", /** transition type: "slid","fade","default","random" , to show transition efects :transitionTime > 0.5 */
-	    transitionTime: 1 /** transition time in seconds */
-	}
-});
-</script>
+	<script>
+		document.getElementById("uploadFileInput").addEventListener("change", (e) => {
+			const file = e.target.files[0];
+			if (!file) {
+				return;
+			}
+			const reader = new FileReader();
+			reader.onload = function (event) {
+				document.getElementById("container").innerHTML = "";
+				pptxToHtml({
+					divId: "container",
+					fileContent: event.target.result,
+					onComplete: (metadata) => console.log(metadata),
+					onError: (error) => console.error(error),
+				});
+			};
+			reader.readAsArrayBuffer(file);
+		});
+	</script>
 
 </body>
+
 </html>
