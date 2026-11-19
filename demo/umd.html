@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PPTXjs v1 drop-in check</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 24px; background: #f4f5f8; }
+      #result { max-width: 960px; margin: 0 auto; }
+    </style>
+  </head>
+  <body>
+    <!--
+      v1-style page: jQuery + the UMD bundle, unchanged v1 call.
+      Serve the repository root (npm run build first) and open /demo/umd.html
+    -->
+    <p><input id="upload" type="file" accept=".pptx" /> <pptx-viewer id="wc" hidden></pptx-viewer></p>
+    <div id="result"></div>
+    <script src="../legacy/js/jquery-1.11.3.min.js"></script>
+    <script src="../dist/pptxjs.umd.js"></script>
+    <script>
+      $("#result").pptxToHtml({
+        pptxFileUrl: "../test/fixtures/Sample_12.pptx",
+        fileInputId: "upload",
+        slideMode: true,
+        keyBoardShortCut: true,
+        slideModeConfig: { first: 1, nav: true, showSlideNum: true, autoSlide: false, loop: true, transition: "slid", transitionTime: 0.5 },
+      });
+      window.__viewer = $("#result").pptxViewer();
+    </script>
+  </body>
+</html>

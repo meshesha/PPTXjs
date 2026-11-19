@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, v2]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Smoke-test the built package
+        run: node -e "require('./dist/pptxjs.cjs').renderToHtml(require('fs').readFileSync('test/fixtures/issues/issue-8.pptx')).then(r => { if (!r.slides.length) process.exit(1); console.log(r.slides.length, 'slides') })"
