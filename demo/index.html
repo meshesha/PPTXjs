@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PPTXjs demo</title>
+    <meta name="description" content="PPTXjs v2: render, present, edit and export PowerPoint files in the browser." />
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">P</span>
+        <div>
+          <h1>PPTXjs</h1>
+          <p class="tagline">Render, present, edit and export .pptx in the browser. No jQuery, no server.</p>
+        </div>
+      </div>
+      <div class="source">
+        <label class="btn primary" for="file">Open .pptx…</label>
+        <input id="file" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden />
+        <button class="btn" id="load-sample" type="button">Load sample deck</button>
+        <span id="file-name" class="muted" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Demo sections">
+      <button role="tab" aria-selected="true" aria-controls="tab-viewer" id="t-viewer">Viewer</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-editor" id="t-editor">Editor</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-convert" id="t-convert">Convert &amp; API</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-frameworks" id="t-frameworks">Frameworks</button>
+    </nav>
+
+    <main>
+      <section id="tab-viewer" role="tabpanel" aria-labelledby="t-viewer" class="panel active">
+        <aside class="options" aria-label="Viewer options">
+          <h2>Options</h2>
+          <label>Mode
+            <select id="opt-mode"><option value="list">List</option><option value="slideshow">Slideshow</option></select>
+          </label>
+          <label>Scale
+            <select id="opt-scale"><option value="fit">Fit width</option><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select>
+          </label>
+          <label>Transition
+            <select id="opt-transition"><option>fade</option><option>slide</option><option>zoom</option><option>random</option><option>none</option></select>
+          </label>
+          <label>Autoplay (s)
+            <input id="opt-autoplay" type="number" min="0" max="60" value="0" />
+          </label>
+          <label class="check"><input id="opt-loop" type="checkbox" /> Loop</label>
+          <label>Theme
+            <select id="opt-theme"><option value="true">Full theme</option><option value="colorsAndImageOnly">Colours &amp; images only</option><option value="false">None</option></select>
+          </label>
+          <label>Text direction
+            <select id="opt-textdir"><option value="file">From file (PowerPoint)</option><option value="auto">Auto-detect (Hebrew/Arabic → RTL)</option><option value="rtl">Right to left</option></select>
+          </label>
+          <label>UI direction
+            <select id="opt-dir"><option value="auto">Auto (page)</option><option value="ltr">Left to right</option><option value="rtl">Right to left (עברית)</option></select>
+          </label>
+          <label class="check"><input id="opt-hidden" type="checkbox" /> Skip hidden slides</label>
+          <label class="check"><input id="opt-external" type="checkbox" /> Embed external videos</label>
+          <div class="row">
+            <button class="btn" id="btn-prev" type="button" aria-label="Previous slide">◀</button>
+            <button class="btn" id="btn-next" type="button" aria-label="Next slide">▶</button>
+            <button class="btn" id="btn-fs" type="button">Fullscreen</button>
+          </div>
+          <p class="hint">Keys: ← → Space, Home/End, <kbd>F</kbd> fullscreen, <kbd>P</kbd> play. Click the slides first to focus them.</p>
+          <h2>Events</h2>
+          <ol id="log" class="log" aria-live="polite"></ol>
+        </aside>
+        <div class="stage-wrap">
+          <div id="drop" class="drop" hidden>Drop a .pptx file to open it</div>
+          <div id="viewer" class="viewer-host"></div>
+        </div>
+      </section>
+
+      <section id="tab-editor" role="tabpanel" aria-labelledby="t-editor" class="panel" hidden>
+        <p class="hint">Click a shape to select it, drag it to move, use the handles to resize, double-click to edit text.
+          <kbd>Del</kbd> deletes, arrows nudge (<kbd>Shift</kbd> = 10px), <kbd>Ctrl+Z</kbd>/<kbd>Ctrl+Y</kbd> undo/redo, <kbd>Ctrl+D</kbd> duplicates.
+          Download the result as .pptx or .odp from the toolbar.</p>
+        <div id="editor" class="editor-host"></div>
+      </section>
+
+      <section id="tab-convert" role="tabpanel" aria-labelledby="t-convert" class="panel" hidden>
+        <div class="convert">
+          <div>
+            <h2>Headless rendering</h2>
+            <p>The renderer has no DOM dependency: it runs in Web Workers and in Node.js.</p>
+            <pre><code>import { renderToHtml } from "@meshesha/pptxjs";
+const { slides, css, width, height } = await renderToHtml(bytes);
+slides[0].html;   // HTML of slide 1
+slides[0].notes;  // speaker notes</code></pre>
+            <div class="row">
+              <button class="btn primary" id="btn-render" type="button">Render current file to HTML</button>
+              <button class="btn" id="btn-dl-html" type="button" disabled>Download .html</button>
+              <button class="btn" id="btn-dl-odp" type="button" disabled>Convert to .odp</button>
+            </div>
+            <p id="convert-stats" class="muted"></p>
+          </div>
+          <div>
+            <h2>Slides &amp; notes</h2>
+            <ol id="notes" class="notes"></ol>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-frameworks" role="tabpanel" aria-labelledby="t-frameworks" class="panel" hidden>
+        <div class="fw">
+          <article><h3>Vanilla JS</h3><pre><code>import { PptxViewer } from "@meshesha/pptxjs";
+const viewer = new PptxViewer("#slides", { mode: "slideshow" });
+await viewer.load("deck.pptx");</code></pre></article>
+          <article><h3>React</h3><pre><code>import { PptxViewer } from "@meshesha/pptxjs/react";
+&lt;PptxViewer src="/deck.pptx" options={{ mode: "slideshow" }} /&gt;</code></pre></article>
+          <article><h3>Vue 3</h3><pre><code>import { PptxViewer } from "@meshesha/pptxjs/vue";
+&lt;PptxViewer src="/deck.pptx" :options="{ mode: 'slideshow' }" @load="onLoad" /&gt;</code></pre></article>
+          <article><h3>Angular</h3><pre><code>import { definePptxElements } from "@meshesha/pptxjs/angular";
+definePptxElements(); // + CUSTOM_ELEMENTS_SCHEMA
+&lt;pptx-viewer [attr.src]="url" mode="slideshow"&gt;&lt;/pptx-viewer&gt;</code></pre></article>
+          <article><h3>jQuery (v1 compatible)</h3><pre><code>$("#result").pptxToHtml({
+  pptxFileUrl: "deck.pptx", slideMode: true
+});</code></pre></article>
+          <article><h3>Web Component</h3><pre><code>&lt;pptx-viewer src="deck.pptx" mode="slideshow" loop&gt;&lt;/pptx-viewer&gt;</code></pre></article>
+        </div>
+        <h2>Live Web Component</h2>
+        <div id="wc-host"></div>
+      </section>
+    </main>
+    <footer class="foot">PPTXjs v2 · MIT · <a href="https://github.com/meshesha/PPTXjs" rel="noopener">GitHub</a></footer>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

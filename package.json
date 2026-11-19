@@ -1,0 +1,133 @@
+{
+  "name": "@meshesha/pptxjs",
+  "version": "2.0.0-alpha.0",
+  "description": "Render, edit and export PowerPoint (.pptx) presentations in the browser. Framework-agnostic, zero runtime dependencies besides fflate.",
+  "license": "MIT",
+  "author": "meshesha (https://github.com/meshesha)",
+  "homepage": "https://pptx.js.org/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meshesha/PPTXjs.git"
+  },
+  "bugs": "https://github.com/meshesha/PPTXjs/issues",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "presentation",
+    "slides",
+    "viewer",
+    "converter",
+    "html",
+    "odp",
+    "react",
+    "vue",
+    "angular",
+    "jquery"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/pptxjs.cjs",
+  "module": "./dist/pptxjs.js",
+  "types": "./dist/types/index.d.ts",
+  "unpkg": "./dist/pptxjs.umd.js",
+  "jsdelivr": "./dist/pptxjs.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/pptxjs.js",
+      "require": "./dist/pptxjs.cjs"
+    },
+    "./react": {
+      "types": "./dist/types/adapters/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./vue": {
+      "types": "./dist/types/adapters/vue.d.ts",
+      "import": "./dist/vue.js",
+      "require": "./dist/vue.cjs"
+    },
+    "./jquery": {
+      "types": "./dist/types/adapters/jquery.d.ts",
+      "import": "./dist/jquery.js",
+      "require": "./dist/jquery.cjs"
+    },
+    "./angular": {
+      "types": "./dist/types/adapters/angular.d.ts",
+      "import": "./dist/angular.js",
+      "require": "./dist/angular.cjs"
+    },
+    "./style.css": "./dist/pptxjs.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "dev": "vite --config demo/vite.config.ts",
+    "build": "npm run build:lib && npm run build:umd && npm run build:types",
+    "build:lib": "vite build",
+    "build:umd": "vite build --config vite.umd.config.ts",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:demo": "vite build --config demo/vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "fixtures": "esbuild scripts/render-fixtures.ts --bundle --platform=node --format=cjs --outfile=test/output/render-fixtures.cjs --log-level=warning && node test/output/render-fixtures.cjs",
+    "baseline:legacy": "node scripts/legacy-baseline.mjs",
+    "baseline:compare": "node scripts/compare-baseline.mjs",
+    "validate:powerpoint": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-powerpoint.ps1 test/output/exports"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=16",
+    "jquery": ">=1.11",
+    "react": ">=17",
+    "vue": ">=3.2"
+  },
+  "peerDependenciesMeta": {
+    "@angular/core": {
+      "optional": true
+    },
+    "jquery": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.5.32",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "eslint": "^9.39.0",
+    "jquery": "^3.7.1",
+    "jsdom": "^26.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12",
+    "vue": "^3.5.0",
+    "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

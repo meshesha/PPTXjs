@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+test/baseline/
+test/output/
+*.log
+.DS_Store
+dist-demo/
+test/fixtures/issues/

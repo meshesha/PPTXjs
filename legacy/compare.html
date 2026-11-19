@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>v1 render</title>
+<link rel="stylesheet" href="./css/pptxjs.css"><link rel="stylesheet" href="./css/nv.d3.min.css">
+<script src="./js/jquery-1.11.3.min.js"></script><script src="./js/jszip.min.js"></script>
+<script src="./js/filereader.js"></script><script src="./js/d3.min.js"></script><script src="./js/nv.d3.min.js"></script>
+<script src="./js/dingbat.js"></script><script src="./js/pptxjs.js"></script><script src="./js/divs2slides.js"></script>
+</head><body style="background:#e5e5e5"><div id="result"></div>
+<script>
+// v1 reference renderer for side-by-side checks: /legacy/compare.html?f=issues/issue-40.pptx
+var f = new URLSearchParams(location.search).get("f") || "Sample_12.pptx";
+$("#result").pptxToHtml({ pptxFileUrl: "../test/fixtures/" + f, slideMode: false, keyBoardShortCut: false });
+</script></body></html>
